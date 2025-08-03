@@ -1,0 +1,53 @@
+# Learn more https://docs.github.com/en/get-started/getting-started-with-git/ignoring-files
+
+# Zależności
+# Zawsze ignoruj folder node_modules
+node_modules/
+
+# Ignoruj pliki lock menedżerów pakietów, których nie używasz
+# W tym projekcie używamy NPM, więc ignorujemy pliki Yarn
+yarn.lock
+yarn.lock.bak
+
+# Pliki tymczasowe i logi Expo
+.expo/
+dist/
+web-build/
+expo-env.d.ts
+
+# Foldery natywne generowane przez Expo (Bare Workflow)
+# Nigdy nie wysyłaj folderów /android i /ios do repozytorium!
+/android/
+/ios/
+.kotlin/
+
+# Pliki kluczy i certyfikatów
+*.orig.*
+*.jks
+*.p8
+*.p12
+*.key
+*.mobileprovision
+*.pem
+
+# Pliki tymczasowe Metro Bundlera
+.metro-health-check*
+
+# Pliki debugowania
+npm-debug.*
+yarn-debug.*
+yarn-error.*
+
+# Pliki systemowe macOS
+.DS_Store
+
+# Pliki ze zmiennymi środowiskowymi (SEKRETY!)
+.env
+.env*.local
+
+# Pliki tymczasowe TypeScript
+*.tsbuildinfo
+
+# Pliki konfiguracyjne Firebase (SEKRETY!)
+# Nigdy nie wysyłaj tego pliku do publicznego repozytorium!
+google-services.json
