@@ -51,3 +51,5 @@ yarn-error.*
 # Pliki konfiguracyjne Firebase (SEKRETY!)
 # Nigdy nie wysyłaj tego pliku do publicznego repozytorium!
 google-services.json
+
+firebaseConfig.ts
