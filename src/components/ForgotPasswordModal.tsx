@@ -1,8 +1,11 @@
-import React, { useState } from 'react';
-import { View, Text, Modal, StyleSheet, TextInput, TouchableOpacity, ActivityIndicator, Alert } from 'react-native';
+import React, { useState, useRef } from 'react';
+import { View, Text, Modal, StyleSheet, TextInput, TouchableOpacity, ActivityIndicator, Animated } from 'react-native';
 import auth from '@react-native-firebase/auth';
 import { useToast } from '../contexts/ToastContext';
 import { Colors, Spacing, Typography, GlobalStyles } from '../styles/AppStyles';
+import { findUserEmailByIdentifier } from '../utils/authUtils';
+import PhonePasswordResetModal from './PhonePasswordResetModal';
+import { Feather } from '@expo/vector-icons';
 
 interface ForgotPasswordModalProps {
   visible: boolean;
@@ -10,28 +13,62 @@ interface ForgotPasswordModalProps {
 }
 
 const ForgotPasswordModal = ({ visible, onClose }: ForgotPasswordModalProps) => {
-  const [email, setEmail] = useState('');
+  const [identifier, setIdentifier] = useState(''); // Zmiana z email na identifier
   const [isLoading, setIsLoading] = useState(false);
+  const [showPhoneReset, setShowPhoneReset] = useState(false);
   const { showToast } = useToast();
+  
+  const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' | 'info' } | null>(null);
+  const [isToastVisible, setIsToastVisible] = useState(false);
+  const fadeAnim = useRef(new Animated.Value(0)).current;
 
-  const handlePasswordReset = async () => {
-    if (!email.trim()) {
-      showToast('Proszę wprowadzić adres e-mail.', 'error');
+  const showCustomToast = (message: string, type: 'success' | 'error' | 'info') => {
+    // Jeśli toast jest już wyświetlany, po prostu zaktualizuj wiadomość
+    if (isToastVisible) {
+      setToast({ message, type });
       return;
     }
+    
+    setIsToastVisible(true);
+    setToast({ message, type });
+    Animated.sequence([
+      Animated.timing(fadeAnim, { toValue: 1, duration: 300, useNativeDriver: true }),
+      Animated.delay(2500),
+      Animated.timing(fadeAnim, { toValue: 0, duration: 300, useNativeDriver: true }),
+    ]).start(() => {
+      setToast(null);
+      setIsToastVisible(false);
+    });
+  };
+
+  const handlePasswordReset = async () => {
+    if (!identifier.trim()) {
+      showCustomToast('Proszę wprowadzić e-mail.', 'error');
+      return;
+    }
+    
     setIsLoading(true);
     try {
-      await auth().sendPasswordResetEmail(email.trim());
-      Alert.alert(
-        "Sprawdź skrzynkę e-mail",
-        `Wysłaliśmy link do zresetowania hasła na adres ${email.trim()}. Sprawdź również folder spam.`,
-        [{ text: "OK", onPress: onClose }]
-      );
+      // Sprawdź, czy użytkownik istnieje i pobierz jego e-mail
+      const email = await findUserEmailByIdentifier(identifier.trim());
+      
+      if (!email) {
+        showCustomToast('Nie znaleziono użytkownika.', 'error');
+        setIsLoading(false);
+        return;
+      }
+
+      await auth().sendPasswordResetEmail(email);
+      showCustomToast('Wysłaliśmy link do zresetowania hasła na adres powiązany z Twoim kontem. Sprawdź również folder spam.', 'success');
+      setTimeout(() => {
+        onClose();
+      }, 3000);
     } catch (error: any) {
+      // Błędy z `findUserEmailByIdentifier` będą tu obsługiwane
       if (error.code === 'auth/user-not-found') {
-        showToast('Nie znaleziono użytkownika o podanym adresie e-mail.', 'error');
+        showCustomToast('Nie znaleziono użytkownika.', 'error');
       } else {
-        showToast('Wystąpił nieoczekiwany błąd. Spróbuj ponownie.', 'error');
+        showCustomToast('Wystąpił nieoczekiwany błąd. Spróbuj ponownie.', 'error');
         console.error("Błąd resetowania hasła:", error);
       }
     } finally {
@@ -40,39 +77,76 @@ const ForgotPasswordModal = ({ visible, onClose }: ForgotPasswordModalProps) => 
   };
 
   const handleClose = () => {
-    setEmail('');
+    setIdentifier('');
+    setShowPhoneReset(false);
     onClose();
   };
 
+  const getToastStyle = (type: 'success' | 'error' | 'info') => {
+    switch (type) {
+        case 'success': return { backgroundColor: Colors.success, iconName: 'check-circle' as const };
+        case 'error': return { backgroundColor: Colors.error, iconName: 'alert-triangle' as const };
+        case 'info': return { backgroundColor: Colors.info, iconName: 'info' as const };
+        default: return { backgroundColor: Colors.textSecondary, iconName: 'help-circle' as const };
+    }
+  };
+
   return (
-    <Modal visible={visible} transparent={true} animationType="slide" onRequestClose={handleClose}>
-      <View style={styles.modalContainer}>
-        <View style={styles.modalContent}>
-          <Text style={styles.modalTitle}>Zresetuj hasło</Text>
-          <Text style={styles.modalSubtitle}>Podaj swój adres e-mail, a wyślemy Ci link do ustawienia nowego hasła.</Text>
-          <TextInput
-            style={GlobalStyles.input}
-            placeholder="Adres e-mail"
-            value={email}
-            onChangeText={setEmail}
-            keyboardType="email-address"
-            autoCapitalize="none"
-            editable={!isLoading}
-            placeholderTextColor={Colors.placeholder}
-          />
-          <TouchableOpacity
-            style={[GlobalStyles.button, { marginTop: Spacing.medium, width: '100%' }]}
-            onPress={handlePasswordReset}
-            disabled={isLoading}
-          >
-            {isLoading ? <ActivityIndicator color="white" /> : <Text style={GlobalStyles.buttonText}>Wyślij link</Text>}
-          </TouchableOpacity>
-          <TouchableOpacity style={styles.cancelButton} onPress={handleClose}>
-            <Text style={styles.cancelButtonText}>Anuluj</Text>
-          </TouchableOpacity>
-        </View>
-      </View>
-    </Modal>
+    <>
+             <Modal visible={visible} transparent={true} animationType="slide" onRequestClose={handleClose}>
+         <View style={styles.modalContainer}>
+           <View style={styles.modalContent}>
+             {toast && (
+                 <Animated.View style={[styles.toastContainer, { opacity: fadeAnim, backgroundColor: getToastStyle(toast.type).backgroundColor }]}>
+                     <Feather name={getToastStyle(toast.type).iconName} size={24} color="white" style={styles.toastIcon} />
+                     <Text style={styles.toastText}>{toast.message}</Text>
+                 </Animated.View>
+             )}
+             <Text style={styles.modalTitle}>Zresetuj hasło</Text>
+             <Text style={styles.modalSubtitle}>Podaj swój e-mail, a wyślemy Ci link do ustawienia nowego hasła.</Text>
+             <TextInput
+               style={GlobalStyles.input}
+               placeholder="Adres e-mail"
+               value={identifier}
+               onChangeText={setIdentifier}
+               autoCapitalize="none"
+               editable={!isLoading}
+               placeholderTextColor={Colors.placeholder}
+             />
+             <TouchableOpacity
+               style={[GlobalStyles.button, { marginTop: Spacing.medium, width: '100%' }]}
+               onPress={handlePasswordReset}
+               disabled={isLoading}
+             >
+               {isLoading ? <ActivityIndicator color="white" /> : <Text style={GlobalStyles.buttonText}>Wyślij link</Text>}
+             </TouchableOpacity>
+             
+             <View style={styles.dividerContainer}>
+               <View style={styles.dividerLine} />
+               <Text style={styles.dividerText}>lub</Text>
+               <View style={styles.dividerLine} />
+             </View>
+             
+             <TouchableOpacity
+               style={[GlobalStyles.button, { marginTop: Spacing.small, backgroundColor: Colors.secondary }]}
+               onPress={() => setShowPhoneReset(true)}
+               disabled={isLoading}
+             >
+               <Text style={GlobalStyles.buttonText}>Resetuj przez telefon</Text>
+             </TouchableOpacity>
+             
+             <TouchableOpacity style={styles.cancelButton} onPress={handleClose}>
+               <Text style={styles.cancelButtonText}>Anuluj</Text>
+             </TouchableOpacity>
+           </View>
+         </View>
+       </Modal>
+      
+      <PhonePasswordResetModal 
+        visible={showPhoneReset} 
+        onClose={() => setShowPhoneReset(false)} 
+      />
+    </>
   );
 };
 
@@ -83,6 +157,12 @@ const styles = StyleSheet.create({
     modalSubtitle: { ...Typography.body, color: Colors.textSecondary, textAlign: 'center', marginBottom: Spacing.large },
     cancelButton: { marginTop: Spacing.medium, padding: Spacing.small },
     cancelButtonText: { color: Colors.primary, fontSize: 16 },
+    dividerContainer: { flexDirection: 'row', alignItems: 'center', width: '100%', marginVertical: 0, marginTop: Spacing.medium, marginBottom: Spacing.small },
+    dividerLine: { flex: 1, height: 1, backgroundColor: Colors.border },
+    dividerText: { ...Typography.small, color: Colors.textSecondary, marginHorizontal: Spacing.medium },
+    toastContainer: { position: 'absolute', top: -155, left: Spacing.medium, right: Spacing.medium, padding: Spacing.medium, borderRadius: 12, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(0,0,0,0.8)', elevation: 10, zIndex: 9999 },
+    toastIcon: { marginRight: Spacing.medium },
+    toastText: { ...Typography.body, color: 'white', fontWeight: '600', flexShrink: 1 },
 });
 
 export default ForgotPasswordModal;

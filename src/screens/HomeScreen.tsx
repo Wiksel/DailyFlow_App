@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, FlatList, ActivityIndicator, Alert, Modal, TextInput } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, FlatList, ActivityIndicator, Alert, Modal, TextInput, Image } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import auth from '@react-native-firebase/auth';
 import { db } from '../../firebaseConfig';
@@ -243,7 +243,6 @@ const HomeScreen = () => {
         if (!currentUser || !userProfile) return;
         try {
             const taskRef = doc(db, 'tasks', task.id);
-            // ZMIANA: Zawsze aktualizujemy profil bieżącego użytkownika
             const userRef = doc(db, 'users', currentUser.uid);
             const isCompleting = !task.completed;
             await updateDoc(taskRef, {
@@ -342,7 +341,15 @@ const HomeScreen = () => {
                         <Feather name="file-text" size={26} color={Colors.textPrimary} />
                     </TouchableOpacity>
                     <TouchableOpacity onPress={() => navigation.navigate('Profile')}>
-                         <Feather name="user" size={28} color={Colors.textPrimary} />
+                         {userProfile?.photoURL ? (
+                            <Image source={{ uri: userProfile.photoURL }} style={styles.headerAvatar} />
+                         ) : (
+                            <View style={styles.headerAvatarPlaceholder}>
+                                <Text style={styles.headerAvatarText}>
+                                    {userProfile?.nickname ? userProfile.nickname.charAt(0).toUpperCase() : '?'}
+                                </Text>
+                            </View>
+                         )}
                     </TouchableOpacity>
                 </View>
             </View>
@@ -456,6 +463,24 @@ const styles = StyleSheet.create({
         color: Colors.textPrimary,
     },
     headerIcons: { flexDirection: 'row', alignItems: 'center' },
+    headerAvatar: {
+        width: 32,
+        height: 32,
+        borderRadius: 16,
+    },
+    headerAvatarPlaceholder: {
+        width: 32,
+        height: 32,
+        borderRadius: 16,
+        backgroundColor: Colors.secondary,
+        justifyContent: 'center',
+        alignItems: 'center',
+    },
+    headerAvatarText: {
+        color: 'white',
+        fontSize: 16,
+        fontWeight: 'bold',
+    },
     partnerInfoBanner: {
         backgroundColor: Colors.light,
         padding: Spacing.small,

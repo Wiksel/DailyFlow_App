@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, TextInput, Alert, ActivityIndicator, ScrollView } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, TextInput, Alert, ActivityIndicator, ScrollView, Image } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import auth from '@react-native-firebase/auth';
 import { db } from '../../firebaseConfig';
@@ -183,6 +183,17 @@ const ProfileScreen = () => {
     return (
         <ScrollView style={GlobalStyles.container}>
             <View style={styles.profileSection}>
+                <View style={styles.avatarContainer}>
+                    {userProfile?.photoURL ? (
+                        <Image source={{ uri: userProfile.photoURL }} style={styles.avatarImage} />
+                    ) : (
+                        <View style={styles.avatarPlaceholder}>
+                            <Text style={styles.avatarText}>
+                                {userProfile?.nickname ? userProfile.nickname.charAt(0).toUpperCase() : '?'}
+                            </Text>
+                        </View>
+                    )}
+                </View>
                 <Text style={styles.nicknameText}>{userProfile?.nickname || 'Brak nicku'}</Text>
                 <Text style={styles.emailText}>{currentUser?.email}</Text>
             </View>
@@ -296,6 +307,35 @@ const styles = StyleSheet.create({
         alignItems: 'center',
         borderBottomWidth: 1,
         borderColor: Colors.border,
+    },
+    avatarContainer: {
+        width: 100,
+        height: 100,
+        borderRadius: 50,
+        backgroundColor: Colors.light,
+        justifyContent: 'center',
+        alignItems: 'center',
+        marginBottom: Spacing.medium,
+        borderWidth: 3,
+        borderColor: Colors.primary,
+    },
+    avatarImage: {
+        width: '100%',
+        height: '100%',
+        borderRadius: 50,
+    },
+    avatarPlaceholder: {
+        width: '100%',
+        height: '100%',
+        borderRadius: 50,
+        backgroundColor: Colors.primary,
+        justifyContent: 'center',
+        alignItems: 'center',
+    },
+    avatarText: {
+        color: 'white',
+        fontSize: 48,
+        fontWeight: 'bold',
     },
     nicknameText: { ...Typography.h2 },
     emailText: { ...Typography.body, color: Colors.textSecondary, marginTop: Spacing.xSmall },

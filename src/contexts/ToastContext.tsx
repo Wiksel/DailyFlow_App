@@ -33,6 +33,12 @@ export const ToastProvider = ({ children }: ToastProviderProps) => {
   const fadeAnim = useState(new Animated.Value(0))[0];
 
   const showToast = (message: string, type: ToastType) => {
+    // Jeśli toast jest już wyświetlany, po prostu zaktualizuj wiadomość
+    if (toast) {
+      setToast({ message, type });
+      return;
+    }
+    
     setToast({ message, type });
     Animated.sequence([
       Animated.timing(fadeAnim, {
@@ -82,27 +88,29 @@ export const ToastProvider = ({ children }: ToastProviderProps) => {
 const styles = StyleSheet.create({
   toastContainer: {
     position: 'absolute',
-    top: 60,
-    left: 20,
-    right: 20,
-    paddingVertical: Spacing.small,
-    paddingHorizontal: Spacing.medium, // ZMIANA: Zwiększony padding
-    borderRadius: 10,
+    top: Spacing.xxLarge,
+    left: Spacing.medium,
+    right: Spacing.medium,
+    padding: Spacing.medium,
+    borderRadius: 12,
     flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'center',
     elevation: 10,
+    zIndex: 9999,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.25,
     shadowRadius: 3.84,
   },
   icon: {
-    marginRight: Spacing.medium, // ZMIANA: Zwiększony margines
+    marginRight: Spacing.medium,
   },
   toastText: {
+    ...Typography.body,
     color: 'white',
-    fontSize: Typography.body.fontSize,
-    fontWeight: Typography.semiBold.fontWeight,
-    flex: 1, // ZMIANA: Pozwala tekstowi się zawijać
+    fontWeight: '600',
+    flexShrink: 1,
+    lineHeight: Typography.body.fontSize * 1.4,
   },
 });
