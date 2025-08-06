@@ -52,5 +52,38 @@ yarn-error.*
 # Nigdy nie wysyłaj tego pliku do publicznego repozytorium!
 google-services.json
 
-firebaseConfig.ts
+# Plik konfiguracyjny Firebase - usuń z .gitignore jeśli chcesz go commitować
+# firebaseConfig.ts
+
+# Pliki ESLint i Prettier
+.eslintcache
+.prettierignore
+
+# Pliki testów
+coverage/
+.nyc_output/
+
+# Pliki IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Pliki logów
+*.log
+logs/
+
+# Pliki tymczasowe
+tmp/
+temp/
+
+# Pliki build
+build/
+out/
+
+# Pliki cache
+.cache/
+.parcel-cache/
+
 docs/
