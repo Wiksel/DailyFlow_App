@@ -1,43 +1,56 @@
 import React, { useState, useRef } from 'react';
 import { View, Text, Modal, StyleSheet, TextInput, TouchableOpacity, ActivityIndicator, Animated } from 'react-native';
-import auth from '@react-native-firebase/auth';
+import { getAuth, sendPasswordResetEmail } from '@react-native-firebase/auth';
 import { useToast } from '../contexts/ToastContext';
 import { Colors, Spacing, Typography, GlobalStyles } from '../styles/AppStyles';
 import { findUserEmailByIdentifier } from '../utils/authUtils';
-import PhonePasswordResetModal from './PhonePasswordResetModal';
 import { Feather } from '@expo/vector-icons';
 
 interface ForgotPasswordModalProps {
   visible: boolean;
   onClose: () => void;
+  onPhoneReset: () => void; // Nowy prop do obsługi resetowania przez telefon
 }
 
-const ForgotPasswordModal = ({ visible, onClose }: ForgotPasswordModalProps) => {
+const ForgotPasswordModal = ({ visible, onClose, onPhoneReset }: ForgotPasswordModalProps) => {
+  const auth = getAuth();
   const [identifier, setIdentifier] = useState(''); // Zmiana z email na identifier
   const [isLoading, setIsLoading] = useState(false);
-  const [showPhoneReset, setShowPhoneReset] = useState(false);
   const { showToast } = useToast();
   
   const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' | 'info' } | null>(null);
   const [isToastVisible, setIsToastVisible] = useState(false);
   const fadeAnim = useRef(new Animated.Value(0)).current;
+  const animationRef = useRef<Animated.CompositeAnimation | null>(null);
 
   const showCustomToast = (message: string, type: 'success' | 'error' | 'info') => {
-    // Jeśli toast jest już wyświetlany, po prostu zaktualizuj wiadomość
-    if (isToastVisible) {
-      setToast({ message, type });
-      return;
+    // Zatrzymaj poprzednią animację jeśli istnieje
+    if (animationRef.current) {
+      animationRef.current.stop();
     }
     
-    setIsToastVisible(true);
-    setToast({ message, type });
-    Animated.sequence([
-      Animated.timing(fadeAnim, { toValue: 1, duration: 300, useNativeDriver: true }),
+    // Jeśli toast jest już wyświetlany, zresetuj animację
+    if (isToastVisible) {
+      setToast({ message, type });
+      // Resetuj animację do pełnej widoczności
+      fadeAnim.setValue(1);
+    } else {
+      setIsToastVisible(true);
+      setToast({ message, type });
+      // Animacja fade in
+      Animated.timing(fadeAnim, { toValue: 1, duration: 300, useNativeDriver: true }).start();
+    }
+    
+    // Uruchom nową animację z pełnym czasem
+    animationRef.current = Animated.sequence([
       Animated.delay(2500),
       Animated.timing(fadeAnim, { toValue: 0, duration: 300, useNativeDriver: true }),
-    ]).start(() => {
+    ]);
+    
+    animationRef.current.start(() => {
       setToast(null);
       setIsToastVisible(false);
+      animationRef.current = null;
     });
   };
 
@@ -53,20 +66,25 @@ const ForgotPasswordModal = ({ visible, onClose }: ForgotPasswordModalProps) => 
       const email = await findUserEmailByIdentifier(identifier.trim());
       
       if (!email) {
-        showCustomToast('Nie znaleziono użytkownika.', 'error');
+        showCustomToast('Nie znaleziono konta z tym adresem e-mail.\n\nSprawdź czy adres jest poprawny\nlub zarejestruj się.', 'error');
         setIsLoading(false);
         return;
       }
 
-      await auth().sendPasswordResetEmail(email);
-      showCustomToast('Wysłaliśmy link do zresetowania hasła na adres powiązany z Twoim kontem. Sprawdź również folder spam.', 'success');
+      await sendPasswordResetEmail(auth, email);
+      showCustomToast('Wysłaliśmy link do zresetowania hasła na adres powiązany z Twoim kontem.\n\nSprawdź również folder spam.', 'success');
+      
+      // Po pomyślnym wysłaniu linku, zamknij modal po krótkiej chwili
       setTimeout(() => {
-        onClose();
-      }, 3000);
+        handleClose();
+      }, 2000);
+      
     } catch (error: any) {
       // Błędy z `findUserEmailByIdentifier` będą tu obsługiwane
       if (error.code === 'auth/user-not-found') {
-        showCustomToast('Nie znaleziono użytkownika.', 'error');
+        showCustomToast('Nie znaleziono konta z tym adresem e-mail.\n\nSprawdź czy adres jest poprawny\nlub zarejestruj się.', 'error');
+      } else if (error.code === 'auth/too-many-requests') {
+        showCustomToast('Zbyt wiele prób.\nDostęp został tymczasowo zablokowany.\n\nSpróbuj ponownie za kilka minut.', 'error');
       } else {
         showCustomToast('Wystąpił nieoczekiwany błąd. Spróbuj ponownie.', 'error');
         console.error("Błąd resetowania hasła:", error);
@@ -78,7 +96,6 @@ const ForgotPasswordModal = ({ visible, onClose }: ForgotPasswordModalProps) => 
 
   const handleClose = () => {
     setIdentifier('');
-    setShowPhoneReset(false);
     onClose();
   };
 
@@ -129,7 +146,7 @@ const ForgotPasswordModal = ({ visible, onClose }: ForgotPasswordModalProps) => 
              
              <TouchableOpacity
                style={[GlobalStyles.button, { marginTop: Spacing.small, backgroundColor: Colors.secondary }]}
-               onPress={() => setShowPhoneReset(true)}
+               onPress={onPhoneReset}
                disabled={isLoading}
              >
                <Text style={GlobalStyles.buttonText}>Resetuj przez telefon</Text>
@@ -141,11 +158,6 @@ const ForgotPasswordModal = ({ visible, onClose }: ForgotPasswordModalProps) => 
            </View>
          </View>
        </Modal>
-      
-      <PhonePasswordResetModal 
-        visible={showPhoneReset} 
-        onClose={() => setShowPhoneReset(false)} 
-      />
     </>
   );
 };
@@ -160,9 +172,9 @@ const styles = StyleSheet.create({
     dividerContainer: { flexDirection: 'row', alignItems: 'center', width: '100%', marginVertical: 0, marginTop: Spacing.medium, marginBottom: Spacing.small },
     dividerLine: { flex: 1, height: 1, backgroundColor: Colors.border },
     dividerText: { ...Typography.small, color: Colors.textSecondary, marginHorizontal: Spacing.medium },
-    toastContainer: { position: 'absolute', top: -155, left: Spacing.medium, right: Spacing.medium, padding: Spacing.medium, borderRadius: 12, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(0,0,0,0.8)', elevation: 10, zIndex: 9999 },
+    toastContainer: { position: 'absolute', top: -160, left: Spacing.medium, right: Spacing.medium, padding: Spacing.medium, borderRadius: 12, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(0,0,0,0.8)', elevation: 10, zIndex: 9999 },
     toastIcon: { marginRight: Spacing.medium },
-    toastText: { ...Typography.body, color: 'white', fontWeight: '600', flexShrink: 1 },
+    toastText: { ...Typography.body, color: 'white', fontWeight: '600', flexShrink: 1, textAlign: 'left', lineHeight: 20 },
 });
 
 export default ForgotPasswordModal;

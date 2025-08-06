@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, FlatList, ActivityIndicator, Alert, Modal, TextInput, Image } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
-import auth from '@react-native-firebase/auth';
+import { getAuth } from '@react-native-firebase/auth';
 import { db } from '../../firebaseConfig';
 import { collection, addDoc, query, where, onSnapshot, doc, updateDoc, deleteDoc, increment, Timestamp, getDoc } from 'firebase/firestore';
 import { Feather } from '@expo/vector-icons';
@@ -39,7 +39,8 @@ const HomeScreen = () => {
     const [addTaskModalVisible, setAddTaskModalVisible] = useState(false);
     const [filterFromDate, setFilterFromDate] = useState<Date | null>(null);
     const [filterToDate, setFilterToDate] = useState<Date | null>(null);
-    const currentUser = auth().currentUser;
+    const auth = getAuth();
+    const currentUser = auth.currentUser;
     const { categories } = useCategories();
     const { showToast } = useToast();
 
@@ -275,7 +276,9 @@ const HomeScreen = () => {
                 console.error(`Błąd ${action.toLowerCase()} zadania: `, error);
             }
         };
-        Alert.alert(`Potwierdź ${action}`, `Czy na pewno chcesz ${action.toLowerCase()} to zadanie?`,
+        Alert.alert(
+            `Potwierdź ${action}`, 
+            `Czy na pewno chcesz ${action.toLowerCase()}\nto zadanie?`,
             [{ text: "Anuluj" }, { text: action, style: "destructive", onPress: handler }]
         );
     };

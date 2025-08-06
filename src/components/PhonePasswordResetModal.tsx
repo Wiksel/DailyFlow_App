@@ -1,9 +1,8 @@
 import React, { useState, useRef } from 'react';
 import { View, Text, Modal, StyleSheet, TextInput, TouchableOpacity, ActivityIndicator, Keyboard, Animated } from 'react-native';
-import auth from '@react-native-firebase/auth';
-import type { FirebaseAuthTypes } from '@react-native-firebase/auth';
+import { getAuth, FirebaseAuthTypes, signInWithEmailAndPassword, linkWithCredential, signOut, EmailAuthProvider, signInWithPhoneNumber, updatePassword } from '@react-native-firebase/auth';
 import CountryPicker, { Country } from 'react-native-country-picker-modal';
-import { findUserEmailByIdentifier } from '../utils/authUtils';
+import { findUserEmailByIdentifier, checkIfPhoneExists } from '../utils/authUtils';
 import { Colors, Spacing, Typography, GlobalStyles } from '../styles/AppStyles';
 import PasswordInput from './PasswordInput';
 import { Feather } from '@expo/vector-icons';
@@ -17,6 +16,7 @@ interface PhonePasswordResetModalProps {
 type ResetStep = 'enter-phone' | 'enter-code' | 'enter-new-password';
 
 const PhonePasswordResetModal = ({ visible, onClose }: PhonePasswordResetModalProps) => {
+  const auth = getAuth();
   const [step, setStep] = useState<ResetStep>('enter-phone');
   const [isLoading, setIsLoading] = useState(false);
   const { showToast } = useToast();
@@ -41,23 +41,29 @@ const PhonePasswordResetModal = ({ visible, onClose }: PhonePasswordResetModalPr
   const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' | 'info' } | null>(null);
   const [isToastVisible, setIsToastVisible] = useState(false);
   const fadeAnim = useRef(new Animated.Value(0)).current;
+  const animationRef = useRef<Animated.CompositeAnimation | null>(null);
 
   const showCustomToast = (message: string, type: 'success' | 'error' | 'info') => {
-    // Jeśli toast jest już wyświetlany, po prostu zaktualizuj wiadomość
-    if (isToastVisible) {
-      setToast({ message, type });
-      return;
+    // Zatrzymaj poprzednią animację jeśli istnieje
+    if (animationRef.current) {
+      animationRef.current.stop();
     }
     
+    // Zawsze pokazuj nowy toast, niezależnie od tego czy poprzedni jest wyświetlany
     setIsToastVisible(true);
     setToast({ message, type });
-    Animated.sequence([
+    
+    // Uruchom nową animację z pełnym czasem - zawsze zaczynaj od fade in
+    animationRef.current = Animated.sequence([
       Animated.timing(fadeAnim, { toValue: 1, duration: 300, useNativeDriver: true }),
       Animated.delay(2500),
       Animated.timing(fadeAnim, { toValue: 0, duration: 300, useNativeDriver: true }),
-    ]).start(() => {
+    ]);
+    
+    animationRef.current.start(() => {
       setToast(null);
       setIsToastVisible(false);
+      animationRef.current = null;
     });
   };
 
@@ -96,7 +102,7 @@ const PhonePasswordResetModal = ({ visible, onClose }: PhonePasswordResetModalPr
   const validatePassword = (passwordToValidate: string) => {
     const passwordRegex = /^(?=.*[A-Za-z])(?=.*\d)[A-Za-z\d]{6,}$/;
     if (!passwordToValidate.trim() || !passwordRegex.test(passwordToValidate)) {
-      setPasswordError('Hasło jest za słabe.');
+      setPasswordError('Hasło musi mieć minimum 6 znaków, w tym literę i cyfrę.');
       return false;
     }
     setPasswordError('');
@@ -109,6 +115,10 @@ const PhonePasswordResetModal = ({ visible, onClose }: PhonePasswordResetModalPr
 
     if (phoneNumber.length !== 9) {
       showCustomToast('Proszę podać poprawny 9-cyfrowy numer telefonu.', 'error');
+      // Automatycznie zamknij modal po 3 sekundach dla tego błędu
+      setTimeout(() => {
+        handleClose();
+      }, 3000);
       return;
     }
     
@@ -116,31 +126,63 @@ const PhonePasswordResetModal = ({ visible, onClose }: PhonePasswordResetModalPr
     const fullPhoneNumber = `+${country.callingCode[0]}${phoneNumber}`;
     
     try {
-      // Sprawdź czy użytkownik istnieje
-      console.log('PhonePasswordResetModal - sprawdzanie numeru:', fullPhoneNumber);
-      const email = await findUserEmailByIdentifier(fullPhoneNumber);
-      console.log('PhonePasswordResetModal - znaleziony email:', email);
-      if (!email) {
-        showCustomToast('Nie znaleziono użytkownika z tym numerem telefonu.', 'error');
+      // Sprawdź czy numer telefonu istnieje w bazie danych
+      const phoneExists = await checkIfPhoneExists(fullPhoneNumber);
+      if (!phoneExists) {
+        showCustomToast('Nie znaleziono konta z tym numerem telefonu.\n\nSprawdź czy numer jest poprawny\nlub zarejestruj się.', 'error');
         setIsLoading(false);
+        // Automatycznie zamknij modal po 3 sekundach aby użytkownik mógł przeczytać alert
+        setTimeout(() => {
+          handleClose();
+        }, 3000);
+        return;
+      }
+      
+      // Sprawdź czy użytkownik istnieje i pobierz email
+      const email = await findUserEmailByIdentifier(fullPhoneNumber);
+      if (!email) {
+        showCustomToast('Nie znaleziono użytkownika z tym numerem telefonu.\nSprawdź czy numer jest poprawny.', 'error');
+        setIsLoading(false);
+        // Automatycznie zamknij modal po 3 sekundach aby użytkownik mógł przeczytać alert
+        setTimeout(() => {
+          handleClose();
+        }, 3000);
         return;
       }
       
       setUserEmail(email);
       
       // Wyślij kod SMS
-      const confirmationResult = await auth().signInWithPhoneNumber(fullPhoneNumber, true);
+      const confirmationResult = await signInWithPhoneNumber(auth, fullPhoneNumber);
       setConfirmation(confirmationResult);
       setStep('enter-code');
       showCustomToast('Kod weryfikacyjny został wysłany!', 'success');
     } catch (error: any) {
       console.log('Błąd wysyłania kodu SMS:', error.code);
       if (error.code === 'auth/too-many-requests') {
-        showCustomToast('Zbyt wiele prób. Spróbuj ponownie później.', 'error');
+        showCustomToast('Zbyt wiele prób.\nDostęp został tymczasowo zablokowany.\n\nSpróbuj ponownie za kilka minut.', 'error');
+        // Automatycznie zamknij modal po 3 sekundach dla tego błędu
+        setTimeout(() => {
+          handleClose();
+        }, 3000);
       } else if (error.code === 'auth/invalid-phone-number') {
-        showCustomToast('Nieprawidłowy format numeru telefonu.', 'error');
+        showCustomToast('Nieprawidłowy format numeru telefonu.\nSprawdź czy numer jest poprawny.', 'error');
+        // Automatycznie zamknij modal po 3 sekundach dla tego błędu
+        setTimeout(() => {
+          handleClose();
+        }, 3000);
+      } else if (error.code === 'auth/quota-exceeded') {
+        showCustomToast('Przekroczono limit SMS. Spróbuj ponownie później.', 'error');
+        // Automatycznie zamknij modal po 3 sekundach dla tego błędu
+        setTimeout(() => {
+          handleClose();
+        }, 3000);
       } else {
-        showCustomToast('Wystąpił nieoczekiwany błąd.', 'error');
+        showCustomToast('Wystąpił nieoczekiwany błąd.\nSprawdź numer telefonu i spróbuj ponownie.', 'error');
+        // Automatycznie zamknij modal po 3 sekundach dla tego błędu
+        setTimeout(() => {
+          handleClose();
+        }, 3000);
       }
     } finally {
       setIsLoading(false);
@@ -180,22 +222,28 @@ const PhonePasswordResetModal = ({ visible, onClose }: PhonePasswordResetModalPr
 
     setIsLoading(true);
     try {
-      // Zaloguj się tymczasowo na konto użytkownika
-      const userCredential = await auth().signInWithEmailAndPassword(userEmail, 'temporary_password');
-      const user = userCredential.user;
-      
-      // Zmień hasło
-      await user.updatePassword(newPassword);
+      // Użytkownik jest już zalogowany przez SMS, więc możemy zmienić hasło
+      const user = auth.currentUser;
+      if (!user) {
+        showCustomToast('Błąd: Brak zalogowanego użytkownika.', 'error');
+        return;
+      }
+
+      // Zmień hasło bezpośrednio - używaj nowej składni Firebase Auth v22
+      await updatePassword(user, newPassword);
       
       // Wyloguj się
-      await auth().signOut();
+      await signOut(auth);
       
       showCustomToast('Hasło zostało zmienione pomyślnie!', 'success');
-      handleClose();
+      // Zamknij modal po 2 sekundach aby alert był widoczny
+      setTimeout(() => {
+        handleClose();
+      }, 2000);
     } catch (error: any) {
       console.log('Błąd resetowania hasła:', error.code, error.message);
-      if (error.code === 'auth/wrong-password') {
-        showCustomToast('Nie można zresetować hasła. Skontaktuj się z pomocą techniczną.', 'error');
+      if (error.code === 'auth/too-many-requests') {
+        showCustomToast('Zbyt wiele prób.\nDostęp został tymczasowo zablokowany.\n\nSpróbuj ponownie za kilka minut.', 'error');
       } else {
         showCustomToast('Błąd resetowania hasła. Spróbuj ponownie.', 'error');
       }
@@ -290,6 +338,12 @@ const PhonePasswordResetModal = ({ visible, onClose }: PhonePasswordResetModalPr
   return (
     <Modal visible={visible} transparent={true} animationType="fade" onRequestClose={handleClose}>
       <View style={styles.modalContainer}>
+        {toast && (
+            <Animated.View style={[styles.toastContainer, { opacity: fadeAnim, backgroundColor: getToastStyle(toast.type).backgroundColor }]}>
+                <Feather name={getToastStyle(toast.type).iconName} size={24} color="white" style={styles.toastIcon} />
+                <Text style={styles.toastText}>{toast.message}</Text>
+            </Animated.View>
+        )}
         <View style={styles.modalContent}>
           <TouchableOpacity style={styles.closeButton} onPress={handleClose}>
             <Text style={styles.closeButtonText}>Anuluj</Text>
@@ -297,12 +351,6 @@ const PhonePasswordResetModal = ({ visible, onClose }: PhonePasswordResetModalPr
           {renderStep()}
         </View>
       </View>
-      {toast && (
-          <Animated.View style={[styles.toastContainer, { opacity: fadeAnim, backgroundColor: getToastStyle(toast.type).backgroundColor }]}>
-              <Feather name={getToastStyle(toast.type).iconName} size={24} color="white" style={styles.toastIcon} />
-              <Text style={styles.toastText}>{toast.message}</Text>
-          </Animated.View>
-      )}
     </Modal>
   );
 };
@@ -330,9 +378,9 @@ const styles = StyleSheet.create({
   errorText: { color: Colors.danger, alignSelf: 'flex-start', width: '100%', marginLeft: Spacing.small, marginTop: Spacing.xSmall, marginBottom: Spacing.small, },
   buttonTextHidden: { opacity: 0, },
   activityIndicator: { position: 'absolute', },
-  toastContainer: { position: 'absolute', top: Spacing.large, left: Spacing.medium, right: Spacing.medium, padding: Spacing.medium, borderRadius: 12, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(0,0,0,0.8)', elevation: 10, zIndex: 9999, },
+  toastContainer: { position: 'absolute', top: 20, left: Spacing.medium, right: Spacing.medium, padding: Spacing.medium, borderRadius: 12, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(0,0,0,0.8)', elevation: 10, zIndex: 9999, },
   toastIcon: { marginRight: Spacing.medium, },
-  toastText: { ...Typography.body, color: 'white', fontWeight: '600', flexShrink: 1, },
+  toastText: { ...Typography.body, color: 'white', fontWeight: '600', flexShrink: 1, textAlign: 'left' },
 });
 
 export default PhonePasswordResetModal; 

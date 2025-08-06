@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Platform, ActivityIndicator, Alert, FlatList, TextInput } from 'react-native';
 import { useRoute, useNavigation } from '@react-navigation/native';
 import { doc, getDoc, updateDoc, Timestamp, collection, query, where, getDocs, addDoc, onSnapshot, orderBy } from 'firebase/firestore'; // ZMIANA: Dodano 'getDoc' i 'where'
-import auth from '@react-native-firebase/auth';
+import { getAuth } from '@react-native-firebase/auth';
 import { db } from '../../firebaseConfig';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { DateTimePickerEvent } from '@react-native-community/datetimepicker';
@@ -23,7 +23,8 @@ const TaskDetailScreen = () => {
     const [task, setTask] = useState<TaskFormData | null>(null);
     const [loading, setLoading] = useState(true);
     const [showDatePicker, setShowDatePicker] = useState(false);
-    const currentUser = auth().currentUser;
+    const auth = getAuth();
+    const currentUser = auth.currentUser;
 
     const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
     const [comments, setComments] = useState<Comment[]>([]);

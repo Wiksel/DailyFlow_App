@@ -2,7 +2,7 @@
 import React, { useState } from 'react';
 // Dodano import ScrollView
 import { View, Text, StyleSheet, FlatList, TextInput, TouchableOpacity, Alert, ActivityIndicator, ScrollView } from 'react-native';
-import auth from '@react-native-firebase/auth'; // ZMIANA
+import { getAuth } from '@react-native-firebase/auth'; // ZMIANA
 import { db } from '../../firebaseConfig'; // <--- TEN IMPORT ZOSTAJE
 import { collection, addDoc, deleteDoc, doc, updateDoc, query, where, getDocs, writeBatch } from 'firebase/firestore';
 import { Feather } from '@expo/vector-icons';
@@ -23,7 +23,8 @@ const CategoriesScreen = () => {
     const [selectedColor, setSelectedColor] = useState(COLORS[0]);
     const [editingCategory, setEditingCategory] = useState<Category | null>(null);
     const [isSubmitting, setIsSubmitting] = useState(false);
-    const currentUser = auth().currentUser; // ZMIANA
+    const auth = getAuth();
+    const currentUser = auth.currentUser; // ZMIANA
     const { showToast } = useToast();
 
     const handleAddOrUpdateCategory = async () => {
@@ -63,7 +64,7 @@ const CategoriesScreen = () => {
     const handleDeleteCategory = (category: Category) => {
         Alert.alert(
             "Potwierdź usunięcie",
-            `Czy na pewno chcesz usunąć kategorię "${category.name}"? Zadania przypisane do niej zostaną przeniesione do kategorii "Inne".`,
+            `Czy na pewno chcesz usunąć kategorię\n"${category.name}"?\n\nZadania przypisane do niej zostaną\nprzeniesione do kategorii "Inne".`,
             [
                 { text: "Anuluj", style: "cancel" },
                 { text: "Usuń", style: "destructive", onPress: async () => {

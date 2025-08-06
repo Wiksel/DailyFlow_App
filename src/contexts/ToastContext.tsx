@@ -111,6 +111,7 @@ const styles = StyleSheet.create({
     color: 'white',
     fontWeight: '600',
     flexShrink: 1,
+    textAlign: 'left',
     lineHeight: Typography.body.fontSize * 1.4,
   },
 });

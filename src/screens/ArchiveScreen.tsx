@@ -1,7 +1,7 @@
 // src/screens/ArchiveScreen.tsx
 import React, { useState, useEffect, useMemo } from 'react';
 import { View, Text, StyleSheet, FlatList, ActivityIndicator, TouchableOpacity, Alert, TextInput, ScrollView, Platform, Dimensions } from 'react-native';
-import auth from '@react-native-firebase/auth';
+import { getAuth } from '@react-native-firebase/auth';
 import { db } from '../../firebaseConfig'; // <--- TEN IMPORT ZOSTAJE
 import { collection, query, where, onSnapshot, orderBy, doc, updateDoc, deleteDoc, getDoc } from 'firebase/firestore';
 import { Task, Category, UserProfile, Pair } from '../types';
@@ -31,7 +31,8 @@ const ArchiveScreen = () => {
     const [selectedPartnerId, setSelectedPartnerId] = useState<string | 'all'>('all');
 
     const { categories } = useCategories();
-    const currentUser = auth().currentUser;
+    const auth = getAuth();
+    const currentUser = auth.currentUser;
 
     useEffect(() => {
         if (!currentUser) {
@@ -202,7 +203,7 @@ const ArchiveScreen = () => {
     const handlePermanentDelete = (taskId: string) => {
         Alert.alert(
             "Trwałe usunięcie",
-            "Czy na pewno chcesz trwale usunąć to zadanie? Tej operacji nie można cofnąć.",
+            "Czy na pewno chcesz trwale usunąć\nto zadanie?\n\nTej operacji nie można cofnąć.",
             [
                 { text: "Anuluj", style: "cancel" },
                 { text: "Usuń", style: "destructive", onPress: async () => {

@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { View, Text, StyleSheet, FlatList, TextInput, TouchableOpacity, Alert, ActivityIndicator, ScrollView } from 'react-native';
 import { useRoute, RouteProp } from '@react-navigation/native';
-import auth from '@react-native-firebase/auth'; // ZMIANA
+import { getAuth } from '@react-native-firebase/auth';
 import { db } from '../../firebaseConfig'; // <--- TEN IMPORT ZOSTAJE
 import { collection, query, where, onSnapshot, addDoc, deleteDoc, doc, updateDoc } from 'firebase/firestore';
 import Slider from '@react-native-community/slider';
@@ -31,7 +31,8 @@ const ChoreTemplatesScreen = () => {
     const [loading, setLoading] = useState(true);
     const [editingTemplate, setEditingTemplate] = useState<ChoreTemplate | null>(null);
     const [isSubmitting, setIsSubmitting] = useState(false);
-    const currentUser = auth().currentUser; // ZMIANA
+    const auth = getAuth();
+    const currentUser = auth.currentUser;
 
 
     useEffect(() => {
@@ -117,7 +118,7 @@ const ChoreTemplatesScreen = () => {
     const handleDeleteTemplate = (template: ChoreTemplate) => {
         Alert.alert(
             "Potwierdź usunięcie",
-            `Czy na pewno chcesz usunąć szablon "${template.name}"?`,
+            `Czy na pewno chcesz usunąć\nszablon "${template.name}"?`,
             [
                 { text: "Anuluj", style: "cancel" },
                 { text: "Usuń", style: "destructive", onPress: async () => {

@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, TextInput, Alert, ActivityIndicator, ScrollView, Image } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
-import auth from '@react-native-firebase/auth';
+import { getAuth, signOut } from '@react-native-firebase/auth';
 import { db } from '../../firebaseConfig';
 import { doc, getDoc, onSnapshot, collection, query, where, getDocs, writeBatch, updateDoc, deleteDoc, addDoc } from 'firebase/firestore';
 import { TaskStackNavigationProp } from '../types/navigation';
@@ -23,7 +23,9 @@ const ProfileScreen = () => {
     const [isSaving, setIsSaving] = useState(false);
     const [isPairActionLoading, setIsPairActionLoading] = useState(false);
 
-    const currentUser = auth().currentUser;
+    const auth = getAuth();
+
+    const currentUser = auth.currentUser;
 
     useEffect(() => {
         if (!currentUser) return;
@@ -171,7 +173,7 @@ const ProfileScreen = () => {
     };
 
     const handleLogout = () => {
-        auth().signOut().catch(error => {
+        signOut(auth).catch(error => {
             console.error("Błąd wylogowania:", error);
         });
     };

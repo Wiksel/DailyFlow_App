@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useState, ReactNode, useEffect } from 'react';
 import { collection, query, where, onSnapshot } from 'firebase/firestore';
-import auth from '@react-native-firebase/auth';
+import { getAuth } from '@react-native-firebase/auth';
 import { db } from '../../firebaseConfig';
 import { Category } from '../types';
 
@@ -27,7 +27,8 @@ export const CategoryProvider = ({ children }: CategoryProviderProps) => {
     const [categories, setCategories] = useState<Category[]>([]);
     const [loading, setLoading] = useState(true);
 
-    const user = auth().currentUser;
+    const auth = getAuth();
+    const user = auth.currentUser;
 
     useEffect(() => {
         if (user) {

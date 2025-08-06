@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, FlatList, TouchableOpacity, Modal, TextInput, ActivityIndicator } from 'react-native';
 import { useRoute } from '@react-navigation/native';
 import { doc, onSnapshot, collection, addDoc, query, orderBy, getDoc, writeBatch, increment, where } from 'firebase/firestore';
-import auth from '@react-native-firebase/auth';
+import { getAuth } from '@react-native-firebase/auth';
 import { db } from '../../firebaseConfig'; // <--- TEN IMPORT ZOSTAJE
 import { Feather } from '@expo/vector-icons';
 import { useToast } from '../contexts/ToastContext';
@@ -36,7 +36,8 @@ const BudgetDetailScreen = () => {
     const [loading, setLoading] = useState(true);
     const [isSubmittingExpense, setIsSubmittingExpense] = useState(false);
 
-    const currentUser = auth().currentUser;
+    const auth = getAuth();
+    const currentUser = auth.currentUser;
     const { showToast } = useToast();
 
     useEffect(() => {

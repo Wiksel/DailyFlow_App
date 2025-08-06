@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, FlatList, TouchableOpacity, Modal, TextInput, ActivityIndicator, Switch, Platform } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import auth from '@react-native-firebase/auth';
+import { getAuth } from '@react-native-firebase/auth';
 import { db } from '../../firebaseConfig';
 import { collection, query, where, onSnapshot, addDoc, doc, getDoc } from 'firebase/firestore';
 import { Feather } from '@expo/vector-icons';
@@ -33,7 +33,8 @@ const BudgetsScreen = () => {
     const [isSubmittingBudget, setIsSubmittingBudget] = useState(false);
     const [pairId, setPairId] = useState<string | null>(null);
 
-    const currentUser = auth().currentUser;
+    const auth = getAuth();
+    const currentUser = auth.currentUser;
     const { showToast } = useToast();
 
     useEffect(() => {

@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, ActivityIndicator, Alert } from 'react-native';
-import auth from '@react-native-firebase/auth'; // ZMIANA
+import { getAuth } from '@react-native-firebase/auth';
 import { db } from '../../firebaseConfig';
 import { doc, onSnapshot, updateDoc } from 'firebase/firestore';
 import Slider from '@react-native-community/slider';
@@ -23,7 +23,8 @@ const SettingsScreen = () => {
     const [settings, setSettings] = useState<PrioritySettings | null>(null);
     const [loading, setLoading] = useState(true);
     
-    const currentUser = auth().currentUser;
+    const auth = getAuth();
+    const currentUser = auth.currentUser;
 
     useEffect(() => {
         if (!currentUser) return;
@@ -53,7 +54,10 @@ const SettingsScreen = () => {
         await updateDoc(userRef, {
             prioritySettings: settings,
         });
-        Alert.alert("Sukces", "Ustawienia zostały zapisane.");
+        Alert.alert(
+            "Sukces", 
+            "Ustawienia zostały zapisane."
+        );
     };
     
     const handleThresholdChange = (key: keyof PrioritySettings, value: number) => {

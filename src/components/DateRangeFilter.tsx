@@ -104,14 +104,20 @@ const DateRangeFilter = ({
             if (showDatePickerFor === 'from') {
                 finalSelectedDate.setHours(0, 0, 0, 0);
                 if (toDate && finalSelectedDate.getTime() > toDate.getTime()) {
-                    Alert.alert("Błąd daty", "Data początkowa nie może być późniejsza niż data końcowa.");
+                    Alert.alert(
+                        "Błąd daty", 
+                        "Data początkowa nie może być\npóźniejsza niż data końcowa."
+                    );
                     return;
                 }
                 onFromDateChange(finalSelectedDate);
             } else if (showDatePickerFor === 'to') {
                 finalSelectedDate.setHours(23, 59, 59, 999);
                 if (fromDate && finalSelectedDate.getTime() < fromDate.getTime()) {
-                    Alert.alert("Błąd daty", "Data końcowa nie może być wcześniejsza niż data początkowa.");
+                    Alert.alert(
+                        "Błąd daty", 
+                        "Data końcowa nie może być\nwcześniejsza niż data początkowa."
+                    );
                     return;
                 }
                 onToDateChange(finalSelectedDate);
