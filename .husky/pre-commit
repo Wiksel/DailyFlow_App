@@ -1,0 +1,11 @@
+#!/bin/sh
+. "$(dirname "$0")/_/husky.sh"
+
+# Uruchom lint-staged na staged files
+npx lint-staged
+
+# Sprawdź typy TypeScript
+npm run type-check
+
+# Uruchom testy
+npm run test
