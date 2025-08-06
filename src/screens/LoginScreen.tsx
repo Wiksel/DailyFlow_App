@@ -433,7 +433,7 @@ const LoginScreen = ({ onRefreshAuthState }: LoginScreenProps = {}) => {
                     }},
                     { 
                         text: "Potwierdź", 
-                        onPress: async (password) => {
+                        onPress: async (password: string | undefined) => {
                             if (!password) {
                                 showToast('Hasło jest wymagane.', 'error');
                                 return;
