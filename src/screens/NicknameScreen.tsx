@@ -47,7 +47,7 @@ const NicknameScreen = ({ onProfileCreated }: NicknameScreenProps) => {
             />
             <TouchableOpacity
                 style={[GlobalStyles.button, { marginTop: Spacing.medium, width: '100%', backgroundColor: theme.colors.primary }]}
-                onPress={handleFinish}
+                onPress={async () => { try { const m = await import('expo-haptics'); await m.impactAsync(m.ImpactFeedbackStyle.Medium); } catch {}; handleFinish(); }}
                 disabled={isLoading}
             >
                 {isLoading ? <ActivityIndicator color="white" /> : <Text style={GlobalStyles.buttonText}>Zaczynajmy!</Text>}

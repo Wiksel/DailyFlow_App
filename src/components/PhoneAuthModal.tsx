@@ -304,7 +304,7 @@ const PhoneAuthModal = ({ visible, onClose, onRegistered }: PhoneAuthModalProps)
                 blurOnSubmit={true}
               />
             </View>
-            <TouchableOpacity style={GlobalStyles.button} onPress={() => sendVerificationCode()} disabled={isLoading}>
+            <TouchableOpacity style={GlobalStyles.button} onPress={async () => { try { const m = await import('expo-haptics'); await m.selectionAsync(); } catch {}; sendVerificationCode(); }} disabled={isLoading}>
               <Text style={[GlobalStyles.buttonText, isLoading && styles.buttonTextHidden]}>Wyślij kod</Text>
               {isLoading && <ActivityIndicator color="white" style={styles.activityIndicator} />}
             </TouchableOpacity>
@@ -316,11 +316,11 @@ const PhoneAuthModal = ({ visible, onClose, onRegistered }: PhoneAuthModalProps)
             <Text style={styles.modalTitle}>Wpisz kod weryfikacyjny</Text>
             <Text style={styles.modalSubtitle}>{`Wysłaliśmy 6-cyfrowy kod\nna numer +${country.callingCode[0]} ${formattedPhoneNumber}.`}</Text>
             <TextInput style={[GlobalStyles.input, { textAlign: 'center', letterSpacing: 8 }]} placeholder="000000" keyboardType="number-pad" value={code} onChangeText={setCode} maxLength={6} onSubmitEditing={() => confirmCode()} blurOnSubmit={true} />
-            <TouchableOpacity style={[GlobalStyles.button, { marginTop: Spacing.small }]} onPress={confirmCode} disabled={isLoading}>
+            <TouchableOpacity style={[GlobalStyles.button, { marginTop: Spacing.small }]} onPress={async () => { try { const m = await import('expo-haptics'); await m.selectionAsync(); } catch {}; confirmCode(); }} disabled={isLoading}>
               <Text style={[GlobalStyles.buttonText, isLoading && styles.buttonTextHidden]}>Zatwierdź</Text>
               {isLoading && <ActivityIndicator color="white" style={styles.activityIndicator} />}
             </TouchableOpacity>
-            <TouchableOpacity style={[GlobalStyles.button, { marginTop: Spacing.xSmall, backgroundColor: Colors.secondary }]} onPress={resendCode} disabled={isResending || resendSeconds > 0}>
+            <TouchableOpacity style={[GlobalStyles.button, { marginTop: Spacing.xSmall, backgroundColor: Colors.secondary }]} onPress={async () => { try { const m = await import('expo-haptics'); await m.selectionAsync(); } catch {}; resendCode(); }} disabled={isResending || resendSeconds > 0}>
               {isResending ? (
                 <ActivityIndicator color="white" />
               ) : (
@@ -348,7 +348,7 @@ const PhoneAuthModal = ({ visible, onClose, onRegistered }: PhoneAuthModalProps)
             {!!passwordError && <Text style={styles.errorText}>{passwordError}</Text>}
             <TouchableOpacity 
                 style={[GlobalStyles.button, { marginTop: Spacing.medium }, (isLoading || !isDetailsFormValid) && GlobalStyles.disabledButton]} 
-                onPress={finishRegistration} 
+                onPress={async () => { if (isLoading || !isDetailsFormValid) return; try { const m = await import('expo-haptics'); await m.impactAsync(m.ImpactFeedbackStyle.Medium); } catch {}; finishRegistration(); }} 
                 disabled={isLoading || !isDetailsFormValid}>
               <Text style={[GlobalStyles.buttonText, isLoading && styles.buttonTextHidden]}>Zapisz i zakończ</Text>
               {isLoading && <ActivityIndicator color="white" style={styles.activityIndicator} />}
