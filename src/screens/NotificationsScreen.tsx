@@ -50,9 +50,11 @@ const NotificationsScreen = () => {
         <View style={styles.row}> 
           <Text style={[styles.label, { color: theme.colors.textPrimary }]}>Włączone</Text>
           {loading ? <ActivityIndicator color={theme.colors.primary} /> : (
-            <Switch value={enabled} onValueChange={async (v) => {
-              if (v) { await request(); } else { await openSettings(); }
-            }} />
+            <Switch
+              value={enabled}
+              onValueChange={async (v) => { if (v) { await request(); } else { await openSettings(); } }}
+              accessibilityLabel={enabled ? 'Powiadomienia włączone' : 'Powiadomienia wyłączone'}
+            />
           )}
         </View>
         <Text style={[styles.helper, { color: theme.colors.textSecondary }]}>Aby całkowicie wyłączyć, użyj ustawień systemowych.</Text>

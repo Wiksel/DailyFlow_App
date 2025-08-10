@@ -528,6 +528,10 @@ const ArchiveScreen = () => {
                         icon={searchQuery || filterCompletedFromDate || filterCompletedToDate || activeCategoryArchive !== 'all' || archivedTaskType !== 'all' || selectedPartnerId !== 'all' ? "search" : "archive"}
                         title={searchQuery || filterCompletedFromDate || filterCompletedToDate || activeCategoryArchive !== 'all' || archivedTaskType !== 'all' || selectedPartnerId !== 'all' ? "Brak wyników" : "Archiwum jest puste"}
                         subtitle={searchQuery ? `Nie znaleziono zarchiwizowanych zadań dla frazy "${searchQuery}"` : "Ukończone zadania, które zarchiwizujesz, pojawią się tutaj."}
+                        actionTitle={processedAndSortedArchivedTasks.length === 0 ? 'Przejdź do zadań' : undefined}
+                        onActionPress={() => {
+                          try { (require('@react-navigation/native') as any).useNavigation?.().navigate('TasksTab' as any); } catch {}
+                        }}
                     />
                 }
             />

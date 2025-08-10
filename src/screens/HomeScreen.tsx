@@ -506,10 +506,10 @@ const HomeScreen = () => {
               onAvatarPress={() => navigation.navigate('Profile')}
             />
             <View style={[styles.tabContainer, { backgroundColor: theme.colors.card, borderColor: theme.colors.border }]}>
-                <TouchableOpacity style={[styles.tab, taskType === 'personal' && styles.tabActive]} onPress={() => setTaskType('personal')} activeOpacity={0.8}>
+                <TouchableOpacity style={[styles.tab, taskType === 'personal' && styles.tabActive]} onPress={() => setTaskType('personal')} activeOpacity={0.8} accessibilityLabel="Zadania osobiste">
                     <Text style={[styles.tabText, taskType === 'personal' && styles.tabTextActive]}>Osobiste</Text>
                 </TouchableOpacity>
-                <TouchableOpacity style={[styles.tab, taskType === 'shared' && styles.tabActive]} onPress={() => setTaskType('shared')} activeOpacity={0.8}>
+                <TouchableOpacity style={[styles.tab, taskType === 'shared' && styles.tabActive]} onPress={() => setTaskType('shared')} activeOpacity={0.8} accessibilityLabel="Zadania wspólne">
                     <Text style={[styles.tabText, taskType === 'shared' && styles.tabTextActive]}>Wspólne</Text>
                 </TouchableOpacity>
             </View>

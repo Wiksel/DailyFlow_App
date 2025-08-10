@@ -16,9 +16,10 @@ interface ActionButtonProps {
     leftIcon?: keyof typeof Feather.glyphMap;
     leftIconColor?: string;
     leftIconSize?: number;
+    accessibilityLabel?: string;
 }
 
-const ActionButton = ({ title, onPress, isLoading = false, style, textStyle, disabled = false, haptic = 'light', leftIcon, leftIconColor, leftIconSize = 18 }: ActionButtonProps) => {
+const ActionButton = ({ title, onPress, isLoading = false, style, textStyle, disabled = false, haptic = 'light', leftIcon, leftIconColor, leftIconSize = 18, accessibilityLabel }: ActionButtonProps) => {
   const theme = useTheme();
   const lastPressRef = useRef<number>(0);
   const buttonDisabled = isLoading || disabled;
@@ -44,6 +45,8 @@ const ActionButton = ({ title, onPress, isLoading = false, style, textStyle, dis
       }}
       disabled={buttonDisabled}
       accessibilityRole="button"
+      accessibilityLabel={accessibilityLabel || title}
+      hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
       style={({ pressed }) => ([
         GlobalStyles.button,
         { backgroundColor: theme.colors.primary, opacity: pressed && !buttonDisabled ? 0.9 : 1 },
