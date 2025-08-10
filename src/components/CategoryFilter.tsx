@@ -63,7 +63,10 @@ const Chip = ({ onPress, active, activeColor, inactiveColor, textColorActive, te
         <Pressable
             onPressIn={() => { scale.value = withSpring(0.98, { damping: 15 }); }}
             onPressOut={() => { scale.value = withSpring(1, { damping: 15 }); }}
-            onPress={onPress}
+            onPress={async () => {
+                try { const mod = await import('expo-haptics'); await mod.selectionAsync(); } catch {}
+                onPress();
+            }}
             style={({ pressed }) => ([
                 styles.filterButton,
                 { backgroundColor: active ? activeColor : inactiveColor, opacity: pressed ? 0.95 : 1 },

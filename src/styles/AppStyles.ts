@@ -103,6 +103,7 @@ export const GlobalStyles = StyleSheet.create({
         alignItems: 'center',
         justifyContent: 'center',
         minHeight: 50,
+        flexDirection: 'row',
     },
     buttonText: {
         color: 'white',

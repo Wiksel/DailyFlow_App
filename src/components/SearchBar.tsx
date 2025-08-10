@@ -26,6 +26,10 @@ const SearchBar = ({ value, onChangeText, placeholder, style, inputStyle }: Sear
         onChangeText={onChangeText}
         placeholderTextColor={theme.colors.placeholder}
         accessibilityLabel={placeholder}
+        clearButtonMode="while-editing"
+        returnKeyType="search"
+        autoCorrect={false}
+        autoCapitalize="none"
       />
       {showClear && (
         <TouchableOpacity onPress={() => onChangeText('')} accessibilityLabel="Wyczyść wyszukiwanie" style={styles.clearBtn}>

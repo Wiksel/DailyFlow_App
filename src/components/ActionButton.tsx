@@ -11,9 +11,10 @@ interface ActionButtonProps {
     style?: ViewStyle | ViewStyle[];
     textStyle?: TextStyle | TextStyle[];
     disabled?: boolean;
+    haptic?: 'light' | 'medium' | 'heavy' | false;
 }
 
-const ActionButton = ({ title, onPress, isLoading = false, style, textStyle, disabled = false }: ActionButtonProps) => {
+const ActionButton = ({ title, onPress, isLoading = false, style, textStyle, disabled = false, haptic = 'light' }: ActionButtonProps) => {
   const theme = useTheme();
   const buttonDisabled = isLoading || disabled;
   const scale = useSharedValue(1);
@@ -23,7 +24,16 @@ const ActionButton = ({ title, onPress, isLoading = false, style, textStyle, dis
     <Pressable
       onPressIn={() => { if (!buttonDisabled) scale.value = withSpring(0.97, { damping: 18 }); }}
       onPressOut={() => { scale.value = withSpring(1, { damping: 18 }); }}
-      onPress={onPress}
+      onPress={async () => {
+        if (buttonDisabled) return;
+        try {
+          const mod = await import('expo-haptics');
+          if (haptic === 'light') await mod.impactAsync(mod.ImpactFeedbackStyle.Light);
+          else if (haptic === 'medium') await mod.impactAsync(mod.ImpactFeedbackStyle.Medium);
+          else if (haptic === 'heavy') await mod.impactAsync(mod.ImpactFeedbackStyle.Heavy);
+        } catch {}
+        onPress();
+      }}
       disabled={buttonDisabled}
       accessibilityRole="button"
       style={({ pressed }) => ([
