@@ -89,11 +89,11 @@ const ForgotPasswordModal = ({ visible, onClose }: ForgotPasswordModalProps) => 
                editable={!isLoading}
                placeholderTextColor={Colors.placeholder}
              />
-             <TouchableOpacity
+              <TouchableOpacity
                style={[GlobalStyles.button, { marginTop: Spacing.medium, width: '100%' }]}
-               onPress={handlePasswordReset}
+               onPress={async () => { try { const m = await import('expo-haptics'); await m.impactAsync(m.ImpactFeedbackStyle.Medium); } catch {}; handlePasswordReset(); }}
                disabled={isLoading}
-             >
+              >
                {isLoading ? <ActivityIndicator color="white" /> : <Text style={GlobalStyles.buttonText}>Wyślij link</Text>}
              </TouchableOpacity>
              
@@ -103,11 +103,11 @@ const ForgotPasswordModal = ({ visible, onClose }: ForgotPasswordModalProps) => 
                <View style={styles.dividerLine} />
              </View>
              
-             <TouchableOpacity
+              <TouchableOpacity
                style={[GlobalStyles.button, { marginTop: Spacing.small, backgroundColor: Colors.secondary }]}
-               onPress={() => setShowPhoneReset(true)}
+               onPress={async () => { try { const m = await import('expo-haptics'); await m.selectionAsync(); } catch {}; setShowPhoneReset(true); }}
                disabled={isLoading}
-             >
+              >
                <Text style={GlobalStyles.buttonText}>Resetuj przez telefon</Text>
              </TouchableOpacity>
              
