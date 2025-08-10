@@ -6,6 +6,7 @@ import { db } from '../../firebaseConfig';
 import { useToast } from '../contexts/ToastContext';
 import ActionModal from '../components/ActionModal';
 import { Colors, GlobalStyles, Spacing, Typography } from '../styles/AppStyles';
+import { useTheme } from '../contexts/ThemeContext';
 import PasswordInput from '../components/PasswordInput';
 
 import { useRoute } from '@react-navigation/native';
@@ -14,6 +15,7 @@ import type { RouteProp } from '@react-navigation/native';
 
 const AccountSettingsScreen = () => {
   const { showToast } = useToast();
+  const theme = useTheme();
   const [loading, setLoading] = useState(true);
   const [providers, setProviders] = useState<string[]>([]);
   const [isBusy, setIsBusy] = useState(false);
@@ -300,11 +302,11 @@ const AccountSettingsScreen = () => {
   };
 
   if (loading) {
-    return <View style={GlobalStyles.centered}><ActivityIndicator size="large" /></View>;
+    return <View style={GlobalStyles.centered}><ActivityIndicator size="large" color={theme.colors.primary} /></View>;
   }
 
   return (
-    <ScrollView style={GlobalStyles.container}>
+    <ScrollView style={[GlobalStyles.container, { backgroundColor: theme.colors.background }] }>
       {/* Modal: Zmień hasło */}
       <ActionModal
         visible={changePasswordVisible}
@@ -338,10 +340,10 @@ const AccountSettingsScreen = () => {
         <PasswordInput value={currentPassword} onChangeText={setCurrentPassword} placeholder="Obecne hasło" />
         <PasswordInput value={newPassword} onChangeText={setNewPassword} placeholder="Nowe hasło (min. 6, litera, cyfra)" />
       </ActionModal>
-      <View style={GlobalStyles.section}>
-        <Text style={styles.sectionTitle}>Zmień Nick</Text>
+      <View style={[GlobalStyles.section, { backgroundColor: theme.colors.card, borderColor: theme.colors.border }]}>
+        <Text style={[styles.sectionTitle, { color: theme.colors.textPrimary }]}>Zmień Nick</Text>
         <TextInput
-          style={GlobalStyles.input}
+          style={[GlobalStyles.input, { backgroundColor: theme.colors.inputBackground, borderColor: theme.colors.border, color: theme.colors.textPrimary }]}
           placeholder="Wpisz swój nick"
           value={nickname}
           onChangeText={setNickname}
@@ -363,8 +365,8 @@ const AccountSettingsScreen = () => {
         </TouchableOpacity>
       </View>
 
-      <View style={GlobalStyles.section}>
-        <Text style={styles.sectionTitle}>Logowanie i bezpieczeństwo</Text>
+      <View style={[GlobalStyles.section, { backgroundColor: theme.colors.card, borderColor: theme.colors.border }]}>
+        <Text style={[styles.sectionTitle, { color: theme.colors.textPrimary }]}>Logowanie i bezpieczeństwo</Text>
         <View style={styles.row}>
           <Text style={styles.label}>E‑mail i hasło</Text>
           {hasPassword ? (
@@ -475,12 +477,12 @@ const AccountSettingsScreen = () => {
         </View>
       </View>
 
-      <View style={GlobalStyles.section}>
-        <Text style={styles.sectionTitle}>Zmień e‑mail</Text>
-        <TextInput style={GlobalStyles.input} placeholder="Nowy adres e‑mail" autoCapitalize="none" value={newEmail} onChangeText={setNewEmail} editable={!emailChanging} />
+      <View style={[GlobalStyles.section, { backgroundColor: theme.colors.card, borderColor: theme.colors.border }]}>
+        <Text style={[styles.sectionTitle, { color: theme.colors.textPrimary }]}>Zmień e‑mail</Text>
+        <TextInput style={[GlobalStyles.input, { backgroundColor: theme.colors.inputBackground, borderColor: theme.colors.border, color: theme.colors.textPrimary }]} placeholder="Nowy adres e‑mail" autoCapitalize="none" value={newEmail} onChangeText={setNewEmail} editable={!emailChanging} />
           {pendingEmail && pendingEmail !== user?.email ? (
             <View style={{ marginTop: Spacing.small }}>
-              <Text style={styles.label}>Oczekuje na weryfikację: {pendingEmail}</Text>
+              <Text style={[styles.label, { color: theme.colors.textSecondary }]}>Oczekuje na weryfikację: {pendingEmail}</Text>
               <View style={styles.pendingActions}>
                 <TouchableOpacity style={[GlobalStyles.button, styles.compactButton, styles.secondary]} onPress={resendPendingEmail} disabled={emailChanging || isResendingPending}>
                   <Text style={[GlobalStyles.buttonText, styles.compactButtonText]} numberOfLines={1} ellipsizeMode="tail">{isResendingPending ? 'Wysyłanie…' : 'Wyślij ponownie'}</Text>
@@ -582,8 +584,8 @@ const AccountSettingsScreen = () => {
         <PasswordInput value={passwordForReauth} onChangeText={setPasswordForReauth} placeholder="Hasło do konta" />
       </ActionModal>
 
-      <View style={GlobalStyles.section}>
-        <Text style={styles.sectionTitle}>Preferencje</Text>
+      <View style={[GlobalStyles.section, { backgroundColor: theme.colors.card, borderColor: theme.colors.border }]}>
+        <Text style={[styles.sectionTitle, { color: theme.colors.textPrimary }]}>Preferencje</Text>
         <Text style={styles.label}>Motyw</Text>
         <View style={styles.actionsRow}>
           {(['system','light','dark'] as const).map(mode => (
@@ -608,8 +610,8 @@ const AccountSettingsScreen = () => {
         </View>
       </View>
 
-      <View style={GlobalStyles.section}>
-        <Text style={styles.sectionTitle}>Zarządzanie kontem</Text>
+      <View style={[GlobalStyles.section, { backgroundColor: theme.colors.card, borderColor: theme.colors.border }]}>
+        <Text style={[styles.sectionTitle, { color: theme.colors.textPrimary }]}>Zarządzanie kontem</Text>
         <TouchableOpacity style={[GlobalStyles.button, styles.danger]} onPress={() => setConfirmDeleteVisible(true)} disabled={isBusy}>
           <Text style={GlobalStyles.buttonText}>Usuń konto</Text>
         </TouchableOpacity>

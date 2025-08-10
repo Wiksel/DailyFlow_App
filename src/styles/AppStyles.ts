@@ -33,6 +33,8 @@ export const Typography = {
     semiBold: { fontWeight: '600' as '600' },
 };
 
+export const densityScale = (base: number, isCompact: boolean) => Math.round(base * (isCompact ? 0.9 : 1));
+
 export const Spacing = {
     xSmall: 4,
     small: 8,
@@ -46,6 +48,25 @@ export const GlobalStyles = StyleSheet.create({
     container: {
         flex: 1,
         backgroundColor: Colors.backgroundLight,
+    },
+    screenPadding: {
+        paddingHorizontal: 16,
+    },
+    card: {
+        backgroundColor: 'white',
+        padding: Spacing.large,
+        borderRadius: 12,
+        marginHorizontal: Spacing.medium,
+        marginTop: Spacing.medium,
+        shadowColor: Colors.shadow,
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.15,
+        shadowRadius: 4,
+        elevation: 4,
+    },
+    rowPress: {
+        borderRadius: 12,
+        overflow: 'hidden',
     },
     centered: { // <--- DODAJ TEN NOWY STYL
         flex: 1,

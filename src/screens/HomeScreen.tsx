@@ -1,12 +1,16 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, FlatList, ActivityIndicator, Modal, TextInput, Image, Vibration } from 'react-native';
 import * as Haptics from 'expo-haptics';
+import { scheduleTaskNotifications } from '../utils/notifications';
 import Animated, { FadeInUp, FadeOutUp, Layout } from 'react-native-reanimated';
+import { LinearGradient } from 'expo-linear-gradient';
+import { Swipeable } from 'react-native-gesture-handler';
 import { useNavigation } from '@react-navigation/native';
 import auth, { getAuth } from '@react-native-firebase/auth';
 import { db } from '../../firebaseConfig';
 import { collection, addDoc, query, where, onSnapshot, doc, updateDoc, deleteDoc, increment, Timestamp, getDoc } from 'firebase/firestore';
 import { Feather } from '@expo/vector-icons';
+import AnimatedIconButton from '../components/AnimatedIconButton';
 import { TaskStackNavigationProp } from '../types/navigation';
 import AddTaskModal from './AddTaskModal';
 import PriorityIndicator from '../components/PriorityIndicator';
@@ -19,7 +23,12 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useToast } from '../contexts/ToastContext';
 import ActionModal from '../components/ActionModal';
 import { Colors, Spacing, GlobalStyles, Typography } from '../styles/AppStyles';
+import { useUI } from '../contexts/UIContext';
+import { useTheme } from '../contexts/ThemeContext';
 import SearchBar from '../components/SearchBar';
+import FilterPresets from '../components/FilterPresets';
+import AppHeader from '../components/AppHeader';
+import BottomQuickAdd from '../components/BottomQuickAdd';
 
 const CACHED_TASKS_KEY = 'dailyflow_cached_tasks';
 const HOME_FILTERS_KEY = 'dailyflow_home_filters';
@@ -32,6 +41,8 @@ type SerializableTask = Omit<Task, 'createdAt' | 'deadline' | 'completedAt'> & {
 
 const HomeScreen = () => {
     const navigation = useNavigation<TaskStackNavigationProp>();
+    const theme = useTheme();
+    const { density } = useUI();
     const [rawTasks, setRawTasks] = useState<Task[]>([]);
     const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
     const [taskType, setTaskType] = useState<'personal' | 'shared'>('personal');
@@ -41,6 +52,7 @@ const HomeScreen = () => {
     const [templatesModalVisible, setTemplatesModalVisible] = useState(false);
     const [searchQuery, setSearchQuery] = useState('');
     const [addTaskModalVisible, setAddTaskModalVisible] = useState(false);
+    const [quickTaskText, setQuickTaskText] = useState('');
     const [filterFromDate, setFilterFromDate] = useState<Date | null>(null);
     const [filterToDate, setFilterToDate] = useState<Date | null>(null);
     const didLoadFiltersRef = useRef(false);
@@ -179,6 +191,8 @@ const HomeScreen = () => {
             } catch (e) {
                 console.error("Nie udało się zapisać zadań w pamięci podręcznej.", e);
             }
+            // schedule notifications for due tasks
+            try { await scheduleTaskNotifications(tasksData, userProfile); } catch {}
             setLoading(false);
         }, (error) => {
             console.error("Błąd połączenia z Firestore, dane mogą być nieaktualne.", error);
@@ -246,6 +260,19 @@ const HomeScreen = () => {
            });
     }, [rawTasks, userProfile, activeCategory, taskType, searchQuery, filterFromDate, filterToDate]);
 
+    const todayTasks = useMemo(() => {
+        const start = new Date();
+        start.setHours(0, 0, 0, 0);
+        const end = new Date();
+        end.setHours(23, 59, 59, 999);
+        return processedAndSortedTasks.filter(t => {
+            const deadline = t.deadline?.toDate?.() || (t.deadline as any);
+            if (!deadline) return false;
+            const time = deadline.getTime();
+            return time < end.getTime(); // obejmuje dziś i przeterminowane
+        }).slice(0, 5);
+    }, [processedAndSortedTasks]);
+
     const handleAddTask = async (taskData: any) => {
         if (!currentUser) return;
         try {
@@ -267,6 +294,37 @@ const HomeScreen = () => {
         } catch (error) {
             console.error("Błąd dodawania zadania: ", error);
             showToast("Nie udało się dodać zadania.", 'error');
+        }
+    };
+
+    const handleQuickAdd = async () => {
+        if (!currentUser) return;
+        if (!quickTaskText.trim()) return;
+        if (taskType === 'shared' && !userProfile?.pairId) { showToast('Musisz być w parze, aby dodawać wspólne zadania.', 'info'); return; }
+        try {
+            const defaultCategoryId = activeCategory === 'all'
+                ? (categories.find(c => c.name === 'Inne')?.id || 'default')
+                : activeCategory;
+            await addDoc(collection(db, 'tasks'), {
+                text: quickTaskText.trim(),
+                description: '',
+                category: defaultCategoryId,
+                basePriority: 3,
+                difficulty: 2,
+                deadline: null,
+                completed: false,
+                status: 'active',
+                userId: currentUser.uid,
+                creatorNickname: userProfile?.nickname || currentUser.email?.split('@')[0] || 'Użytkownik',
+                isShared: taskType === 'shared',
+                pairId: taskType === 'shared' ? (userProfile?.pairId ?? null) : null,
+                createdAt: Timestamp.now(),
+            });
+            setQuickTaskText('');
+            showToast('Dodano!', 'success');
+        } catch (e) {
+            console.error('QuickAdd error', e);
+            showToast('Nie udało się dodać.', 'error');
         }
     };
 
@@ -334,92 +392,130 @@ const HomeScreen = () => {
     const handleTaskAction = (task: Task) => setConfirmModalTask(task);
 
     const renderTask = ({ item }: { item: Task }) => {
+        let swipeableRef: Swipeable | null = null;
+        const rowVertical = density === 'compact' ? Spacing.xSmall : Spacing.small;
+        const rowHorizontal = density === 'compact' ? Spacing.small : Spacing.medium;
+
+        const renderLeftActions = () => (
+            <View style={[styles.swipeAction, styles.swipeActionWidth, { backgroundColor: Colors.success }]}>
+                <Feather name="check" size={22} color="white" style={{ marginRight: 8 }} />
+                <Text style={styles.swipeActionText}>Ukończ</Text>
+            </View>
+        );
+
+        const renderRightActions = () => (
+            <View style={[styles.swipeAction, styles.swipeActionWidth, { backgroundColor: item.completed ? Colors.warning : Colors.danger }]}>
+                <Feather name={item.completed ? 'archive' : 'trash-2'} size={22} color="white" style={{ marginRight: 8 }} />
+                <Text style={styles.swipeActionText}>{item.completed ? 'Archiwizuj' : 'Usuń'}</Text>
+            </View>
+        );
+
         const category = categories.find((c: Category) => c.id === item.category);
         return (
-            <TouchableOpacity onPress={() => navigation.navigate('TaskDetail', { taskId: item.id })}>
-                {/* Wrapper z animacją layoutu, bez zmian opacity */}
-                <Animated.View layout={Layout.springify()}>
-                    {/* Wewnętrzny widok z animacją wejścia/wyjścia i ewentualną zmianą opacity */}
-                    <Animated.View entering={FadeInUp.duration(250)} exiting={FadeOutUp.duration(200)} style={[
-                        styles.taskContainer,
-                        item.completed && styles.taskContainerCompleted,
-                        item.priority >= 4 && { borderLeftWidth: 4, borderLeftColor: Colors.danger },
-                        item.priority === 3 && { borderLeftWidth: 3, borderLeftColor: Colors.warning },
-                        item.priority < 3 && { borderLeftWidth: 2, borderLeftColor: Colors.success },
-                    ]}>
-                    <TouchableOpacity onPress={() => toggleComplete(item)} style={styles.checkboxTouchable}>
-                        <View style={[styles.checkbox, item.completed && styles.checkboxCompleted]}>
-                            {item.completed && <Feather name="check" size={18} color="white" />}
-                        </View>
-                    </TouchableOpacity>
-                    <View style={styles.taskContent}>
-                        <Text style={[styles.taskText, item.completed && styles.taskTextCompleted]}>{item.text}</Text>
-                        {!!item.description && <Text style={styles.descriptionText} numberOfLines={3}>{item.description}</Text>}
-                        <View style={styles.taskMetaContainer}>
-                            {category && <View style={[styles.categoryTag, {backgroundColor: category.color}]}><Text style={styles.categoryTagText}>{category.name}</Text></View>}
-                            {item.isShared && <Text style={styles.creatorText}>od: {item.creatorNickname}</Text>}
-                        </View>
-                        {item.completed && item.completedBy ? (
-                            <Text style={styles.completedText}>
-                                Wykonane przez: {item.completedBy} {item.completedAt?.toDate().toLocaleDateString('pl-PL')}
-                            </Text>
-                        ) : (
-                            item.createdAt && <Text style={styles.createdText}>
-                                Dodano: {item.createdAt?.toDate().toLocaleDateString('pl-PL')}
-                            </Text>
-                        )}
-                        {item.deadline && !item.completed && <Text style={styles.deadlineText}>Termin: {item.deadline.toDate().toLocaleDateString('pl-PL')}</Text>}
-                    </View>
-                    <View style={styles.rightSection}>
-                        <PriorityIndicator priority={item.priority} />
-                        <TouchableOpacity onPress={() => handleTaskAction(item)} style={styles.actionButton}>
-                            <Feather name={item.completed ? "archive" : "trash-2"} size={20} color={item.completed ? Colors.textSecondary : Colors.danger} />
-                        </TouchableOpacity>
-                    </View>
+            <Swipeable
+                ref={(ref) => { swipeableRef = ref; }}
+                renderLeftActions={renderLeftActions}
+                renderRightActions={renderRightActions}
+                onSwipeableOpen={(direction) => {
+                    if (direction === 'left') {
+                        try { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); } catch {}
+                        toggleComplete(item);
+                        swipeableRef?.close();
+                    } else if (direction === 'right') {
+                        try { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium); } catch {}
+                        handleTaskAction(item);
+                        swipeableRef?.close();
+                    }
+                }}
+                friction={2}
+                leftThreshold={72}
+                rightThreshold={72}
+                overshootLeft={false}
+                overshootRight={false}
+            >
+                <TouchableOpacity onPress={() => navigation.navigate('TaskDetail', { taskId: item.id })} style={GlobalStyles.rowPress}>
+                    {/* Wrapper z animacją layoutu, bez zmian opacity */}
+                    <Animated.View layout={Layout.springify()}>
+                        {/* Wewnętrzny widok z animacją wejścia/wyjścia; przywrócony styl wiersza jak wcześniej */}
+                        <Animated.View entering={FadeInUp.duration(250)} exiting={FadeOutUp.duration(200)} style={[
+                            styles.taskContainer,
+                            { paddingVertical: rowVertical, paddingHorizontal: rowHorizontal },
+                            item.completed && styles.taskContainerCompleted,
+                            item.priority >= 4 && { borderLeftWidth: 4, borderLeftColor: Colors.danger },
+                            item.priority === 3 && { borderLeftWidth: 3, borderLeftColor: Colors.warning },
+                            item.priority < 3 && { borderLeftWidth: 2, borderLeftColor: Colors.success },
+                            { backgroundColor: theme.colors.card, borderColor: theme.colors.border },
+                        ]}>
+                            <TouchableOpacity onPress={() => toggleComplete(item)} style={styles.checkboxTouchable}>
+                                <View style={[styles.checkbox, item.completed && styles.checkboxCompleted]}>
+                                    {item.completed && <Feather name="check" size={18} color="white" />}
+                                </View>
+                            </TouchableOpacity>
+                            <View style={styles.taskContent}>
+                                <Text style={[styles.taskText, { color: theme.colors.textPrimary }, item.completed && styles.taskTextCompleted]}>{item.text}</Text>
+                                {!!item.description && <Text style={[styles.descriptionText, { color: theme.colors.textSecondary }]} numberOfLines={density==='compact' ? 2 : 3}>{item.description}</Text>}
+                                <View style={styles.taskMetaContainer}>
+                                    {category && <View style={[styles.categoryTag, {backgroundColor: category.color}]}><Text style={styles.categoryTagText}>{category.name}</Text></View>}
+                                    {item.isShared && <Text style={[styles.creatorText, { color: theme.colors.textSecondary }]}>od: {item.creatorNickname}</Text>}
+                                </View>
+                                {item.completed && item.completedBy ? (
+                                    <Text style={[styles.completedText, { color: Colors.success }]}>
+                                        Wykonane przez: {item.completedBy} {item.completedAt?.toDate().toLocaleDateString('pl-PL')}
+                                    </Text>
+                                ) : (
+                                    item.createdAt && <Text style={[styles.createdText, { color: theme.colors.textSecondary }]}>
+                                        Dodano: {item.createdAt?.toDate().toLocaleDateString('pl-PL')}
+                                    </Text>
+                                )}
+                                {item.deadline && !item.completed && <Text style={[styles.deadlineText, { color: Colors.danger }]}>
+                                    Termin: {item.deadline.toDate().toLocaleDateString('pl-PL')}
+                                </Text>}
+                            </View>
+                            <View style={styles.rightSection}>
+                                <PriorityIndicator priority={item.priority} />
+                                <AnimatedIconButton
+                                  icon={item.completed ? 'archive' : 'trash-2'}
+                                  size={20}
+                                  color={item.completed ? Colors.textSecondary : Colors.danger}
+                                  onPress={() => handleTaskAction(item)}
+                                  accessibilityLabel={item.completed ? 'Archiwizuj' : 'Usuń'}
+                                  style={styles.actionButton as any}
+                                />
+                            </View>
+                        </Animated.View>
                     </Animated.View>
-                </Animated.View>
-            </TouchableOpacity>
+                </TouchableOpacity>
+            </Swipeable>
         );
     };
 
     const filteredTemplates = templates.filter(t => activeCategory === 'all' || t.category === activeCategory);
 
     return (
-        <View style={GlobalStyles.container}>
-             <View style={styles.headerContainer}>
-                <View>
-                    <Text style={styles.headerTitle}>Twoje Zadania</Text>
-                </View>
-                <View style={styles.headerIcons}>
-                    <TouchableOpacity onPress={() => navigation.navigate('Archive')} style={{marginRight: Spacing.medium}}>
-                        <Feather name="archive" size={26} color={Colors.textPrimary} />
-                    </TouchableOpacity>
-                    <TouchableOpacity onPress={() => navigation.navigate('ChoreTemplates', {})} style={{marginRight: Spacing.medium}}>
-                        <Feather name="file-text" size={26} color={Colors.textPrimary} />
-                    </TouchableOpacity>
-                    <TouchableOpacity onPress={() => navigation.navigate('WeekPlan')} style={{marginRight: Spacing.medium}}>
-                        <Feather name="calendar" size={26} color={Colors.textPrimary} />
-                    </TouchableOpacity>
-                    <TouchableOpacity onPress={() => navigation.navigate('Profile')}>
-                         {userProfile?.photoURL ? (
-                            <Image source={{ uri: userProfile.photoURL }} style={styles.headerAvatar} />
-                         ) : (
-                            <View style={styles.headerAvatarPlaceholder}>
-                                <Text style={styles.headerAvatarText}>
-                                    {userProfile?.nickname ? userProfile.nickname.charAt(0).toUpperCase() : '?'}
-                                </Text>
-                            </View>
-                         )}
-                    </TouchableOpacity>
-                </View>
-            </View>
-            <View style={styles.tabContainer}>
-                <TouchableOpacity style={[styles.tab, taskType === 'personal' && styles.tabActive]} onPress={() => setTaskType('personal')}><Text style={[styles.tabText, taskType === 'personal' && styles.tabTextActive]}>Osobiste</Text></TouchableOpacity>
-                <TouchableOpacity style={[styles.tab, taskType === 'shared' && styles.tabActive]} onPress={() => setTaskType('shared')}><Text style={[styles.tabText, taskType === 'shared' && styles.tabTextActive]}>Wspólne</Text></TouchableOpacity>
+        <View style={[GlobalStyles.container, { backgroundColor: theme.colors.background }]}>
+            <AppHeader
+              title="Twoje zadania"
+              rightActions={[
+                { icon: 'archive', onPress: () => navigation.navigate('Archive'), accessibilityLabel: 'Archiwum zadań' },
+                { icon: 'file-text', onPress: () => navigation.navigate('ChoreTemplates', {}), accessibilityLabel: 'Szablony obowiązków' },
+                { icon: 'calendar', onPress: () => navigation.navigate('WeekPlan'), accessibilityLabel: 'Plan tygodnia' },
+                { icon: 'repeat', onPress: () => navigation.navigate('RecurringSeries'), accessibilityLabel: 'Zadania cykliczne' },
+                { icon: 'bell', onPress: () => navigation.navigate('Notifications'), accessibilityLabel: 'Powiadomienia' },
+              ]}
+              avatarUrl={userProfile?.photoURL || null}
+              onAvatarPress={() => navigation.navigate('Profile')}
+            />
+            <View style={[styles.tabContainer, { backgroundColor: theme.colors.card, borderColor: theme.colors.border }]}>
+                <TouchableOpacity style={[styles.tab, taskType === 'personal' && styles.tabActive]} onPress={() => setTaskType('personal')} activeOpacity={0.8}>
+                    <Text style={[styles.tabText, taskType === 'personal' && styles.tabTextActive]}>Osobiste</Text>
+                </TouchableOpacity>
+                <TouchableOpacity style={[styles.tab, taskType === 'shared' && styles.tabActive]} onPress={() => setTaskType('shared')} activeOpacity={0.8}>
+                    <Text style={[styles.tabText, taskType === 'shared' && styles.tabTextActive]}>Wspólne</Text>
+                </TouchableOpacity>
             </View>
             {taskType === 'shared' && userProfile?.partnerNickname ? (
-                <View style={styles.partnerInfoBanner}>
-                    <Text style={styles.partnerInfoText}>Dzielone z: <Text style={{fontWeight: '700'}}>{userProfile.partnerNickname}</Text></Text>
+                <View style={[styles.partnerInfoBanner, { backgroundColor: theme.colors.card, borderColor: theme.colors.border }]}>
+                    <Text style={[styles.partnerInfoText, { color: theme.colors.textSecondary }]}>Dzielone z: <Text style={{fontWeight: '700', color: theme.colors.textPrimary}}>{userProfile.partnerNickname}</Text></Text>
                 </View>
             ) : null}
 
@@ -427,6 +523,50 @@ const HomeScreen = () => {
                 placeholder="Szukaj po nazwie lub opisie..."
                 value={searchQuery}
                 onChangeText={setSearchQuery}
+            />
+
+            <FilterPresets
+                storageKey="dailyflow_home_filter_presets"
+                userId={currentUser?.uid}
+                title="Presety filtrów (Home)"
+                getCurrentFilters={() => ({
+                    taskType,
+                    activeCategory,
+                    searchQuery,
+                    filterFromDate: filterFromDate ? filterFromDate.toISOString() : null,
+                    filterToDate: filterToDate ? filterToDate.toISOString() : null,
+                })}
+                applyFilters={(data: any) => {
+                    setTaskType(data.taskType ?? 'personal');
+                    setActiveCategory(data.activeCategory ?? 'all');
+                    setSearchQuery(data.searchQuery ?? '');
+                    setFilterFromDate(data.filterFromDate ? new Date(data.filterFromDate) : null);
+                    setFilterToDate(data.filterToDate ? new Date(data.filterToDate) : null);
+                }}
+            />
+
+            {todayTasks.length > 0 && (
+                <LinearGradient
+                  colors={theme.colorScheme === 'dark' ? ['#1e3c72', '#2a5298'] : ['#a1c4fd', '#c2e9fb']}
+                  start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }}
+                  style={[GlobalStyles.card, styles.todaySection, { borderWidth: 0 }]}
+                >
+                    <Text style={[styles.todayTitle, { color: 'white' }]}>Dzisiaj</Text>
+                    {todayTasks.map(t => (
+                        <TouchableOpacity key={t.id} onPress={() => navigation.navigate('TaskDetail', { taskId: t.id })} style={[styles.todayItem, GlobalStyles.rowPress]}>
+                            <Feather name="clock" size={16} color={'#ffffffcc'} style={{ marginRight: 6 }} />
+                            <Text style={[styles.todayText, { color: 'white' }]} numberOfLines={1}>{t.text}</Text>
+                        </TouchableOpacity>
+                    ))}
+                </LinearGradient>
+            )}
+
+            <BottomQuickAdd
+              value={quickTaskText}
+              onChangeText={setQuickTaskText}
+              placeholder={taskType === 'shared' && !userProfile?.pairId ? 'Dołącz do pary, aby dodać wspólne' : 'Szybko dodaj zadanie...'}
+              onSubmit={handleQuickAdd}
+              disabled={!quickTaskText.trim() || (taskType === 'shared' && !userProfile?.pairId)}
             />
 
             <CategoryFilter activeCategory={activeCategory} onSelectCategory={setActiveCategory} />
@@ -440,16 +580,21 @@ const HomeScreen = () => {
                 predefinedRanges={true}
             />
 
-             {loading ? <ActivityIndicator size="large" color={Colors.primary} style={{flex: 1}} /> : (
-                <FlatList
+            {loading ? <ActivityIndicator size="large" color={theme.colors.primary} style={{flex: 1}} /> : (
+                <Animated.FlatList
                     data={processedAndSortedTasks}
-                    renderItem={renderTask}
+                    renderItem={(args) => (
+                      <Animated.View entering={FadeInUp.duration(220)} layout={Layout.springify()}>
+                        {renderTask(args)}
+                      </Animated.View>
+                    )}
                     keyExtractor={item => item.id}
                     style={styles.list}
                     initialNumToRender={12}
                     windowSize={10}
                     removeClippedSubviews
                     maxToRenderPerBatch={12}
+                    contentContainerStyle={{ paddingBottom: Spacing.xLarge * 2 }}
                     ListEmptyComponent={
                         <EmptyState
                             icon={searchQuery || filterFromDate || filterToDate || activeCategory !== 'all' ? "search" : "inbox"}
@@ -718,6 +863,68 @@ const styles = StyleSheet.create({
     templateName: { fontSize: Typography.body.fontSize },
     closeButton: { marginTop: Spacing.medium, padding: Spacing.small },
     closeButtonText: { textAlign: 'center', color: Colors.danger, fontSize: Typography.body.fontSize },
+    todaySection: {
+        marginHorizontal: Spacing.medium,
+        marginTop: Spacing.medium,
+        padding: Spacing.medium,
+        borderRadius: 10,
+        borderWidth: 1,
+    },
+    todayTitle: {
+        ...Typography.h3,
+        marginBottom: Spacing.small,
+    },
+    todayItem: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        paddingVertical: 6,
+    },
+    todayText: {
+        ...Typography.body,
+        flex: 1,
+    },
+    swipeAction: {
+        flex: 1,
+        flexDirection: 'row',
+        alignItems: 'center',
+        paddingHorizontal: Spacing.medium,
+    },
+    swipeActionText: {
+        color: 'white',
+        fontWeight: '700',
+    },
+    swipeActionWidth: {
+        width: 140,
+        justifyContent: 'center',
+    },
+    quickAddContainer: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        backgroundColor: 'white',
+        paddingHorizontal: Spacing.medium,
+        paddingVertical: Spacing.small,
+        borderBottomWidth: 1,
+        borderTopWidth: 1,
+        borderColor: Colors.border,
+    },
+    quickAddInput: {
+        flex: 1,
+        paddingVertical: 10,
+        paddingRight: Spacing.small,
+        color: Colors.textPrimary,
+    },
+    quickAddButton: {
+        width: 36,
+        height: 36,
+        borderRadius: 18,
+        backgroundColor: Colors.primary,
+        alignItems: 'center',
+        justifyContent: 'center',
+    },
+    quickAddButtonDisabled: {
+        backgroundColor: Colors.textSecondary,
+        opacity: 0.5,
+    },
 });
 
 export default HomeScreen;

@@ -1,13 +1,14 @@
 // src/screens/ArchiveScreen.tsx
 import React, { useState, useEffect, useMemo, useRef } from 'react';
-import { View, Text, StyleSheet, FlatList, ActivityIndicator, TouchableOpacity, TextInput, ScrollView, Platform, Dimensions } from 'react-native';
+import { View, Text, StyleSheet, FlatList, ActivityIndicator, TouchableOpacity, TextInput, ScrollView, Platform, Dimensions, Pressable } from 'react-native';
 import * as Haptics from 'expo-haptics';
 import * as FileSystem from 'expo-file-system';
+import * as DocumentPicker from 'expo-document-picker';
 import ActionModal from '../components/ActionModal';
 import { useToast } from '../contexts/ToastContext';
 import auth, { getAuth } from '@react-native-firebase/auth';
 import { db } from '../../firebaseConfig'; // <--- TEN IMPORT ZOSTAJE
-import { collection, query, where, onSnapshot, orderBy, doc, updateDoc, deleteDoc, getDoc } from 'firebase/firestore';
+import { collection, query, where, onSnapshot, orderBy, doc, updateDoc, deleteDoc, getDoc, addDoc } from 'firebase/firestore';
 import { Task, Category, UserProfile, Pair } from '../types';
 import { useCategories } from '../contexts/CategoryContext';
 import { Feather } from '@expo/vector-icons';
@@ -16,10 +17,16 @@ import CategoryFilter from '../components/CategoryFilter';
 import DateRangeFilter from '../components/DateRangeFilter';
 import ActionButton from '../components/ActionButton';
 import { Picker } from '@react-native-picker/picker';
-import { Colors, Spacing, Typography, GlobalStyles } from '../styles/AppStyles'; // Import globalnych stylów
+import { Colors, Spacing, Typography, GlobalStyles, densityScale } from '../styles/AppStyles';
+import AppHeader from '../components/AppHeader';
+import { useTheme } from '../contexts/ThemeContext';
+import FilterPresets from '../components/FilterPresets';
 import SearchBar from '../components/SearchBar'; // <-- Import SearchBar
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { toCsv } from '../utils/csv';
+import { toCsv, fromCsv } from '../utils/csv';
+import Animated, { FadeInUp, Layout, useSharedValue, useAnimatedStyle, withSpring } from 'react-native-reanimated';
+import AnimatedIconButton from '../components/AnimatedIconButton';
+import { useUI } from '../contexts/UIContext';
 
 const ArchiveScreen = () => {
     const [rawArchivedTasks, setRawArchivedTasks] = useState<Task[]>([]);
@@ -27,6 +34,8 @@ const ArchiveScreen = () => {
     const { showToast } = useToast();
     const [confirmDeleteTaskId, setConfirmDeleteTaskId] = useState<string | null>(null);
     const [searchQuery, setSearchQuery] = useState('');
+    const { density } = useUI();
+    const isCompact = density === 'compact';
 
     const [filterCompletedFromDate, setFilterCompletedFromDate] = useState<Date | null>(null);
     const [filterCompletedToDate, setFilterCompletedToDate] = useState<Date | null>(null);
@@ -39,12 +48,13 @@ const ArchiveScreen = () => {
     const [selectedPartnerId, setSelectedPartnerId] = useState<string | 'all'>('all');
 
     const { categories } = useCategories();
+    const theme = useTheme();
     const currentUser = getAuth().currentUser;
     const didLoadFiltersRef = useRef(false);
     const ARCHIVE_FILTERS_KEY = 'dailyflow_archive_filters';
 
     useEffect(() => {
-        if (!currentUser) {
+    if (!currentUser) {
             setLoading(false);
             return;
         }
@@ -269,42 +279,47 @@ const ArchiveScreen = () => {
             }
         }
 
+        const scale = useSharedValue(1);
+        const animatedStyle = useAnimatedStyle(() => ({ transform: [{ scale: scale.value }] }));
         return (
-            <View style={styles.taskContainer}>
+            <Animated.View style={[
+                styles.taskContainer,
+                isCompact && { paddingVertical: Spacing.small, paddingHorizontal: Spacing.medium },
+                { backgroundColor: theme.colors.card, borderColor: theme.colors.border },
+                GlobalStyles.rowPress,
+                animatedStyle
+            ]}>
                 <View style={styles.taskContent}>
-                    <Text style={styles.taskTitle}>{item.text}</Text>
-                    {!!item.description && <Text style={styles.taskDescription}>{item.description}</Text>}
+                    <Text style={[styles.taskTitle, { color: theme.colors.textPrimary }, isCompact && { fontSize: densityScale(Typography.body.fontSize + 1, true) }]}>{item.text}</Text>
+                    {!!item.description && <Text style={[styles.taskDescription, { color: theme.colors.textSecondary }]}>{item.description}</Text>}
 
                     <View style={styles.taskMetaContainer}>
                         {category && <View style={[styles.categoryTag, {backgroundColor: category.color}]}><Text style={styles.categoryTagText}>{category.name}</Text></View>}
-                        {item.isShared && <Text style={styles.creatorText}>od: {item.creatorNickname}</Text>}
+                        {item.isShared && <Text style={[styles.creatorText, { color: theme.colors.textSecondary }]}>od: {item.creatorNickname}</Text>}
 
                         {sharedWithInfo ? <Text style={styles.sharedInfoText}>{sharedWithInfo}</Text> : null}
                     </View>
                     {item.completedBy && item.completedAt && (
-                        <Text style={styles.completedText}>
+                        <Text style={[styles.completedText, { color: theme.colors.textSecondary }]}>
                             Wykonane przez: {item.completedBy} dnia {item.completedAt.toDate().toLocaleDateString('pl-PL')}
                         </Text>
                     )}
                 </View>
                 <View style={styles.actionsContainer}>
-                    <TouchableOpacity onPress={async () => { try { await Haptics.selectionAsync(); } catch {}; await handleRestoreTask(item.id); }} style={styles.actionButton}>
-                        <Feather name="refresh-ccw" size={22} color={Colors.primary} />
-                    </TouchableOpacity>
-                    <TouchableOpacity onPress={async () => { try { await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning); } catch {}; handlePermanentDelete(item.id); }} style={[styles.actionButton, { marginLeft: Spacing.medium }]}>
-                        <Feather name="trash-2" size={22} color={Colors.danger} />
-                    </TouchableOpacity>
+                    <AnimatedIconButton icon="refresh-ccw" size={22} color={theme.colors.primary} onPress={async () => { try { await Haptics.selectionAsync(); } catch {}; await handleRestoreTask(item.id); }} style={styles.actionButton as any} accessibilityLabel="Przywróć zadanie" />
+                    <AnimatedIconButton icon="trash-2" size={22} color={theme.colors.danger} onPress={async () => { try { await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning); } catch {}; handlePermanentDelete(item.id); }} style={[styles.actionButton as any, { marginLeft: Spacing.medium }]} accessibilityLabel="Usuń na stałe" />
                 </View>
-            </View>
+            </Animated.View>
         );
     };
 
     return (
-        <View style={GlobalStyles.container}>
+        <View style={[GlobalStyles.container, { backgroundColor: theme.colors.background }]}>
+            <AppHeader title="Archiwum" />
             {/* Pasek akcji eksportu */}
-            <View style={styles.exportBar}>
+            <Animated.View entering={FadeInUp} layout={Layout.springify()} style={[styles.exportBar, { backgroundColor: theme.colors.card, borderColor: theme.colors.border }]}> 
                 <TouchableOpacity
-                    style={[GlobalStyles.button, styles.exportButton]}
+                    style={[GlobalStyles.button, styles.exportButton, { backgroundColor: theme.colors.primary }]}
                     onPress={async () => {
                         try {
                             await Haptics.selectionAsync();
@@ -329,19 +344,62 @@ const ArchiveScreen = () => {
                             await FileSystem.writeAsStringAsync(filePath, csv, { encoding: FileSystem.EncodingType.UTF8 });
                             // W Android/Expo można użyć shareSheet – ale brak expo-sharing, więc podamy ścieżkę i log
                             console.log('CSV saved at:', filePath);
-                            // Prosta informacja toastem
-                            // Użyjemy istniejącego kontekstu toast przez showToast
-                            // Ponieważ nie mamy tu hooka – dodajmy delikatny alert w konsoli już jest
+                            showToast('Wyeksportowano CSV. Plik zapisany w: ' + filePath, 'success');
                         } catch (e) {
                             console.error('Export CSV failed', e);
+                            showToast('Nie udało się wyeksportować CSV.', 'error');
                         }
                     }}
                 >
                     <Text style={GlobalStyles.buttonText}>Eksportuj CSV</Text>
                 </TouchableOpacity>
-            </View>
+                <TouchableOpacity
+                    style={[GlobalStyles.button, styles.exportButton, { backgroundColor: theme.colors.secondary, marginLeft: Spacing.small }]}
+                    onPress={async () => {
+                        try { await Haptics.selectionAsync(); } catch {}
+                        try {
+                            const res = await DocumentPicker.getDocumentAsync({ type: 'text/*', multiple: false });
+                            if (res.canceled || !res.assets?.[0]) return;
+                            const uri = res.assets[0].uri;
+                            const csv = await FileSystem.readAsStringAsync(uri, { encoding: FileSystem.EncodingType.UTF8 });
+                            const rows = fromCsv(csv);
+                            // Import minimalny: tylko tekst i kategoria
+                            let imported = 0;
+                            for (const r of rows) {
+                                const text = (r['text'] || r['name'] || '').trim();
+                                if (!text) continue;
+                                const catName = (r['category'] || '').trim();
+                                const category = categories.find(c => c.name === catName)?.id || activeCategoryArchive !== 'all' ? activeCategoryArchive as string : (categories[0]?.id || 'default');
+                                await addDoc(collection(db, 'tasks'), {
+                                    text,
+                                    description: r['description'] || '',
+                                    category,
+                                    basePriority: Number(r['basePriority'] || 3),
+                                    difficulty: Number(r['difficulty'] || 2),
+                                    deadline: r['deadline'] ? new Date(r['deadline']) : null,
+                                    completed: true,
+                                    status: 'archived',
+                                    userId: currentUser?.uid,
+                                    creatorNickname: userProfile?.nickname || 'Użytkownik',
+                                    isShared: false,
+                                    pairId: null,
+                                    createdAt: new Date(),
+                                    completedAt: new Date(),
+                                });
+                                imported++;
+                            }
+                            showToast(`Zaimportowano ${imported} pozycji.`, 'success');
+                        } catch (e) {
+                            console.error('Import CSV failed', e);
+                            showToast('Nie udało się zaimportować CSV.', 'error');
+                        }
+                    }}
+                >
+                    <Text style={GlobalStyles.buttonText}>Importuj CSV</Text>
+                </TouchableOpacity>
+            </Animated.View>
             {/* Przełącznik typu zadań (osobiste/wspólne/wszystkie) */}
-            <View style={styles.taskTypeSwitchContainer}>
+            <Animated.View entering={FadeInUp.delay(60)} layout={Layout.springify()} style={[styles.taskTypeSwitchContainer, { backgroundColor: theme.colors.card, borderColor: theme.colors.border }]}> 
                 <ActionButton
                     title="Osobiste"
                     onPress={() => { setArchivedTaskType('personal'); setSelectedPartnerId('all'); }}
@@ -378,18 +436,18 @@ const ArchiveScreen = () => {
                         archivedTaskType === 'all' ? styles.taskTypeButtonTextActive : {}
                     ]}
                 />
-            </View>
+            </Animated.View>
 
             {/* Filtr po osobach, tylko jeśli wybrano "Wspólne" i użytkownik jest w parze */}
             {archivedTaskType === 'shared' && userProfile?.pairId && partnerNicknames.length > 0 && (
-                <View style={styles.partnerFilterContainer}>
-                    <Text style={styles.partnerFilterLabel}>Filtruj wg partnera:</Text>
-                    <View style={styles.pickerWrapper}>
+                <Animated.View entering={FadeInUp.delay(120)} layout={Layout.springify()} style={[styles.partnerFilterContainer, { backgroundColor: theme.colors.card, borderColor: theme.colors.border }]}> 
+                    <Text style={[styles.partnerFilterLabel, { color: theme.colors.textSecondary }]}>Filtruj wg partnera:</Text>
+                    <View style={[styles.pickerWrapper, { borderColor: theme.colors.border }]}>
                         <Picker
                             selectedValue={selectedPartnerId}
                             onValueChange={(itemValue: string | 'all') => setSelectedPartnerId(itemValue)}
                             style={styles.picker}
-                            dropdownIconColor={Colors.textPrimary} // Ustawienie stałego koloru dla ikony dropdown
+                            dropdownIconColor={theme.colors.textPrimary}
                         >
                             <Picker.Item label="Wszyscy w parze" value="all" />
                             {/* Opcja dla "Mnie" */}
@@ -402,13 +460,36 @@ const ArchiveScreen = () => {
                             ))}
                         </Picker>
                     </View>
-                </View>
+                    <View style={{ height: 1, backgroundColor: theme.colors.border }} />
+                </Animated.View>
             )}
 
             <SearchBar
                 placeholder="Szukaj po nazwie lub opisie..."
                 value={searchQuery}
                 onChangeText={setSearchQuery}
+            />
+
+            <FilterPresets
+                storageKey="dailyflow_archive_filter_presets"
+                userId={currentUser?.uid}
+                title="Presety filtrów (Archiwum)"
+                getCurrentFilters={() => ({
+                    archivedTaskType,
+                    selectedPartnerId,
+                    activeCategoryArchive,
+                    searchQuery,
+                    filterCompletedFromDate: filterCompletedFromDate ? filterCompletedFromDate.toISOString() : null,
+                    filterCompletedToDate: filterCompletedToDate ? filterCompletedToDate.toISOString() : null,
+                })}
+                applyFilters={(data: any) => {
+                    setArchivedTaskType(data.archivedTaskType ?? 'all');
+                    setSelectedPartnerId(data.selectedPartnerId ?? 'all');
+                    setActiveCategoryArchive(data.activeCategoryArchive ?? 'all');
+                    setSearchQuery(data.searchQuery ?? '');
+                    setFilterCompletedFromDate(data.filterCompletedFromDate ? new Date(data.filterCompletedFromDate) : null);
+                    setFilterCompletedToDate(data.filterCompletedToDate ? new Date(data.filterCompletedToDate) : null);
+                }}
             />
 
             {/* Filtry daty (ukończenia) - WYBÓR ZAKRESU Z NOWEGO KOMPONENTU */}
@@ -424,15 +505,18 @@ const ArchiveScreen = () => {
             {/* Filtr kategorii */}
             <CategoryFilter activeCategory={activeCategoryArchive} onSelectCategory={setActiveCategoryArchive} />
 
-            <FlatList
+            <Animated.FlatList
                 style={styles.list}
                 data={processedAndSortedArchivedTasks}
-                renderItem={renderArchivedTask}
+                renderItem={(args) => (
+                  <Animated.View entering={FadeInUp.duration(220)} layout={Layout.springify()}>{renderArchivedTask(args)}</Animated.View>
+                )}
                 keyExtractor={item => item.id}
                 initialNumToRender={12}
                 windowSize={10}
                 removeClippedSubviews
                 maxToRenderPerBatch={12}
+                contentContainerStyle={{ paddingBottom: Spacing.xLarge * 2 }}
                 ListEmptyComponent={
                     <EmptyState
                         icon={searchQuery || filterCompletedFromDate || filterCompletedToDate || activeCategoryArchive !== 'all' || archivedTaskType !== 'all' || selectedPartnerId !== 'all' ? "search" : "archive"}

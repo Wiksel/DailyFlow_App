@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { View, ActivityIndicator } from 'react-native';
-import { NavigationContainer } from '@react-navigation/native';
+import { NavigationContainer, DefaultTheme, DarkTheme, Theme as NavTheme } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { Feather } from '@expo/vector-icons';
@@ -23,45 +23,55 @@ import BudgetDetailScreen from '../screens/BudgetDetailScreen';
 import ChoreTemplatesScreen from '../screens/ChoreTemplatesScreen';
 import SettingsScreen from '../screens/SettingsScreen';
 import WeekPlanScreen from '../screens/WeekPlanScreen';
+import RecurringSeriesScreen from '../screens/RecurringSeriesScreen';
+import NotificationsScreen from '../screens/NotificationsScreen';
+import DisplaySettingsScreen from '../screens/DisplaySettingsScreen';
 import AccountSettingsScreen from '../screens/AccountSettingsScreen';
 import CategoriesScreen from '../screens/CategoriesScreen';
 import ArchiveScreen from '../screens/ArchiveScreen';
 import { GlobalStyles } from '../styles/AppStyles';
+import { useTheme } from '../contexts/ThemeContext';
 import Constants from 'expo-constants';
+import { initNotifications, registerNotificationResponseListener, ensureDailyMorningReminderScheduled } from '../utils/notifications';
+import { processOutbox } from '../utils/offlineQueue';
 
 const AuthStack = createNativeStackNavigator<AuthStackParamList>();
 const Tab = createBottomTabNavigator<RootTabParamList>();
 const TasksStackNavigator = createNativeStackNavigator<TaskStackParamList>();
 const BudgetsStackNavigator = createNativeStackNavigator<BudgetStackParamList>();
 
-function TaskStack() {
+  function TaskStack() {
   return (
-    <TasksStackNavigator.Navigator>
-      <TasksStackNavigator.Screen name="Home" component={HomeScreen} options={{ headerShown: false }} />
-      <TasksStackNavigator.Screen name="TaskDetail" component={TaskDetailScreen} options={{ title: 'Szczegóły zadania' }} />
-      <TasksStackNavigator.Screen name="Archive" component={ArchiveScreen} options={{ title: 'Archiwum zadań' }} />
-      <TasksStackNavigator.Screen name="Profile" component={ProfileScreen} options={{ title: 'Profil i para' }} />
-      <TasksStackNavigator.Screen name="ChoreTemplates" component={ChoreTemplatesScreen} options={{ title: 'Szablony obowiązków' }} />
-      <TasksStackNavigator.Screen name="Settings" component={SettingsScreen} options={{ title: 'Ustawienia' }} />
-      <TasksStackNavigator.Screen name="WeekPlan" component={WeekPlanScreen} options={{ title: 'Plan tygodnia' }} />
-      <TasksStackNavigator.Screen name="AccountSettings" component={AccountSettingsScreen} options={{ title: 'Ustawienia konta' }} />
-      <TasksStackNavigator.Screen name="Categories" component={CategoriesScreen} options={{ title: 'Zarządzaj kategoriami' }} />
+    <TasksStackNavigator.Navigator screenOptions={{ animation: 'slide_from_right' }}>
+        <TasksStackNavigator.Screen name="Home" component={HomeScreen} options={{ headerShown: false }} />
+        <TasksStackNavigator.Screen name="TaskDetail" component={TaskDetailScreen} options={{ headerShown: false }} />
+        <TasksStackNavigator.Screen name="Archive" component={ArchiveScreen} options={{ headerShown: false }} />
+        <TasksStackNavigator.Screen name="Profile" component={ProfileScreen} options={{ title: 'Profil i para' }} />
+        <TasksStackNavigator.Screen name="ChoreTemplates" component={ChoreTemplatesScreen} options={{ headerShown: false }} />
+        <TasksStackNavigator.Screen name="Settings" component={SettingsScreen} options={{ headerShown: false }} />
+        <TasksStackNavigator.Screen name="WeekPlan" component={WeekPlanScreen} options={{ headerShown: false }} />
+        <TasksStackNavigator.Screen name="RecurringSeries" component={RecurringSeriesScreen} options={{ headerShown: false }} />
+        <TasksStackNavigator.Screen name="Notifications" component={NotificationsScreen} options={{ headerShown: false }} />
+        <TasksStackNavigator.Screen name="DisplaySettings" component={DisplaySettingsScreen} options={{ headerShown: false }} />
+        <TasksStackNavigator.Screen name="AccountSettings" component={AccountSettingsScreen} options={{ headerShown: false }} />
+        <TasksStackNavigator.Screen name="Categories" component={CategoriesScreen} options={{ headerShown: false }} />
     </TasksStackNavigator.Navigator>
   );
 }
 
-function BudgetStack() {
+  function BudgetStack() {
     return (
-      <BudgetsStackNavigator.Navigator>
+      <BudgetsStackNavigator.Navigator screenOptions={{ animation: 'slide_from_right' }}>
         <BudgetsStackNavigator.Screen name="Budgets" component={BudgetsScreen} options={{ headerShown: false }} />
-        <BudgetsStackNavigator.Screen name="BudgetDetail" component={BudgetDetailScreen} options={{ title: 'Szczegóły budżetu' }} />
+        <BudgetsStackNavigator.Screen name="BudgetDetail" component={BudgetDetailScreen} options={{ headerShown: false }} />
       </BudgetsStackNavigator.Navigator>
     );
 }
 
 function AppTabs() {
+  const theme = useTheme();
   return (
-    <Tab.Navigator screenOptions={{ tabBarActiveTintColor: '#0782F9', tabBarInactiveTintColor: 'gray' }}>
+    <Tab.Navigator screenOptions={{ tabBarActiveTintColor: theme.colors.primary, tabBarInactiveTintColor: theme.colors.textSecondary, headerStyle: { backgroundColor: theme.colors.card }, headerTitleStyle: { color: theme.colors.textPrimary }, tabBarStyle: { backgroundColor: theme.colors.card, borderTopColor: theme.colors.border } }}>
       <Tab.Screen name="TasksTab" component={TaskStack} options={{ title: 'Zadania', headerShown: false, tabBarIcon: ({ color, size }) => <Feather name="check-square" color={color} size={size} /> }} />
       <Tab.Screen name="BudgetsTab" component={BudgetStack} options={{ title: 'Budżet', headerShown: false, tabBarIcon: ({ color, size }) => <Feather name="dollar-sign" color={color} size={size} /> }} />
     </Tab.Navigator>
@@ -73,18 +83,27 @@ function AuthScreens({ user, onProfileCreated }: { user: FirebaseAuthTypes.User 
     <AuthStack.Navigator screenOptions={{ headerShown: false }}>
       <AuthStack.Screen name="Login" component={LoginScreen} />
       <AuthStack.Screen name="Nickname">
-        {props => <NicknameScreen {...props} user={user} onProfileCreated={onProfileCreated} />}
+        {props => <NicknameScreen {...props} onProfileCreated={onProfileCreated} />}
       </AuthStack.Screen>
     </AuthStack.Navigator>
   );
 }
 
 const AppNavigator = () => {
+  const theme = useTheme();
   const [user, setUser] = useState<FirebaseAuthTypes.User | null>(null);
   const [userProfileExists, setUserProfileExists] = useState(false);
   const [initializing, setInitializing] = useState(true);
 
   useEffect(() => {
+    // Notifications init (safe for Expo Go via lazy import)
+    (async () => {
+      try {
+        await initNotifications();
+      } catch {}
+    })();
+    let sub: any;
+    (async () => { try { sub = await registerNotificationResponseListener(); } catch {} })();
     const webClientId = (Constants?.expoConfig?.extra as any)?.googleWebClientId;
     if (webClientId) {
       GoogleSignin.configure({ webClientId });
@@ -106,11 +125,13 @@ const AppNavigator = () => {
         setInitializing(false);
       }
     });
-    return subscriber;
+    (async () => { try { await ensureDailyMorningReminderScheduled(); } catch {} })();
+    const outboxTimer = setInterval(() => { processOutbox().catch(() => {}); }, 15000);
+    return () => { try { sub?.remove?.(); } catch {}; clearInterval(outboxTimer); subscriber(); };
   }, []);
 
   if (initializing) {
-    return <View style={GlobalStyles.centered}><ActivityIndicator size="large" /></View>;
+    return <View style={GlobalStyles.centered}><ActivityIndicator size="large" color={theme.colors.primary} /></View>;
   }
 
   // Dopuszczamy logowanie także użytkowników telefonicznych i Google (nie wymagamy weryfikacji e‑maila dla Google)
@@ -121,10 +142,34 @@ const AppNavigator = () => {
   const suppressAppTabs = isPasswordResetInProgress();
   const needsOnboarding = !!user && isVerified && !userProfileExists;
 
+  const navigationTheme: NavTheme = theme.colorScheme === 'dark' ? {
+    ...DarkTheme,
+    colors: {
+      ...DarkTheme.colors,
+      primary: theme.colors.primary,
+      background: theme.colors.background,
+      card: theme.colors.card,
+      text: theme.colors.textPrimary,
+      border: theme.colors.border,
+      notification: theme.colors.primary,
+    },
+  } : {
+    ...DefaultTheme,
+    colors: {
+      ...DefaultTheme.colors,
+      primary: theme.colors.primary,
+      background: theme.colors.background,
+      card: theme.colors.card,
+      text: theme.colors.textPrimary,
+      border: theme.colors.border,
+      notification: theme.colors.primary,
+    },
+  };
+
   return (
     <ToastProvider>
       <CategoryProvider>
-        <NavigationContainer>
+        <NavigationContainer theme={navigationTheme}>
           {user && isVerified && !needsOnboarding && !suppressAppTabs ? (
             <AppTabs />
           ) : (

@@ -1,10 +1,18 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { View, Text, StyleSheet, FlatList, ActivityIndicator } from 'react-native';
-import { doc, onSnapshot, collection, query, where } from 'firebase/firestore';
+import Animated, { useSharedValue, useAnimatedStyle, withTiming, runOnJS } from 'react-native-reanimated';
+import { Gesture, GestureDetector } from 'react-native-gesture-handler';
+import { updateDoc, doc as fsDoc } from 'firebase/firestore';
+import { useTheme } from '../contexts/ThemeContext';
+import { useToast } from '../contexts/ToastContext';
+import { doc, onSnapshot, collection, query, where, getDocs } from 'firebase/firestore';
 import { getAuth } from '@react-native-firebase/auth';
 import { db } from '../../firebaseConfig';
 import { Colors, GlobalStyles, Spacing, Typography } from '../styles/AppStyles';
-import { Task, UserProfile } from '../types';
+import AppHeader from '../components/AppHeader';
+import { FadeInUp, Layout } from 'react-native-reanimated';
+import { Task, UserProfile, RecurringSeries } from '../types';
+import { ensureInstancesForRange } from '../utils/recurrence';
 
 type DayKey = 'Mon' | 'Tue' | 'Wed' | 'Thu' | 'Fri' | 'Sat' | 'Sun';
 
@@ -16,6 +24,9 @@ const WeekPlanScreen = () => {
   const [rawTasks, setRawTasks] = useState<Task[]>([]);
   const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
   const [loading, setLoading] = useState(true);
+  const theme = useTheme();
+  const { showToast } = useToast();
+  const [lastMove, setLastMove] = useState<{ taskId: string; from: DayKey; to: DayKey; prevDeadline: Date | null } | null>(null);
 
   useEffect(() => {
     if (!currentUser) { setLoading(false); return; }
@@ -28,6 +39,18 @@ const WeekPlanScreen = () => {
       setRawTasks(snapshot.docs.map(d => ({ ...(d.data() as any), id: d.id })) as Task[]);
       setLoading(false);
     }, () => setLoading(false));
+
+    // JIT generate recurring instances in current week range
+    (async () => {
+      try {
+        const seriesSnap = await getDocs(query(collection(db, 'recurringSeries'), where('userId', '==', currentUser.uid)));
+        const allSeries = seriesSnap.docs.map(d => ({ id: d.id, ...(d.data() as any) })) as RecurringSeries[];
+        const start = new Date();
+        const day = (start.getDay() + 6) % 7; start.setDate(start.getDate() - day); start.setHours(0,0,0,0);
+        const end = new Date(start); end.setDate(end.getDate() + 7); end.setMilliseconds(-1);
+        await Promise.all(allSeries.map(s => ensureInstancesForRange(s, start, end)));
+      } catch {}
+    })();
     return () => { unsubUser(); unsubTasks(); };
   }, [currentUser]);
 
@@ -73,41 +96,103 @@ const WeekPlanScreen = () => {
     return buckets;
   }, [rawTasks]);
 
+  // Obciążenie dnia - suma trudności zadań bieżącego dnia
+  const dayLoad: Record<DayKey, number> = useMemo(() => {
+    const out: Record<DayKey, number> = { Mon: 0, Tue: 0, Wed: 0, Thu: 0, Fri: 0, Sat: 0, Sun: 0 };
+    for (const k of dayOrder) {
+      out[k] = grouped[k].reduce((sum, t) => sum + (t.difficulty ?? 2), 0);
+    }
+    return out;
+  }, [grouped]);
+
   if (loading) {
-    return <View style={GlobalStyles.container}><ActivityIndicator size="large" color={Colors.primary} /></View>;
+    return <View style={GlobalStyles.container}><ActivityIndicator size="large" color={theme.colors.primary} /></View>;
   }
 
   return (
-    <View style={GlobalStyles.container}>
-      <View style={styles.header}> 
-        <Text style={styles.title}>Plan na tydzień</Text>
-      </View>
-      <FlatList
+    <View style={[GlobalStyles.container, { backgroundColor: theme.colors.background }]}>
+      <AppHeader title="Plan na tydzień" />
+      <Animated.FlatList
         data={dayOrder}
         keyExtractor={(k) => k}
-        renderItem={({ item: dayKey }) => {
+        renderItem={({ item: dayKey, index }) => {
           const tasks = grouped[dayKey];
           return (
-            <View style={styles.dayCard}>
-              <Text style={styles.dayLabel}>{dayLabels[dayKey]}</Text>
+            <Animated.View entering={FadeInUp.delay(index * 60)} layout={Layout.springify()} style={[styles.dayCard, { backgroundColor: theme.colors.card, borderColor: theme.colors.border }]}>
+              <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+                <Text style={[styles.dayLabel, { color: theme.colors.textPrimary }]}>{dayLabels[dayKey]}</Text>
+                <Text style={[styles.timeText, { color: theme.colors.textSecondary }]}>Obciążenie: {dayLoad[dayKey]}</Text>
+              </View>
               {tasks.length === 0 ? (
-                <Text style={styles.empty}>Brak zadań</Text>
+                <Text style={[styles.empty, { color: theme.colors.textSecondary }]}>Brak zadań</Text>
               ) : (
                 tasks.map(t => (
-                  <View key={t.id} style={styles.taskRow}>
-                    <View style={[styles.dot, { backgroundColor: Colors.primary }]} />
-                    <Text style={styles.taskText} numberOfLines={2}>{t.text}</Text>
-                    {!!t.deadline && (
-                      <Text style={styles.timeText}>{t.deadline.toDate().toLocaleTimeString('pl-PL', { hour: '2-digit', minute: '2-digit' })}</Text>
-                    )}
-                  </View>
+                  <DraggableTaskRow
+                    key={t.id}
+                    task={t}
+                    dayKey={dayKey}
+                    onMoved={(payload) => setLastMove(payload)}
+                    onNotify={(msg) => showToast(msg, 'info')}
+                  />
                 ))
               )}
-            </View>
+            </Animated.View>
           );
         }}
       />
     </View>
+  );
+};
+
+const DraggableTaskRow = ({ task, dayKey, onMoved, onNotify }: { task: Task; dayKey: DayKey; onMoved: (p: { taskId: string; from: DayKey; to: DayKey; prevDeadline: Date | null }) => void; onNotify: (msg: string) => void; }) => {
+  const theme = useTheme();
+  const translateY = useSharedValue(0);
+  const isDragging = useSharedValue(false);
+
+  const gesture = Gesture.Pan()
+    .onBegin(() => { isDragging.value = true; })
+    .onUpdate((e) => { translateY.value = e.translationY; })
+    .onEnd(async (e) => {
+      // Prosty heurystyczny drop: przesunięcie o > 60px w górę/dół przenosi do poprzedniego/następnego dnia
+      const delta = e.translationY;
+      let targetOffset = 0;
+      if (Math.abs(delta) > 60) targetOffset = delta > 0 ? 1 : -1;
+      const idx = dayOrder.indexOf(dayKey);
+      const targetIdx = Math.max(0, Math.min(dayOrder.length - 1, idx + targetOffset));
+      const targetDay = dayOrder[targetIdx];
+      if (targetDay !== dayKey) {
+        const current = task.deadline?.toDate() ?? new Date();
+        const now = new Date(current);
+        const curIdx = (now.getDay() + 6) % 7; // 0..6
+        const desiredIdx = dayOrder.indexOf(targetDay);
+        const deltaDays = desiredIdx - curIdx;
+        now.setDate(now.getDate() + deltaDays);
+        now.setHours(12, 0, 0, 0);
+        try {
+          await updateDoc(fsDoc(db, 'tasks', task.id), { deadline: now });
+          runOnJS(onMoved)({ taskId: task.id, from: dayKey, to: targetDay, prevDeadline: task.deadline?.toDate() ?? null });
+          runOnJS(onNotify)('Przeniesiono zadanie. Cofnij?');
+        } catch {}
+      }
+      translateY.value = withTiming(0, { duration: 150 });
+      isDragging.value = false;
+    });
+
+  const animatedStyle = useAnimatedStyle(() => ({
+    transform: [{ translateY: translateY.value }],
+    opacity: isDragging.value ? 0.9 : 1,
+  }));
+
+  return (
+    <GestureDetector gesture={gesture}>
+      <Animated.View style={[styles.taskRow, animatedStyle]}>
+        <View style={[styles.dot, { backgroundColor: theme.colors.primary }]} />
+        <Text style={[styles.taskText, { color: theme.colors.textPrimary }]} numberOfLines={2}>{task.text}</Text>
+        {!!task.deadline && (
+          <Text style={[styles.timeText, { color: theme.colors.textSecondary }]}>{task.deadline.toDate().toLocaleTimeString('pl-PL', { hour: '2-digit', minute: '2-digit' })}</Text>
+        )}
+      </Animated.View>
+    </GestureDetector>
   );
 };
 

@@ -1,8 +1,10 @@
 import React, { useState } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Platform } from 'react-native';
+import { useTheme } from '../contexts/ThemeContext';
 import { useToast } from '../contexts/ToastContext';
 import DateTimePicker, { DateTimePickerEvent } from '@react-native-community/datetimepicker';
 import { Feather } from '@expo/vector-icons';
+import Animated, { Layout, FadeInDown, FadeOutUp } from 'react-native-reanimated';
 
 interface DateRangeFilterProps {
     label: string;
@@ -26,6 +28,7 @@ const DateRangeFilter = ({
     const [isExpanded, setIsExpanded] = useState(false);
     const [showDatePickerFor, setShowDatePickerFor] = useState<DatePickerMode>(null);
     const { showToast } = useToast();
+    const theme = useTheme();
 
     const handlePredefinedRange = (rangeType: string) => {
         const now = new Date();
@@ -137,14 +140,16 @@ const DateRangeFilter = ({
         ];
 
         return (
-            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.predefinedRangesContainer}>
+             <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.predefinedRangesContainer}>
                 {ranges.map((range) => (
                     <TouchableOpacity
                         key={range.key}
-                        style={styles.predefinedButton}
+                        style={[styles.predefinedButton, { backgroundColor: theme.colors.inputBackground, borderColor: theme.colors.border, borderWidth: 1 }]}
                         onPress={() => handlePredefinedRange(range.key)}
+                        accessibilityLabel={`Zakres: ${range.text}`}
+                        activeOpacity={0.9}
                     >
-                        <Text style={styles.predefinedButtonText}>{range.text}</Text>
+                        <Text style={[styles.predefinedButtonText, { color: theme.colors.textPrimary }]}>{range.text}</Text>
                     </TouchableOpacity>
                 ))}
             </ScrollView>
@@ -152,28 +157,31 @@ const DateRangeFilter = ({
     };
 
     return (
-        <View style={styles.container}>
-            <TouchableOpacity onPress={() => setIsExpanded(!isExpanded)} style={styles.headerButton}>
-                <Text style={[styles.headerLabel, isFilterActive && styles.headerLabelActive]}>{label}</Text>
-                <Feather name={isExpanded ? "chevron-up" : "chevron-down"} size={20} color={isFilterActive ? '#0782F9' : '#666'} />
+        <View style={[styles.container, { backgroundColor: theme.colors.card, borderColor: theme.colors.border }]}>
+            <TouchableOpacity onPress={() => setIsExpanded(!isExpanded)} style={[styles.headerButton, { borderColor: theme.colors.border }]}>
+                <Text style={[styles.headerLabel, { color: theme.colors.textSecondary }, isFilterActive && { color: theme.colors.primary }]}>{label}</Text>
+                <Feather name={isExpanded ? "chevron-up" : "chevron-down"} size={20} color={isFilterActive ? theme.colors.primary : theme.colors.textSecondary} />
             </TouchableOpacity>
 
             {isExpanded && (
-                <View style={styles.expandedContent}>
+                <Animated.View style={styles.expandedContent} entering={FadeInDown} exiting={FadeOutUp} layout={Layout.springify()}>
                     {renderPredefinedRanges()}
                     
                     {/* DODANA PRZERWA między przyciskami a polami dat */}
-                    <View style={styles.contentSeparator}></View>
+                    <View style={[styles.contentSeparator, { backgroundColor: theme.colors.border }]}></View>
 
                     <View style={styles.datePickerRow}>
                         {/* Przycisk OD z ikoną kalendarza */}
-                        <TouchableOpacity onPress={() => setShowDatePickerFor('from')} style={[styles.datePickerButton, { marginRight: 10 }]}>
-                            <Feather name="calendar" size={18} color="#333" style={styles.calendarIcon} />
-                            <Text style={styles.datePickerText}>{fromDate ? fromDate.toLocaleDateString('pl-PL') : 'Od'}</Text>
+                         <TouchableOpacity onPress={() => setShowDatePickerFor('from')} style={[styles.datePickerButton, { marginRight: 10, backgroundColor: theme.colors.inputBackground }]}
+                            accessibilityLabel="Wybierz datę od"
+                            activeOpacity={0.8}
+                        >
+                            <Feather name="calendar" size={18} color={theme.colors.textPrimary} style={styles.calendarIcon} />
+                            <Text style={[styles.datePickerText, { color: theme.colors.textPrimary }]}>{fromDate ? fromDate.toLocaleDateString('pl-PL') : 'Od'}</Text>
                         </TouchableOpacity>
                         {fromDate && (
                             <TouchableOpacity onPress={() => onFromDateChange(null)} style={styles.clearDateButton}>
-                                <Feather name="x-circle" size={18} color="#e74c3c" />
+                                <Feather name="x-circle" size={18} color={theme.colors.danger} />
                             </TouchableOpacity>
                         )}
                         {/* DateTimePicker renderowany warunkowo */}
@@ -191,18 +199,21 @@ const DateRangeFilter = ({
                         )}
 
                         {/* Przycisk DO z ikoną kalendarza */}
-                        <TouchableOpacity onPress={() => setShowDatePickerFor('to')} style={styles.datePickerButton}>
-                            <Feather name="calendar" size={18} color="#333" style={styles.calendarIcon} />
-                            <Text style={styles.datePickerText}>{toDate ? toDate.toLocaleDateString('pl-PL') : 'Do'}</Text>
+                         <TouchableOpacity onPress={() => setShowDatePickerFor('to')} style={[styles.datePickerButton, { backgroundColor: theme.colors.inputBackground }]}
+                            accessibilityLabel="Wybierz datę do"
+                            activeOpacity={0.8}
+                        >
+                            <Feather name="calendar" size={18} color={theme.colors.textPrimary} style={styles.calendarIcon} />
+                            <Text style={[styles.datePickerText, { color: theme.colors.textPrimary }]}>{toDate ? toDate.toLocaleDateString('pl-PL') : 'Do'}</Text>
                         </TouchableOpacity>
                         {toDate && (
                             <TouchableOpacity onPress={() => onToDateChange(null)} style={styles.clearDateButton}>
-                                <Feather name="x-circle" size={18} color="#e74c3c" />
+                                <Feather name="x-circle" size={18} color={theme.colors.danger} />
                             </TouchableOpacity>
                         )}
                         {/* DateTimePicker dla 'to' jest już obsługiwany przez jeden wspólny */}
                     </View>
-                </View>
+                </Animated.View>
             )}
         </View>
     );
@@ -210,7 +221,6 @@ const DateRangeFilter = ({
 
 const styles = StyleSheet.create({
     container: {
-        backgroundColor: 'white',
         borderBottomWidth: 1,
         borderColor: '#eee',
         padding: 0,

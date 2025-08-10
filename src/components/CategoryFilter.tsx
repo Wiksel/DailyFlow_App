@@ -1,9 +1,11 @@
 // src/components/CategoryFilter.tsx
 import React from 'react';
-import { ScrollView, TouchableOpacity, Text, StyleSheet, ActivityIndicator, View } from 'react-native';
+import { ScrollView, Text, StyleSheet, ActivityIndicator, View, Pressable } from 'react-native';
 import { useCategories } from '../contexts/CategoryContext';
 import { Category } from '../types';
 import { Colors, Spacing, Typography, isColorLight } from '../styles/AppStyles';
+import { useTheme } from '../contexts/ThemeContext';
+import Animated, { useSharedValue, useAnimatedStyle, withSpring } from 'react-native-reanimated';
 
 interface CategoryFilterProps {
     activeCategory: string | 'all';
@@ -12,11 +14,12 @@ interface CategoryFilterProps {
 
 const CategoryFilter = ({ activeCategory, onSelectCategory }: CategoryFilterProps) => {
     const { categories, loading } = useCategories();
+    const theme = useTheme();
 
     if (loading) {
         return (
-            <View style={styles.loadingContainer}>
-                <ActivityIndicator color={Colors.primary} />
+            <View style={[styles.loadingContainer, { backgroundColor: theme.colors.card, borderColor: theme.colors.border }]}>
+                <ActivityIndicator color={theme.colors.primary} />
             </View>
         );
     }
@@ -25,49 +28,59 @@ const CategoryFilter = ({ activeCategory, onSelectCategory }: CategoryFilterProp
         <ScrollView
             horizontal
             showsHorizontalScrollIndicator={false}
-            style={styles.filterScrollView}
+            style={[styles.filterScrollView, { backgroundColor: theme.colors.card, borderColor: theme.colors.border }]}
             contentContainerStyle={styles.filterContainer}
         >
-            <TouchableOpacity
-                style={[
-                    styles.filterButton,
-                    activeCategory === 'all' ? styles.filterButtonActiveAll : styles.filterButtonDefault
-                ]}
+            <Chip
                 onPress={() => onSelectCategory('all')}
-            >
-                <Text style={[
-                    styles.filterText,
-                    activeCategory === 'all' ? styles.filterTextActive : styles.filterTextDefault
-                ]}>Wszystkie</Text>
-            </TouchableOpacity>
+                active={activeCategory === 'all'}
+                activeColor={theme.colors.primary}
+                inactiveColor={theme.colors.inputBackground}
+                textColorActive={'white'}
+                textColorInactive={theme.colors.textPrimary}
+                label="Wszystkie"
+            />
             {categories.map((cat: Category) => (
-                <TouchableOpacity
+                <Chip
                     key={cat.id}
-                    style={[
-                        styles.filterButton,
-                        {backgroundColor: activeCategory === cat.id ? cat.color : Colors.inputBackground}
-                    ]}
                     onPress={() => onSelectCategory(cat.id)}
-                >
-                    <Text
-                        style={[
-                            styles.filterText,
-                            activeCategory === cat.id ?
-                                (isColorLight(cat.color) ? styles.filterTextActiveLightBg : styles.filterTextActive)
-                                : styles.filterTextDefault
-                        ]}
-                    >
-                        {cat.name}
-                    </Text>
-                </TouchableOpacity>
+                    active={activeCategory === cat.id}
+                    activeColor={cat.color}
+                    inactiveColor={theme.colors.inputBackground}
+                    textColorActive={isColorLight(cat.color) ? Colors.textPrimary : 'white'}
+                    textColorInactive={theme.colors.textPrimary}
+                    label={cat.name}
+                />
             ))}
         </ScrollView>
     );
 };
 
+const Chip = ({ onPress, active, activeColor, inactiveColor, textColorActive, textColorInactive, label }: { onPress: () => void; active: boolean; activeColor: string; inactiveColor: string; textColorActive: string; textColorInactive: string; label: string; }) => {
+    const scale = useSharedValue(1);
+    const animatedStyle = useAnimatedStyle(() => ({ transform: [{ scale: scale.value }] }));
+    return (
+        <Pressable
+            onPressIn={() => { scale.value = withSpring(0.98, { damping: 15 }); }}
+            onPressOut={() => { scale.value = withSpring(1, { damping: 15 }); }}
+            onPress={onPress}
+            style={({ pressed }) => ([
+                styles.filterButton,
+                { backgroundColor: active ? activeColor : inactiveColor, opacity: pressed ? 0.95 : 1 },
+            ])}
+        >
+            <Animated.Text style={[
+                styles.filterText,
+                { color: active ? textColorActive : textColorInactive },
+                animatedStyle,
+            ]}>{label}</Animated.Text>
+        </Pressable>
+    );
+};
+
 const styles = StyleSheet.create({
     loadingContainer: {
-        backgroundColor: 'white',
+        backgroundColor: 'transparent',
         minHeight: 48,
         justifyContent: 'center',
         alignItems: 'center',
@@ -76,7 +89,7 @@ const styles = StyleSheet.create({
     },
     filterScrollView: {
         flexGrow: 0,
-        backgroundColor: 'white',
+        backgroundColor: 'transparent',
         borderBottomWidth: 1,
         borderColor: Colors.border,
         minHeight: 48,

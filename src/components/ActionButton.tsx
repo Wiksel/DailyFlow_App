@@ -1,6 +1,8 @@
 import React from 'react';
-import { TouchableOpacity, Text, StyleSheet, ActivityIndicator, ViewStyle, TextStyle } from 'react-native';
+import { Pressable, Text, ActivityIndicator, ViewStyle, TextStyle } from 'react-native';
 import { GlobalStyles } from '../styles/AppStyles';
+import { useTheme } from '../contexts/ThemeContext';
+import Animated, { useSharedValue, useAnimatedStyle, withSpring } from 'react-native-reanimated';
 
 interface ActionButtonProps {
     title: string;
@@ -12,21 +14,34 @@ interface ActionButtonProps {
 }
 
 const ActionButton = ({ title, onPress, isLoading = false, style, textStyle, disabled = false }: ActionButtonProps) => {
-    const buttonDisabled = isLoading || disabled;
+  const theme = useTheme();
+  const buttonDisabled = isLoading || disabled;
+  const scale = useSharedValue(1);
+  const animatedStyle = useAnimatedStyle(() => ({ transform: [{ scale: scale.value }], opacity: buttonDisabled ? 0.8 : 1 }));
 
-    return (
-        <TouchableOpacity
-            style={[GlobalStyles.button, style, buttonDisabled && GlobalStyles.disabledButton]}
-            onPress={onPress}
-            disabled={buttonDisabled}
-        >
-            {isLoading ? (
-                <ActivityIndicator color="white" />
-            ) : (
-                <Text style={[GlobalStyles.buttonText, textStyle]}>{title}</Text>
-            )}
-        </TouchableOpacity>
-    );
+  return (
+    <Pressable
+      onPressIn={() => { if (!buttonDisabled) scale.value = withSpring(0.97, { damping: 18 }); }}
+      onPressOut={() => { scale.value = withSpring(1, { damping: 18 }); }}
+      onPress={onPress}
+      disabled={buttonDisabled}
+      accessibilityRole="button"
+      style={({ pressed }) => ([
+        GlobalStyles.button,
+        { backgroundColor: theme.colors.primary, opacity: pressed && !buttonDisabled ? 0.9 : 1 },
+        style as any,
+        buttonDisabled && [{ backgroundColor: theme.colors.placeholder }, GlobalStyles.disabledButton]
+      ])}
+    >
+      <Animated.View style={animatedStyle}>
+        {isLoading ? (
+          <ActivityIndicator color="white" />
+        ) : (
+          <Text style={[GlobalStyles.buttonText, textStyle]}>{title}</Text>
+        )}
+      </Animated.View>
+    </Pressable>
+  );
 };
 
 // Lokalny StyleSheet nie jest już potrzebny, ponieważ wszystkie style pochodzą z GlobalStyles

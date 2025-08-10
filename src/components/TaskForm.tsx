@@ -7,6 +7,7 @@ import PrioritySelector from './PrioritySelector';
 import { useCategories } from '../contexts/CategoryContext';
 import { Feather } from '@expo/vector-icons'; // <-- Dodaj ten import
 import { Colors, Spacing, Typography, GlobalStyles, isColorLight } from '../styles/AppStyles'; // <-- Dodaj ten import
+import { useTheme } from '../contexts/ThemeContext';
 
 // Definiujemy typ danych, którymi będzie zarządzał formularz
 export interface TaskFormData {
@@ -28,27 +29,30 @@ interface TaskFormProps {
 
 const TaskForm = ({ taskData, onDataChange, showDatePicker, onDatePickerChange, onShowDatePicker }: TaskFormProps) => {
     const { categories } = useCategories();
+    const theme = useTheme();
 
     return (
         <ScrollView style={styles.formContainer} keyboardShouldPersistTaps="handled">
-            <Text style={styles.label}>Nazwa zadania</Text>
+            <Text style={[styles.label, { color: theme.colors.textSecondary }]}>Nazwa zadania</Text>
             <TextInput
-                style={styles.input}
+                style={[styles.input, { backgroundColor: theme.colors.inputBackground, borderColor: theme.colors.border, color: theme.colors.textPrimary }]}
                 value={taskData.text}
                 onChangeText={(text) => onDataChange('text', text)}
-                placeholderTextColor={Colors.placeholder}
+                placeholderTextColor={theme.colors.placeholder}
+                placeholder="Nazwa"
             />
 
-            <Text style={styles.label}>Opis (opcjonalnie)</Text>
+            <Text style={[styles.label, { color: theme.colors.textSecondary }]}>Opis (opcjonalnie)</Text>
             <TextInput
-                style={[styles.input, styles.multilineInput]}
+                style={[styles.input, styles.multilineInput, { backgroundColor: theme.colors.inputBackground, borderColor: theme.colors.border, color: theme.colors.textPrimary }]}
                 value={taskData.description}
                 onChangeText={(text) => onDataChange('description', text)}
                 multiline
-                placeholderTextColor={Colors.placeholder}
+                placeholderTextColor={theme.colors.placeholder}
+                placeholder="Opis"
             />
 
-            <Text style={styles.label}>Kategoria</Text>
+            <Text style={[styles.label, { color: theme.colors.textSecondary }]}>Kategoria</Text>
             <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.categoryContainer}>
                 {categories.map(cat => (
                     <TouchableOpacity
@@ -72,7 +76,7 @@ const TaskForm = ({ taskData, onDataChange, showDatePicker, onDatePickerChange, 
                 ))}
             </ScrollView>
 
-            <Text style={styles.label}>Skala trudności ({taskData.difficulty})</Text>
+            <Text style={[styles.label, { color: theme.colors.textSecondary }]}>Skala trudności ({taskData.difficulty})</Text>
             <Slider
                 style={GlobalStyles.slider}
                 minimumValue={1}
@@ -80,24 +84,24 @@ const TaskForm = ({ taskData, onDataChange, showDatePicker, onDatePickerChange, 
                 step={1}
                 value={taskData.difficulty}
                 onValueChange={(value) => onDataChange('difficulty', value)}
-                minimumTrackTintColor={Colors.primary}
-                maximumTrackTintColor={Colors.border}
-                thumbTintColor={Colors.primary}
+                minimumTrackTintColor={theme.colors.primary}
+                maximumTrackTintColor={theme.colors.border}
+                thumbTintColor={theme.colors.primary}
             />
 
-            <Text style={styles.label}>Priorytet bazowy</Text>
+            <Text style={[styles.label, { color: theme.colors.textSecondary }]}>Priorytet bazowy</Text>
             <PrioritySelector
                 value={taskData.basePriority}
                 onSelect={(p) => onDataChange('basePriority', p)}
             />
 
-            <Text style={styles.label}>Termin wykonania</Text>
-            <TouchableOpacity onPress={onShowDatePicker} style={styles.datePickerButton}>
-                <Text style={styles.datePickerText}>{taskData.deadline ? taskData.deadline.toDate().toLocaleDateString('pl-PL') : 'Ustaw termin'}</Text>
+            <Text style={[styles.label, { color: theme.colors.textSecondary }]}>Termin wykonania</Text>
+            <TouchableOpacity onPress={onShowDatePicker} style={[styles.datePickerButton, { backgroundColor: theme.colors.inputBackground }]}> 
+                <Text style={[styles.datePickerText, { color: theme.colors.textPrimary }]}>{taskData.deadline ? taskData.deadline.toDate().toLocaleDateString('pl-PL') : 'Ustaw termin'}</Text>
             </TouchableOpacity>
             {taskData.deadline && (
                 <TouchableOpacity onPress={() => onDataChange('deadline', null)} style={styles.removeDateButton}>
-                    <Feather name="x-circle" size={24} color={Colors.danger} />
+                    <Feather name="x-circle" size={24} color={theme.colors.danger} />
                 </TouchableOpacity>
             )}
             {showDatePicker && <DateTimePicker value={taskData.deadline ? taskData.deadline.toDate() : new Date()} mode="date" display="default" onChange={onDatePickerChange} />}

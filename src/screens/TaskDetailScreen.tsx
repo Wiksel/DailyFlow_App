@@ -13,7 +13,9 @@ import { Feather } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import { useToast } from '../contexts/ToastContext';
 import { Colors, Spacing, Typography, GlobalStyles } from '../styles/AppStyles';
+import AppHeader from '../components/AppHeader';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useTheme } from '../contexts/ThemeContext';
 
 type TaskDetailScreenProps = NativeStackScreenProps<TaskStackParamList, 'TaskDetail'>;
 
@@ -35,6 +37,7 @@ const TaskDetailScreen = () => {
     const [isSavingTemplate, setIsSavingTemplate] = useState(false);
     const { showToast } = useToast();
     const insets = useSafeAreaInsets();
+    const theme = useTheme();
 
     const commentsFlatListRef = useRef<FlatList<Comment>>(null);
 
@@ -164,23 +167,24 @@ const TaskDetailScreen = () => {
     };
 
     if (loading || !task) {
-        return <View style={styles.centered}><ActivityIndicator size="large" color={Colors.primary} /></View>;
+        return <View style={styles.centered}><ActivityIndicator size="large" color={theme.colors.primary} /></View>;
     }
 
     const renderComment = ({ item }: { item: Comment }) => (
-        <View style={styles.commentContainer}>
+        <View style={[styles.commentContainer, { backgroundColor: theme.colors.inputBackground }]}>
             <View style={styles.commentHeader}>
-                <Text style={styles.commentAuthor}>{item.authorNickname}</Text>
-                <Text style={styles.commentDate}>{item.createdAt.toDate().toLocaleString('pl-PL')}</Text>
+                <Text style={[styles.commentAuthor, { color: theme.colors.textPrimary }]}>{item.authorNickname}</Text>
+                <Text style={[styles.commentDate, { color: theme.colors.textSecondary }]}>{item.createdAt.toDate().toLocaleString('pl-PL')}</Text>
             </View>
-            <Text style={styles.commentText}>{item.text}</Text>
+            <Text style={[styles.commentText, { color: theme.colors.textPrimary }]}>{item.text}</Text>
         </View>
     );
 
     const ACTION_BAR_HEIGHT = 96;
 
     return (
-        <View style={[GlobalStyles.container, styles.screenPadding]}>
+        <View style={[GlobalStyles.container, styles.screenPadding, { backgroundColor: theme.colors.background }]}>
+            <AppHeader title="Szczegóły zadania" leftAction={{ icon: 'arrow-left', onPress: () => navigation.goBack(), accessibilityLabel: 'Wstecz' }} />
             <ScrollView
                 style={{ flex: 1 }}
                 contentContainerStyle={{ paddingBottom: ACTION_BAR_HEIGHT + insets.bottom + Spacing.medium }}
@@ -195,7 +199,7 @@ const TaskDetailScreen = () => {
                 />
 
                 <View style={styles.commentsSection}>
-                    <Text style={styles.sectionTitle}>Komentarze</Text>
+                    <Text style={[styles.sectionTitle, { color: theme.colors.textPrimary }]}>Komentarze</Text>
                     <FlatList
                         ref={commentsFlatListRef}
                         data={comments}
@@ -206,25 +210,25 @@ const TaskDetailScreen = () => {
                     />
                     <View style={styles.addCommentContainer}>
                         <TextInput
-                            style={styles.commentInput}
+                            style={[styles.commentInput, { backgroundColor: theme.colors.inputBackground, color: theme.colors.textPrimary }]}
                             placeholder="Dodaj komentarz..."
                             value={newComment}
                             onChangeText={setNewComment}
                             multiline
-                            placeholderTextColor={Colors.placeholder}
+                            placeholderTextColor={theme.colors.placeholder}
                         />
-                        <TouchableOpacity style={[styles.commentButton, isSubmittingComment && styles.commentButtonDisabled]} onPress={handleAddComment} disabled={isSubmittingComment}>
+                        <TouchableOpacity style={[styles.commentButton, { backgroundColor: theme.colors.primary }, isSubmittingComment && styles.commentButtonDisabled]} onPress={handleAddComment} disabled={isSubmittingComment} accessibilityLabel="Wyślij komentarz">
                             {isSubmittingComment ? <ActivityIndicator color="white" /> : <Feather name="send" size={22} color="white" />}
                         </TouchableOpacity>
                     </View>
                 </View>
             </ScrollView>
 
-            <View style={[styles.actionBar, { paddingBottom: insets.bottom + Spacing.xSmall }]}>
-                <TouchableOpacity style={styles.saveButton} onPress={async () => { try { await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium); } catch {}; await handleUpdate(); }} disabled={isSavingTask}>
+            <View style={[styles.actionBar, { backgroundColor: theme.colors.card, borderColor: theme.colors.border, paddingBottom: insets.bottom + Spacing.xSmall }]}> 
+                <TouchableOpacity style={[styles.saveButton, { backgroundColor: theme.colors.success }]} onPress={async () => { try { await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium); } catch {}; await handleUpdate(); }} disabled={isSavingTask}>
                     {isSavingTask ? <ActivityIndicator color="white" /> : <Text style={styles.buttonText}>Zapisz zmiany</Text>}
                 </TouchableOpacity>
-                <TouchableOpacity style={styles.templateButton} onPress={async () => { try { await Haptics.selectionAsync(); } catch {}; await handleSaveAsTemplate(); }} disabled={isSavingTemplate}>
+                <TouchableOpacity style={[styles.templateButton, { backgroundColor: theme.colors.info }]} onPress={async () => { try { await Haptics.selectionAsync(); } catch {}; await handleSaveAsTemplate(); }} disabled={isSavingTemplate}>
                     {isSavingTemplate ? <ActivityIndicator color="white" /> : <Text style={styles.buttonText}>Zapisz jako szablon</Text>}
                 </TouchableOpacity>
             </View>

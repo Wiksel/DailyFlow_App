@@ -46,6 +46,9 @@ export interface Task {
     category: string;
     completedBy?: string;
     completedAt?: Timestamp;
+    // Recurrence linkage (optional)
+    seriesId?: string;
+    occurrenceDate?: Timestamp;
 }
 
 export interface Comment {
@@ -84,6 +87,29 @@ export interface Expense {
     addedBy: string;
     addedByName: string;
     date: Timestamp;
+}
+
+// Cykliczne serie zadań
+export type RecurrenceFrequency = 'daily' | 'weekly' | 'monthly';
+
+export interface RecurringSeries {
+    id: string;
+    userId: string;
+    pairId: string | null;
+    templateId?: string; // opcjonalnie powiązany szablon
+    name: string;
+    description?: string;
+    category: string;
+    basePriority: number;
+    difficulty: number;
+    frequency: RecurrenceFrequency;
+    interval: number; // co ile jednostek
+    byWeekday?: number; // 0..6 (niedziela..sobota)
+    byMonthDay?: number; // 1..31
+    startDate: Timestamp; // pierwszy dzień ważności serii
+    endDate?: Timestamp | null;
+    isShared: boolean;
+    skips?: string[]; // ISO date yyyy-mm-dd dla pominiętych instancji
 }
 
 // Ustawienia

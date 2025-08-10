@@ -4,6 +4,8 @@ import { GestureHandlerRootView } from 'react-native-gesture-handler'; // <-- No
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import AppNavigator from './src/navigation/AppNavigator';
 import * as Updates from 'expo-updates';
+import { ThemeProvider } from './src/contexts/ThemeContext';
+import { UIProvider } from './src/contexts/UIContext';
 
 // Włączenie LayoutAnimation dla Androida tylko w starym architekturze (bez Fabric)
 if (
@@ -30,11 +32,15 @@ export default function App() {
     })();
   }, []);
   return (
-    // ZMIANA: Dodajemy SafeAreaProvider na szczycie drzewa i GestureHandlerRootView jako kontener
-    <SafeAreaProvider>
-      <GestureHandlerRootView style={{ flex: 1 }}>
-        <AppNavigator />
-      </GestureHandlerRootView>
-    </SafeAreaProvider>
+    // ZMIANA: Dodajemy ThemeProvider, SafeAreaProvider i GestureHandlerRootView
+    <ThemeProvider>
+      <UIProvider>
+        <SafeAreaProvider>
+          <GestureHandlerRootView style={{ flex: 1 }}>
+            <AppNavigator />
+          </GestureHandlerRootView>
+        </SafeAreaProvider>
+      </UIProvider>
+    </ThemeProvider>
   );
 }

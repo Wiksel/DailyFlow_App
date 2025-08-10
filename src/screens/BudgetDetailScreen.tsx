@@ -7,6 +7,9 @@ import { db } from '../../firebaseConfig';
 import { Feather } from '@expo/vector-icons';
 import { useToast } from '../contexts/ToastContext';
 import { Colors, Spacing, Typography, GlobalStyles } from '../styles/AppStyles';
+import { useTheme } from '../contexts/ThemeContext';
+import Animated, { FadeInUp, Layout } from 'react-native-reanimated';
+import AppHeader from '../components/AppHeader';
 import type { Budget, Expense } from '../types';
 
 const BudgetDetailScreen = () => {
@@ -22,6 +25,7 @@ const BudgetDetailScreen = () => {
     const [isSubmittingExpense, setIsSubmittingExpense] = useState(false);
 
     const currentUser = getAuth().currentUser;
+    const theme = useTheme();
     const { showToast } = useToast();
 
     useEffect(() => {
@@ -106,69 +110,71 @@ const BudgetDetailScreen = () => {
     };
 
     const getProgressBarColor = (progress: number) => {
-        if (progress >= 100) return Colors.danger;
-        if (progress >= 75) return Colors.warning;
-        return Colors.success;
+        if (progress >= 100) return theme.colors.danger;
+        if (progress >= 75) return theme.colors.warning;
+        return theme.colors.success;
     };
 
-    const renderExpense = ({ item }: { item: Expense }) => (
-        <View style={styles.expenseItem}>
+    const renderExpense = ({ item, index }: { item: Expense, index: number }) => (
+        <Animated.View entering={FadeInUp.delay(index * 40)} layout={Layout.springify()} style={[styles.expenseItem, { backgroundColor: theme.colors.card, borderColor: theme.colors.border }]}>
             <View>
-                <Text style={styles.expenseName}>{item.name}</Text>
-                <Text style={styles.expenseMeta}>Dodane przez: {item.addedByName} - {item.date.toDate().toLocaleDateString('pl-PL')}</Text>
+                <Text style={[styles.expenseName, { color: theme.colors.textPrimary }]}>{item.name}</Text>
+                <Text style={[styles.expenseMeta, { color: theme.colors.textSecondary }]}>Dodane przez: {item.addedByName} - {item.date.toDate().toLocaleDateString('pl-PL')}</Text>
             </View>
-            <Text style={styles.expenseAmount}>{item.amount.toFixed(2)} zł</Text>
-        </View>
+            <Text style={[styles.expenseAmount, { color: theme.colors.textPrimary }]}>{item.amount.toFixed(2)} zł</Text>
+        </Animated.View>
     );
 
     if (loading || !budget) {
-        return <View style={GlobalStyles.container}><ActivityIndicator size="large" color={Colors.primary} /></View>;
+        return <View style={GlobalStyles.container}><ActivityIndicator size="large" color={theme.colors.primary} /></View>;
     }
 
     const progress = budget.targetAmount > 0 ? (budget.currentAmount / budget.targetAmount) * 100 : 0;
     const progressBarColor = getProgressBarColor(progress);
 
     return (
-        <View style={GlobalStyles.container}>
-            <View style={styles.summaryContainer}>
-                <Text style={styles.budgetName}>{budget.name}</Text>
-                <Text style={styles.budgetAmount}>{budget.currentAmount.toFixed(2)} zł / {budget.targetAmount.toFixed(2)} zł</Text>
-                <View style={styles.progressBarContainer}>
+        <View style={[GlobalStyles.container, { backgroundColor: theme.colors.background }]}>
+            <AppHeader title="Szczegóły budżetu" />
+            <Animated.View entering={FadeInUp} layout={Layout.springify()} style={[styles.summaryContainer, { backgroundColor: theme.colors.card, borderColor: theme.colors.border }]}>
+                <Text style={[styles.budgetName, { color: theme.colors.textPrimary }]}>{budget.name}</Text>
+                <Text style={[styles.budgetAmount, { color: theme.colors.textSecondary }]}>{budget.currentAmount.toFixed(2)} zł / {budget.targetAmount.toFixed(2)} zł</Text>
+                <View style={[styles.progressBarContainer, { backgroundColor: theme.colors.border }]}>
                     <View style={[styles.progressBar, { width: `${Math.min(progress, 100)}%`, backgroundColor: progressBarColor }]} />
                 </View>
-            </View>
+            </Animated.View>
 
             <FlatList
                 data={expenses}
                 renderItem={renderExpense}
                 keyExtractor={item => item.id}
-                ListHeaderComponent={<Text style={styles.listHeader}>Historia wydatków</Text>}
-                ListEmptyComponent={<Text style={styles.emptyText}>Brak wydatków w tym budżecie.</Text>}
+                ListHeaderComponent={<Text style={[styles.listHeader, { color: theme.colors.textPrimary }]}>Historia wydatków</Text>}
+                ListEmptyComponent={<Text style={[styles.emptyText, { color: theme.colors.textSecondary }]}>Brak wydatków w tym budżecie.</Text>}
+                contentContainerStyle={{ paddingBottom: Spacing.xLarge * 2 }}
             />
 
-            <TouchableOpacity style={styles.fab} onPress={() => setModalVisible(true)}>
+            <TouchableOpacity style={[styles.fab, { backgroundColor: theme.colors.primary }]} onPress={() => setModalVisible(true)}>
                 <Feather name="plus" size={30} color="white" />
             </TouchableOpacity>
 
             <Modal visible={modalVisible} animationType="slide" transparent={true} onRequestClose={() => setModalVisible(false)}>
                 <View style={styles.modalContainer}>
-                    <View style={styles.modalContent}>
+                    <View style={[styles.modalContent, { backgroundColor: theme.colors.card }]}>
                         <Text style={styles.modalTitle}>Nowy Wydatek</Text>
                         <TextInput
-                            style={GlobalStyles.input}
+                            style={[GlobalStyles.input, { backgroundColor: theme.colors.inputBackground, borderColor: theme.colors.border, color: theme.colors.textPrimary }]}
                             placeholder="Nazwa (np. Zakupy spożywcze)"
                             value={newExpenseName}
                             onChangeText={setNewExpenseName}
-                            placeholderTextColor={Colors.placeholder}
+                            placeholderTextColor={theme.colors.placeholder}
                             editable={!isSubmittingExpense}
                         />
                         <TextInput
-                            style={GlobalStyles.input}
+                            style={[GlobalStyles.input, { backgroundColor: theme.colors.inputBackground, borderColor: theme.colors.border, color: theme.colors.textPrimary }]}
                             placeholder="Kwota"
                             value={newExpenseAmount}
                             onChangeText={setNewExpenseAmount}
                             keyboardType="numeric"
-                            placeholderTextColor={Colors.placeholder}
+                            placeholderTextColor={theme.colors.placeholder}
                             editable={!isSubmittingExpense}
                         />
                         <View style={styles.modalActions}>
@@ -180,7 +186,7 @@ const BudgetDetailScreen = () => {
                                 <Text style={GlobalStyles.buttonText}>Anuluj</Text>
                             </TouchableOpacity>
                             <TouchableOpacity
-                                style={[GlobalStyles.button, { backgroundColor: Colors.primary }]}
+                                style={[GlobalStyles.button, { backgroundColor: theme.colors.primary }]}
                                 onPress={handleAddExpense}
                                 disabled={isSubmittingExpense}
                             >

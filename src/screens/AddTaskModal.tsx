@@ -5,6 +5,8 @@ import { useToast } from '../contexts/ToastContext';
 import { DateTimePickerEvent } from '@react-native-community/datetimepicker';
 import { useCategories } from '../contexts/CategoryContext';
 import TaskForm, { TaskFormData } from '../components/TaskForm';
+import AppHeader from '../components/AppHeader';
+import { useTheme } from '../contexts/ThemeContext';
 
 interface AddTaskModalProps {
     visible: boolean;
@@ -16,6 +18,7 @@ interface AddTaskModalProps {
 const AddTaskModal = ({ visible, onClose, onAddTask, initialCategory }: AddTaskModalProps) => {
     const { categories } = useCategories();
     const { showToast } = useToast();
+    const theme = useTheme();
 
     const [taskData, setTaskData] = useState<TaskFormData>({
         text: '',
@@ -70,15 +73,10 @@ const AddTaskModal = ({ visible, onClose, onAddTask, initialCategory }: AddTaskM
 
     return (
         <Modal visible={visible} animationType="slide" onRequestClose={onClose}>
-            <View style={styles.container}>
-                <View style={styles.header}>
-                    <Text style={styles.headerTitle}>Nowe zadanie</Text>
-                    <TouchableOpacity onPress={onClose}>
-                        <Text style={styles.closeButtonText}>Anuluj</Text>
-                    </TouchableOpacity>
-                </View>
+            <View style={[styles.container, { backgroundColor: theme.colors.background }]}> 
+                <AppHeader title="Nowe zadanie" leftAction={{ icon: 'x', onPress: onClose, accessibilityLabel: 'Zamknij' }} />
 
-                <View style={styles.form}>
+                <View style={[styles.form, { backgroundColor: theme.colors.card }]}> 
                     <TaskForm 
                         taskData={taskData}
                         onDataChange={handleDataChange}
@@ -86,7 +84,7 @@ const AddTaskModal = ({ visible, onClose, onAddTask, initialCategory }: AddTaskM
                         onShowDatePicker={() => setShowDatePicker(true)}
                         onDatePickerChange={onDateChange}
                     />
-                    <TouchableOpacity style={styles.saveButton} onPress={handleSave}>
+                    <TouchableOpacity style={[styles.saveButton, { backgroundColor: theme.colors.success }]} onPress={handleSave}>
                         <Text style={styles.saveButtonText}>Dodaj zadanie</Text>
                     </TouchableOpacity>
                 </View>

@@ -15,4 +15,38 @@ export function toCsv(rows: Array<Record<string, unknown>>): string {
   return [headerLine, ...lines].join('\n');
 }
 
+// Very small CSV parser for semicolon-separated CSV with quotes
+export function fromCsv(csv: string): Array<Record<string, string>> {
+  if (!csv.trim()) return [];
+  const lines = csv.split(/\r?\n/).filter(l => l.length > 0);
+  if (lines.length === 0) return [];
+  const parseLine = (line: string): string[] => {
+    const out: string[] = [];
+    let cur = '';
+    let inQuotes = false;
+    for (let i = 0; i < line.length; i++) {
+      const ch = line[i];
+      if (inQuotes) {
+        if (ch === '"') {
+          if (line[i + 1] === '"') { cur += '"'; i++; }
+          else { inQuotes = false; }
+        } else cur += ch;
+      } else {
+        if (ch === ';') { out.push(cur); cur = ''; }
+        else if (ch === '"') { inQuotes = true; }
+        else cur += ch;
+      }
+    }
+    out.push(cur);
+    return out;
+  };
+  const headers = parseLine(lines[0]);
+  return lines.slice(1).map(l => {
+    const cells = parseLine(l);
+    const rec: Record<string, string> = {};
+    headers.forEach((h, idx) => { rec[h] = cells[idx] ?? ''; });
+    return rec;
+  });
+}
+
 

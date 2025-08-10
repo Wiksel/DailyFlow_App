@@ -11,9 +11,13 @@ import ActionButton from '../components/ActionButton';
 import ActionModal from '../components/ActionModal';
 import { Feather } from '@expo/vector-icons';
 import { Colors, Spacing, Typography, GlobalStyles } from '../styles/AppStyles';
+import AppHeader from '../components/AppHeader';
+import Animated, { FadeInUp, Layout } from 'react-native-reanimated';
+import { useTheme } from '../contexts/ThemeContext';
 
 const ProfileScreen = () => {
     const navigation = useNavigation<TaskStackNavigationProp>();
+    const theme = useTheme();
     const { showToast } = useToast();
     const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
     const [nickname, setNickname] = useState('');
@@ -232,12 +236,13 @@ const ProfileScreen = () => {
     };
 
     if (loading) {
-        return <View style={GlobalStyles.container}><ActivityIndicator size="large" color={Colors.primary} /></View>;
+        return <View style={GlobalStyles.container}><ActivityIndicator size="large" color={theme.colors.primary} /></View>;
     }
 
     return (
-        <ScrollView style={GlobalStyles.container}>
-            <View style={styles.profileSection}>
+        <ScrollView style={[GlobalStyles.container, { backgroundColor: theme.colors.background }] }>
+            <AppHeader title="Profil i para" />
+            <Animated.View entering={FadeInUp} layout={Layout.springify()} style={[GlobalStyles.card, styles.profileSection, { backgroundColor: theme.colors.card, borderColor: theme.colors.border }] }>
                 <View style={styles.avatarContainer}>
                     {userProfile?.photoURL ? (
                         <Image source={{ uri: userProfile.photoURL }} style={styles.avatarImage} />
@@ -249,11 +254,11 @@ const ProfileScreen = () => {
                         </View>
                     )}
                 </View>
-                <Text style={styles.nicknameText}>{userProfile?.nickname || 'Brak nicku'}</Text>
-                <Text style={styles.emailText}>{currentUser?.email}</Text>
-            </View>
+                <Text style={[styles.nicknameText, { color: theme.colors.textPrimary }]}>{userProfile?.nickname || 'Brak nicku'}</Text>
+                <Text style={[styles.emailText, { color: theme.colors.textSecondary }]}>{currentUser?.email}</Text>
+            </Animated.View>
 
-            <View style={styles.statsContainer}>
+            <Animated.View entering={FadeInUp.delay(60)} layout={Layout.springify()} style={[GlobalStyles.card, styles.statsContainer, { backgroundColor: theme.colors.card, borderColor: theme.colors.border }]}> 
                 <View style={styles.statCard}>
                     <Feather name="star" size={24} color={Colors.warning} />
                     <Text style={styles.statValue}>{userProfile?.points ?? 0}</Text>
@@ -264,14 +269,14 @@ const ProfileScreen = () => {
                     <Text style={styles.statValue}>{userProfile?.completedTasksCount ?? 0}</Text>
                     <Text style={styles.statLabel}>Ukończone zadania</Text>
                 </View>
-            </View>
+            </Animated.View>
 
             {/* Sekcja zmiany nicku przeniesiona do Ustawień konta – usunięta z Profilu */}
 
-            <View style={GlobalStyles.section}>
+            <Animated.View entering={FadeInUp.delay(120)} layout={Layout.springify()} style={[GlobalStyles.card, { backgroundColor: theme.colors.card, borderColor: theme.colors.border }] }>
                 <Text style={styles.sectionTitle}>Zaproś do pary</Text>
                 <TextInput
-                    style={GlobalStyles.input}
+                    style={[GlobalStyles.input, { backgroundColor: theme.colors.inputBackground, borderColor: theme.colors.border, color: theme.colors.textPrimary }]}
                     placeholder="E-mail partnera"
                     value={inviteEmail}
                     onChangeText={setInviteEmail}
@@ -284,18 +289,20 @@ const ProfileScreen = () => {
                     isLoading={isPairActionLoading}
                     style={{ marginTop: Spacing.small }}
                 />
-            </View>
+            </Animated.View>
 
-            <View style={GlobalStyles.section}>
+            <Animated.View entering={FadeInUp.delay(180)} layout={Layout.springify()} style={[GlobalStyles.card, { backgroundColor: theme.colors.card, borderColor: theme.colors.border }] }>
                 <Text style={styles.sectionTitle}>Zarządzanie</Text>
                 <ActionButton title="Zarządzaj kategoriami" onPress={() => navigation.navigate('Categories')} style={[styles.manageButton, styles.purpleButton]} />
                 <ActionButton title="Szablony obowiązków" onPress={() => navigation.navigate('ChoreTemplates', {})} style={[styles.manageButton, styles.purpleButton]} />
                 <ActionButton title="Ustawienia priorytetów" onPress={() => navigation.navigate('Settings')} style={[styles.manageButton, styles.purpleButton]} />
                 <ActionButton title="Ustawienia konta" onPress={() => navigation.navigate('AccountSettings')} style={[styles.manageButton, styles.purpleButton]} />
-            </View>
+                <ActionButton title="Ustawienia wyświetlania" onPress={() => navigation.navigate('DisplaySettings')} style={[styles.manageButton, styles.purpleButton]} />
+                <View style={{ height: 1, backgroundColor: theme.colors.border, marginTop: Spacing.medium }} />
+            </Animated.View>
 
             {userProfile?.pairId ? (
-                <View style={GlobalStyles.section}>
+                <Animated.View entering={FadeInUp.delay(240)} layout={Layout.springify()} style={[GlobalStyles.card, { backgroundColor: theme.colors.card, borderColor: theme.colors.border }] }>
                     <Text style={styles.sectionTitle}>Twoja para</Text>
                     <Text style={styles.pairInfo}>Jesteś w parze z: <Text style={Typography.bold}>{partnerEmail}</Text></Text>
                     <ActionButton
@@ -304,11 +311,11 @@ const ProfileScreen = () => {
                         isLoading={isPairActionLoading}
                         style={styles.dangerButton}
                     />
-                </View>
+                </Animated.View>
             ) : (
                  <>
                     {incomingInvites.length > 0 && (
-                        <View style={GlobalStyles.section}>
+                        <Animated.View entering={FadeInUp.delay(240)} layout={Layout.springify()} style={[GlobalStyles.card, { backgroundColor: theme.colors.card, borderColor: theme.colors.border }] }>
                             <Text style={styles.sectionTitle}>Oczekujące zaproszenia</Text>
                             {incomingInvites.map(invite => (
                                 <View key={invite.id} style={styles.inviteContainer}>
@@ -329,7 +336,7 @@ const ProfileScreen = () => {
                                     </View>
                                 </View>
                             ))}
-                        </View>
+                        </Animated.View>
                     )}
                 </>
             )}

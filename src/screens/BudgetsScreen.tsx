@@ -1,5 +1,8 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, FlatList, TouchableOpacity, Modal, TextInput, ActivityIndicator, Switch, Platform } from 'react-native';
+import { View, Text, StyleSheet, FlatList, TouchableOpacity, Modal, TextInput, ActivityIndicator, Switch, Platform, Pressable } from 'react-native';
+import Animated, { FadeInUp, Layout, useAnimatedStyle, useSharedValue, withSpring } from 'react-native-reanimated';
+import { useUI } from '../contexts/UIContext';
+import { densityScale } from '../styles/AppStyles';
 import * as Haptics from 'expo-haptics';
 import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
@@ -11,6 +14,8 @@ import { BudgetStackParamList } from '../types/navigation';
 import { useToast } from '../contexts/ToastContext';
 import EmptyState from '../components/EmptyState';
 import { Colors, Spacing, Typography, GlobalStyles } from '../styles/AppStyles';
+import { useTheme } from '../contexts/ThemeContext';
+import AppHeader from '../components/AppHeader';
 
 interface Budget {
     id: string;
@@ -33,6 +38,9 @@ const BudgetsScreen = () => {
     const [loading, setLoading] = useState(true);
     const [isSubmittingBudget, setIsSubmittingBudget] = useState(false);
     const [pairId, setPairId] = useState<string | null>(null);
+    const { density } = useUI();
+    const theme = useTheme();
+    const isCompact = density === 'compact';
 
     const currentUser = getAuth().currentUser;
     const { showToast } = useToast();
@@ -123,50 +131,65 @@ const BudgetsScreen = () => {
     };
 
     const getProgressBarColor = (progress: number) => {
-        if (progress >= 100) return Colors.danger;
-        if (progress >= 75) return Colors.warning;
-        return Colors.success;
+        if (progress >= 100) return theme.colors.danger;
+        if (progress >= 75) return theme.colors.warning;
+        return theme.colors.success;
     };
 
     const renderBudget = ({ item }: { item: Budget }) => {
         const progress = item.targetAmount > 0 ? (item.currentAmount / item.targetAmount) * 100 : 0;
         const progressBarColor = getProgressBarColor(progress);
+        const scale = useSharedValue(1);
+        const animatedStyle = useAnimatedStyle(() => ({ transform: [{ scale: scale.value }] }));
 
         return (
-            <TouchableOpacity onPress={() => navigation.navigate('BudgetDetail', { budgetId: item.id })}>
-                <View style={styles.budgetItem}>
+             <Pressable
+              onPressIn={() => { scale.value = withSpring(0.98, { damping: 15 }); }}
+              onPressOut={() => { scale.value = withSpring(1, { damping: 15 }); }}
+              onPress={() => navigation.navigate('BudgetDetail', { budgetId: item.id })}
+              android_ripple={{ color: '#0000001a' }}
+            >
+                <Animated.View entering={FadeInUp} layout={Layout.springify()} style={[
+                    styles.budgetItem,
+                    { backgroundColor: theme.colors.card, borderColor: theme.colors.border, borderWidth: 1 },
+                    isCompact && { paddingVertical: Spacing.medium, paddingHorizontal: Spacing.medium },
+                    animatedStyle
+                ]}>
                     <View style={styles.budgetInfo}>
-                        <Text style={styles.budgetName} numberOfLines={1} ellipsizeMode="tail">{item.name}</Text>
-                        <Text style={styles.budgetAmount}>
+                        <Text style={[styles.budgetName, { color: theme.colors.textPrimary }, isCompact && { fontSize: densityScale(Typography.h3.fontSize, true) }]} numberOfLines={1} ellipsizeMode="tail">{item.name}</Text>
+                        <Text style={[styles.budgetAmount, { color: theme.colors.textSecondary }, isCompact && { fontSize: densityScale(Typography.small.fontSize + 2, true) }]}>
                             {item.currentAmount.toFixed(2)} zł / {item.targetAmount.toFixed(2)} zł
                         </Text>
                     </View>
-                    {item.isShared && <Feather name="users" size={24} color={Colors.textSecondary} />}
-                    <View style={styles.progressBarContainer}>
+                    {item.isShared && <Feather name="users" size={24} color={theme.colors.textSecondary} />}
+                    <View style={[styles.progressBarContainer, { backgroundColor: theme.colors.border }]}>
                         <View style={[styles.progressBar, { width: `${Math.min(progress, 100)}%`, backgroundColor: progressBarColor }]} />
                     </View>
-                </View>
-            </TouchableOpacity>
+                </Animated.View>
+            </Pressable>
         );
     };
 
     if (loading) {
-        return <View style={GlobalStyles.container}><ActivityIndicator size="large" color={Colors.primary} /></View>;
+        return <View style={GlobalStyles.container}><ActivityIndicator size="large" color={theme.colors.primary} /></View>;
     }
 
     return (
-        <View style={GlobalStyles.container}>
-            <View style={styles.headerContainer}>
-                <Text style={styles.headerTitle}>Twoje Budżety</Text>
-                <TouchableOpacity onPress={async () => { try { await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium); } catch {}; setModalVisible(true); }}>
-                    <Feather name="plus-circle" size={30} color={Colors.primary} />
-                </TouchableOpacity>
-            </View>
+        <View style={[GlobalStyles.container, { backgroundColor: theme.colors.background }]}>
+            <AppHeader
+              title="Twoje budżety"
+              rightActions={[{ icon: 'plus-circle', onPress: async () => { try { await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium); } catch {}; setModalVisible(true); }, accessibilityLabel: 'Dodaj budżet' }]}
+            />
 
-            <FlatList
+            <Animated.FlatList
                 data={budgets}
-                renderItem={renderBudget}
+                renderItem={(args) => (
+                  <Animated.View entering={FadeInUp.duration(250)} layout={Layout.springify()}>
+                    {renderBudget(args)}
+                  </Animated.View>
+                )}
                 keyExtractor={item => item.id}
+                contentContainerStyle={{ paddingBottom: Spacing.xLarge * 2 }}
                 ListEmptyComponent={
                     <EmptyState
                         icon="dollar-sign"
@@ -180,23 +203,23 @@ const BudgetsScreen = () => {
 
             <Modal visible={modalVisible} animationType="slide" transparent={true} onRequestClose={() => setModalVisible(false)}>
                 <View style={styles.modalContainer}>
-                    <View style={styles.modalContent}>
+                    <View style={[styles.modalContent, { backgroundColor: theme.colors.card }]}>
                         <Text style={styles.modalTitle}>Nowy Budżet</Text>
                         <TextInput
-                            style={GlobalStyles.input}
+                            style={[GlobalStyles.input, { backgroundColor: theme.colors.inputBackground, borderColor: theme.colors.border, color: theme.colors.textPrimary }]}
                             placeholder="Nazwa (np. Wydatki miesięczne)"
                             value={newBudgetName}
                             onChangeText={setNewBudgetName}
-                            placeholderTextColor={Colors.placeholder}
+                            placeholderTextColor={theme.colors.placeholder}
                             editable={!isSubmittingBudget}
                         />
                         <TextInput
-                            style={GlobalStyles.input}
+                            style={[GlobalStyles.input, { backgroundColor: theme.colors.inputBackground, borderColor: theme.colors.border, color: theme.colors.textPrimary }]}
                             placeholder="Kwota docelowa (np. 2000)"
                             value={newBudgetAmount}
                             onChangeText={setNewBudgetAmount}
                             keyboardType="numeric"
-                            placeholderTextColor={Colors.placeholder}
+                            placeholderTextColor={theme.colors.placeholder}
                             editable={!isSubmittingBudget}
                         />
                         <View style={styles.switchContainer}>
@@ -208,9 +231,9 @@ const BudgetsScreen = () => {
                                 )}
                             </View>
                             <Switch
-                                trackColor={{ false: Colors.border, true: Colors.primary }}
-                                thumbColor={Platform.OS === 'android' ? Colors.light : undefined}
-                                ios_backgroundColor={Colors.border}
+                                trackColor={{ false: theme.colors.border, true: theme.colors.primary }}
+                                thumbColor={Platform.OS === 'android' ? '#ffffff' : undefined}
+                                ios_backgroundColor={theme.colors.border}
                                 onValueChange={setIsShared}
                                 value={isShared}
                                 disabled={isSubmittingBudget || !pairId}
@@ -228,7 +251,7 @@ const BudgetsScreen = () => {
                                 <Text style={GlobalStyles.buttonText}>Anuluj</Text>
                             </TouchableOpacity>
                             <TouchableOpacity
-                                style={[GlobalStyles.button, { backgroundColor: Colors.primary }]}
+                                style={[GlobalStyles.button, { backgroundColor: theme.colors.primary }]}
                                 onPress={handleAddBudget}
                                 disabled={isSubmittingBudget}
                             >

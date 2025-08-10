@@ -10,10 +10,15 @@ import { Feather } from '@expo/vector-icons';
 import { TaskStackParamList } from '../types/navigation';
 import { ChoreTemplate } from '../types';
 import CategoryFilter from '../components/CategoryFilter';
+import Animated, { FadeInUp, Layout } from 'react-native-reanimated';
+import AnimatedIconButton from '../components/AnimatedIconButton';
+import { useUI } from '../contexts/UIContext';
 
 import { useCategories } from '../contexts/CategoryContext';
 import { useToast } from '../contexts/ToastContext';
-import { Colors, Spacing, Typography, GlobalStyles, isColorLight } from '../styles/AppStyles';
+import { Colors, Spacing, Typography, GlobalStyles, isColorLight, densityScale } from '../styles/AppStyles';
+import { useTheme } from '../contexts/ThemeContext';
+import AppHeader from '../components/AppHeader';
 
 type ChoreTemplatesScreenRouteProp = RouteProp<TaskStackParamList, 'ChoreTemplates'>;
 
@@ -32,6 +37,9 @@ const ChoreTemplatesScreen = () => {
     const [loading, setLoading] = useState(true);
     const [editingTemplate, setEditingTemplate] = useState<ChoreTemplate | null>(null);
     const [isSubmitting, setIsSubmitting] = useState(false);
+    const { density } = useUI();
+    const theme = useTheme();
+    const isCompact = density === 'compact';
     const currentUser = getAuth().currentUser; // ZMIANA
 
 
@@ -136,36 +144,33 @@ const ChoreTemplatesScreen = () => {
     const renderTemplate = ({ item }: { item: ChoreTemplate }) => {
         const category = categories.find(c => c.id === item.category);
         return (
-            <View style={styles.templateItem}>
+            <View style={[styles.templateItem, GlobalStyles.rowPress, isCompact && { paddingVertical: Spacing.medium, paddingHorizontal: Spacing.medium }, { backgroundColor: theme.colors.card, borderColor: theme.colors.border }]}>
                 <View style={{flex: 1}}>
-                    <Text style={styles.templateName}>{item.name}</Text>
-                    <Text style={styles.templateDifficulty}>Trudność: {item.difficulty}/10</Text>
+                    <Text style={[styles.templateName, { color: theme.colors.textPrimary }, isCompact && { fontSize: densityScale(Typography.body.fontSize, true) }]}>{item.name}</Text>
+                    <Text style={[styles.templateDifficulty, { color: theme.colors.textSecondary }, isCompact && { fontSize: densityScale(Typography.small.fontSize, true) }]}>Trudność: {item.difficulty}/10</Text>
                 </View>
                 {category && <View style={[styles.categoryTag, {backgroundColor: category.color}]}><Text style={styles.categoryTagText}>{category.name}</Text></View>}
-                <TouchableOpacity onPress={() => startEditing(item)} style={{marginHorizontal: Spacing.medium}}>
-                    <Feather name="edit-2" size={22} color={Colors.primary} />
-                </TouchableOpacity>
-                <TouchableOpacity onPress={() => handleDeleteTemplate(item)}>
-                    <Feather name="trash-2" size={22} color={Colors.danger} />
-                </TouchableOpacity>
+                <AnimatedIconButton icon="edit-2" size={22} color={theme.colors.primary} onPress={() => startEditing(item)} style={{ marginHorizontal: Spacing.medium }} accessibilityLabel="Edytuj szablon" />
+                <AnimatedIconButton icon="trash-2" size={22} color={theme.colors.danger} onPress={() => handleDeleteTemplate(item)} accessibilityLabel="Usuń szablon" />
             </View>
         );
     };
 
     if (loading || categoriesLoading) {
-        return <View style={GlobalStyles.container}><ActivityIndicator size="large" color={Colors.primary} /></View>;
+        return <View style={GlobalStyles.container}><ActivityIndicator size="large" color={theme.colors.primary} /></View>;
     }
 
     return (
-        <View style={GlobalStyles.container}>
-            <View style={GlobalStyles.section}>
-                <Text style={styles.sectionTitle}>{editingTemplate ? 'Edytuj szablon' : 'Dodaj nowy szablon'}</Text>
+        <View style={[GlobalStyles.container, { backgroundColor: theme.colors.background }]}>
+            <AppHeader title="Szablony" />
+            <Animated.View entering={FadeInUp} layout={Layout.springify()} style={[GlobalStyles.section, { backgroundColor: theme.colors.card, borderColor: theme.colors.border }]}>
+                <Text style={[styles.sectionTitle, { color: theme.colors.textPrimary }]}>{editingTemplate ? 'Edytuj szablon' : 'Dodaj nowy szablon'}</Text>
                 <TextInput
-                    style={GlobalStyles.input}
+                    style={[GlobalStyles.input, { backgroundColor: theme.colors.inputBackground, borderColor: theme.colors.border, color: theme.colors.textPrimary }]}
                     placeholder="Np. Zmywanie naczyń"
                     value={newTemplateName}
                     onChangeText={setNewTemplateName}
-                    placeholderTextColor={Colors.placeholder}
+                    placeholderTextColor={theme.colors.placeholder}
                     editable={!isSubmitting}
                 />
                 <Text style={styles.label}>Kategoria</Text>
@@ -198,31 +203,35 @@ const ChoreTemplatesScreen = () => {
                     step={1}
                     value={newTemplateDifficulty}
                     onValueChange={setNewTemplateDifficulty}
-                    minimumTrackTintColor={Colors.primary}
-                    maximumTrackTintColor={Colors.border}
-                    thumbTintColor={Colors.primary}
+                    minimumTrackTintColor={theme.colors.primary}
+                    maximumTrackTintColor={theme.colors.border}
+                    thumbTintColor={theme.colors.primary}
                     disabled={isSubmitting}
                 />
-                <TouchableOpacity style={GlobalStyles.button} onPress={handleAddOrUpdateTemplate} disabled={isSubmitting}>
+                <TouchableOpacity style={[GlobalStyles.button, { backgroundColor: theme.colors.primary, marginTop: Spacing.small }]} onPress={handleAddOrUpdateTemplate} disabled={isSubmitting}>
                     {isSubmitting ? <ActivityIndicator color="white" /> : <Text style={GlobalStyles.buttonText}>{editingTemplate ? 'Zapisz zmiany' : 'Dodaj szablon'}</Text>}
                 </TouchableOpacity>
                 {editingTemplate && (
                     <TouchableOpacity style={styles.cancelButton} onPress={cancelEditing} disabled={isSubmitting}>
-                        {isSubmitting ? <ActivityIndicator color={Colors.danger} /> : <Text style={styles.cancelButtonText}>Anuluj edycję</Text>}
+                        {isSubmitting ? <ActivityIndicator color={theme.colors.danger} /> : <Text style={[styles.cancelButtonText, { color: theme.colors.danger }]}>Anuluj edycję</Text>}
                     </TouchableOpacity>
                 )}
-            </View>
+            </Animated.View>
 
             <CategoryFilter activeCategory={activeCategoryFilter} onSelectCategory={setActiveCategoryFilter} />
 
             <View style={{flex: 1}}>
-                {loading ? <ActivityIndicator size="large" color={Colors.primary} /> : (
-                    <FlatList
+                {loading ? <ActivityIndicator size="large" color={theme.colors.primary} /> : (
+                    <Animated.FlatList
                         data={filteredTemplates}
-                        renderItem={renderTemplate}
+                        renderItem={(args) => (
+                          <Animated.View entering={FadeInUp.duration(200)} layout={Layout.springify()}>
+                            {renderTemplate(args)}
+                          </Animated.View>
+                        )}
                         keyExtractor={item => item.id}
-                        ListHeaderComponent={<Text style={styles.listHeader}>Twoje szablony</Text>}
-                        ListEmptyComponent={<Text style={styles.emptyText}>Brak szablonów w tej kategorii.</Text>}
+                        ListHeaderComponent={<Text style={[styles.listHeader, { color: theme.colors.textPrimary }]}>Twoje szablony</Text>}
+                        ListEmptyComponent={<Text style={[styles.emptyText, { color: theme.colors.textSecondary }]}>Brak szablonów w tej kategorii.</Text>}
                     />
                 )}
             </View>

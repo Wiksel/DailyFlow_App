@@ -1,0 +1,72 @@
+import React from 'react';
+import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
+import { useTheme } from '../contexts/ThemeContext';
+import { useUI } from '../contexts/UIContext';
+import { Colors, GlobalStyles, Spacing, Typography } from '../styles/AppStyles';
+import AppHeader from '../components/AppHeader';
+
+const DisplaySettingsScreen = () => {
+  const theme = useTheme();
+  const { density, setDensity } = useUI();
+  const compact = density === 'compact';
+
+  return (
+    <View style={[GlobalStyles.container, { backgroundColor: theme.colors.background }]}> 
+      <AppHeader title="Wyświetlanie" />
+      <View style={[GlobalStyles.section, { backgroundColor: theme.colors.card }]}> 
+        <Text style={[styles.title, { color: theme.colors.textPrimary }]}>Ustawienia wyświetlania</Text>
+        <Text style={[styles.label, { color: theme.colors.textPrimary }]}>Motyw</Text>
+        <View style={styles.row}>
+          {(['system','light','dark'] as const).map(m => (
+            <TouchableOpacity key={m} style={[styles.chip, theme.mode === m && { backgroundColor: theme.colors.primary }]} onPress={() => theme.setMode(m)}>
+              <Text style={[styles.chipText, theme.mode === m && { color: 'white' }]}>
+                {m === 'system' ? 'Systemowy' : m === 'light' ? 'Jasny' : 'Ciemny'}
+              </Text>
+            </TouchableOpacity>
+          ))}
+        </View>
+        <Text style={[styles.label, { color: theme.colors.textPrimary, marginTop: Spacing.medium }]}>Motyw akcentu</Text>
+        <View style={styles.row}>
+          {(['blue','purple','mint','orange'] as const).map(a => (
+            <TouchableOpacity key={a} style={[styles.chip, { backgroundColor: theme.accent === a ? theme.colors.primary : theme.colors.inputBackground }]} onPress={() => theme.setAccent(a)}>
+              <Text style={[styles.chipText, { color: theme.accent === a ? 'white' : theme.colors.textPrimary }]}>
+                {a === 'blue' ? 'Niebieski' : a === 'purple' ? 'Fiolet' : a === 'mint' ? 'Mięta' : 'Pomarańcz'}
+              </Text>
+            </TouchableOpacity>
+          ))}
+        </View>
+
+        <Text style={[styles.label, { color: theme.colors.textPrimary, marginTop: Spacing.medium }]}>Język</Text>
+        <View style={styles.row}>
+          {['pl','en'].map(lng => (
+            <View key={lng} style={[styles.chip, { backgroundColor: theme.colors.inputBackground }]}> 
+              <Text style={[styles.chipText, { color: theme.colors.textPrimary }]}>{lng === 'pl' ? 'Polski' : 'English'}</Text>
+            </View>
+          ))}
+        </View>
+        <Text style={[styles.label, { color: theme.colors.textPrimary, marginTop: Spacing.medium }]}>Gęstość interfejsu</Text>
+        <View style={styles.row}>
+          {['standard','compact'].map(mode => (
+            <TouchableOpacity key={mode} style={[styles.chip, { backgroundColor: (density===mode) ? theme.colors.primary : theme.colors.inputBackground }]} onPress={() => setDensity(mode as any)}>
+              <Text style={[styles.chipText, { color: (density===mode) ? 'white' : theme.colors.textPrimary }]}>
+                {mode==='compact' ? 'Kompaktowy' : 'Standardowy'}
+              </Text>
+            </TouchableOpacity>
+          ))}
+        </View>
+      </View>
+    </View>
+  );
+};
+
+const styles = StyleSheet.create({
+  title: { ...Typography.h3, marginBottom: Spacing.small },
+  label: { ...Typography.body, fontWeight: '600' },
+  row: { flexDirection: 'row', marginTop: Spacing.small },
+  chip: { paddingHorizontal: Spacing.medium, paddingVertical: Spacing.xSmall, borderRadius: 16, marginRight: Spacing.small },
+  chipText: { ...Typography.body },
+});
+
+export default DisplaySettingsScreen;
+
+

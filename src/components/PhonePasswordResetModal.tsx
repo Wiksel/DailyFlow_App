@@ -289,11 +289,11 @@ const PhonePasswordResetModal = ({ visible, onClose, onSuccess }: PhonePasswordR
                 value={formattedPhoneNumber}
                 onChangeText={handlePhoneNumberChange}
                 maxLength={11}
-                onSubmitEditing={sendVerificationCode} 
+                onSubmitEditing={() => sendVerificationCode()}
                 blurOnSubmit={true}
               />
             </View>
-            <TouchableOpacity style={GlobalStyles.button} onPress={sendVerificationCode} disabled={isLoading}>
+            <TouchableOpacity style={GlobalStyles.button} onPress={() => sendVerificationCode()} disabled={isLoading}>
               <Text style={[GlobalStyles.buttonText, isLoading && styles.buttonTextHidden]}>Wyślij kod</Text>
               {isLoading && <ActivityIndicator color="white" style={styles.activityIndicator} />}
             </TouchableOpacity>

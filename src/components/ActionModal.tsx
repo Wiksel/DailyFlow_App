@@ -1,6 +1,8 @@
 import React, { ReactNode } from 'react';
 import { Modal, View, Text, TouchableOpacity, StyleSheet } from 'react-native';
+import Animated, { FadeIn, FadeOut, Layout } from 'react-native-reanimated';
 import { Colors, Spacing, Typography, GlobalStyles } from '../styles/AppStyles';
+import { useTheme } from '../contexts/ThemeContext';
 
 interface ActionButtonConfig {
   text: string;
@@ -18,12 +20,13 @@ interface ActionModalProps {
 }
 
 const ActionModal = ({ visible, title, message, actions, onRequestClose, children }: ActionModalProps) => {
+  const theme = useTheme();
   return (
-    <Modal visible={visible} transparent animationType="fade" onRequestClose={onRequestClose}>
-      <View style={styles.backdrop}>
-        <View style={styles.card}>
-          <Text style={styles.title}>{title}</Text>
-          {message ? <Text style={styles.message}>{message}</Text> : null}
+    <Modal visible={visible} transparent animationType="none" onRequestClose={onRequestClose}>
+      <Animated.View style={styles.backdrop} entering={FadeIn.duration(120)} exiting={FadeOut.duration(120)}>
+        <Animated.View layout={Layout.springify()} style={[styles.card, { backgroundColor: theme.colors.card }]}>
+          <Text style={[styles.title, { color: theme.colors.textPrimary }]}>{title}</Text>
+          {message ? <Text style={[styles.message, { color: theme.colors.textSecondary }]}>{message}</Text> : null}
           {children}
           <View style={styles.actionsRow}>
             {actions.map((action, idx) => (
@@ -32,8 +35,9 @@ const ActionModal = ({ visible, title, message, actions, onRequestClose, childre
                 style={[
                   GlobalStyles.button,
                   styles.actionButton,
-                  action.variant === 'secondary' && styles.secondaryButton,
-                  action.variant === 'danger' && styles.dangerButton,
+                  action.variant === 'secondary' && { backgroundColor: Colors.secondary },
+                  action.variant === 'danger' && { backgroundColor: Colors.danger },
+                  (!action.variant || action.variant === 'primary') && { backgroundColor: theme.colors.primary },
                 ]}
                 onPress={action.onPress}
               >
@@ -41,8 +45,8 @@ const ActionModal = ({ visible, title, message, actions, onRequestClose, childre
               </TouchableOpacity>
             ))}
           </View>
-        </View>
-      </View>
+        </Animated.View>
+      </Animated.View>
     </Modal>
   );
 };
@@ -57,7 +61,6 @@ const styles = StyleSheet.create({
   },
   card: {
     width: '100%',
-    backgroundColor: 'white',
     borderRadius: 16,
     padding: Spacing.large,
     elevation: 6,

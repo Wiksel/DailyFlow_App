@@ -1,21 +1,21 @@
 import React, { useState } from 'react';
 import { View, Text, StyleSheet, TextInput, TouchableOpacity, ActivityIndicator, KeyboardAvoidingView, Platform, ScrollView, Image } from 'react-native';
-import type { FirebaseAuthTypes } from '@react-native-firebase/auth';
+import { getAuth } from '@react-native-firebase/auth';
 import { useToast } from '../contexts/ToastContext';
 import { createNewUserInFirestore } from '../utils/authUtils';
 import { Colors, Spacing, Typography, GlobalStyles } from '../styles/AppStyles';
+import { useTheme } from '../contexts/ThemeContext';
 
-interface NicknameScreenProps {
-  user: FirebaseAuthTypes.User | null;
-  onProfileCreated: () => void;
-}
+interface NicknameScreenProps { onProfileCreated: () => void; }
 
-const NicknameScreen = ({ user, onProfileCreated }: NicknameScreenProps) => {
+const NicknameScreen = ({ onProfileCreated }: NicknameScreenProps) => {
   const [isLoading, setIsLoading] = useState(false);
-  const [nickname, setNickname] = useState(user?.displayName || '');
+  const [nickname, setNickname] = useState('');
   const { showToast } = useToast();
+  const theme = useTheme();
 
   const handleFinish = async () => {
+    const user = getAuth().currentUser;
     if (!nickname.trim() || !user) {
       showToast('Nick nie może być pusty.', 'error');
       return;
@@ -32,21 +32,21 @@ const NicknameScreen = ({ user, onProfileCreated }: NicknameScreenProps) => {
   };
 
   return (
-    <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : "height"} style={styles.container}>
+    <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : "height"} style={[styles.container, { backgroundColor: theme.colors.background }]}> 
       <ScrollView contentContainerStyle={styles.scrollContentContainer} keyboardShouldPersistTaps="handled">
         <View style={styles.content}>
             <Image source={require('../../assets/icon.png')} style={styles.logo} />
-            <Text style={styles.modalTitle}>Witaj w DailyFlow!</Text>
-            <Text style={styles.modalSubtitle}>Wybierz swój nick, który będzie widoczny w aplikacji.</Text>
+            <Text style={[styles.modalTitle, { color: theme.colors.textPrimary }]}>Witaj w DailyFlow!</Text>
+            <Text style={[styles.modalSubtitle, { color: theme.colors.textSecondary }]}>Wybierz swój nick, który będzie widoczny w aplikacji.</Text>
             <TextInput
-                style={[GlobalStyles.input, {textAlign: 'center'}]}
+                style={[GlobalStyles.input, { textAlign: 'center', backgroundColor: theme.colors.inputBackground, borderColor: theme.colors.border, color: theme.colors.textPrimary }]}
                 placeholder="Twój Nick"
                 value={nickname}
                 onChangeText={setNickname}
                 editable={!isLoading}
             />
             <TouchableOpacity
-                style={[GlobalStyles.button, { marginTop: Spacing.medium, width: '100%' }]}
+                style={[GlobalStyles.button, { marginTop: Spacing.medium, width: '100%', backgroundColor: theme.colors.primary }]}
                 onPress={handleFinish}
                 disabled={isLoading}
             >

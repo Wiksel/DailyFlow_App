@@ -5,7 +5,7 @@ import type { FirebaseAuthTypes } from '@react-native-firebase/auth';
 
 export type AuthStackParamList = {
   Login: undefined;
-  Nickname: { user: FirebaseAuthTypes.User };
+  Nickname: undefined;
 };
 
 export type TaskStackParamList = {
@@ -18,6 +18,9 @@ export type TaskStackParamList = {
   Categories: undefined; 
   Archive: undefined;
   WeekPlan: undefined;
+  RecurringSeries: undefined;
+  Notifications: undefined;
+  DisplaySettings: undefined;
 };
 
 export type BudgetStackParamList = {

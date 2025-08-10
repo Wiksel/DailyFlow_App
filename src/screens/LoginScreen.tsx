@@ -5,6 +5,7 @@ import auth, { FirebaseAuthTypes, getAuth, signInWithEmailAndPassword, createUse
 import { GoogleSignin } from '@react-native-google-signin/google-signin';
 import { useToast } from '../contexts/ToastContext';
 import { Colors, Spacing, Typography, GlobalStyles } from '../styles/AppStyles';
+import { useTheme } from '../contexts/ThemeContext';
 import { Feather } from '@expo/vector-icons';
 import ActionModal from '../components/ActionModal';
 import LinkAccountsModal from '../components/LinkAccountsModal';
@@ -26,9 +27,9 @@ const FORM_CONTAINER_WIDTH = SCREEN_WIDTH - 2 * Spacing.xLarge;
 const SPRING_CONFIG = { damping: 20, stiffness: 150, mass: 1 };
 
 // Komponenty formularzy (bez zmian)
-const LoginForm = React.memo(({ identifier, setIdentifier, loginPassword, setLoginPassword, isLoading, handleLogin, setForgotPasswordModalVisible, onGoogleButtonPress }: any) => (
+const LoginForm = React.memo(({ identifier, setIdentifier, loginPassword, setLoginPassword, isLoading, handleLogin, setForgotPasswordModalVisible, onGoogleButtonPress, theme }: any) => (
     <View style={styles.formInnerContainer}>
-        <TextInput style={GlobalStyles.input} placeholder="E-mail lub telefon (9 cyfr)" value={identifier} onChangeText={setIdentifier} autoCapitalize="none" editable={!isLoading} placeholderTextColor={Colors.placeholder} />
+        <TextInput style={[GlobalStyles.input, { backgroundColor: theme.colors.inputBackground, borderColor: theme.colors.border, color: theme.colors.textPrimary }]} placeholder="E-mail lub telefon (9 cyfr)" value={identifier} onChangeText={setIdentifier} autoCapitalize="none" editable={!isLoading} placeholderTextColor={theme.colors.placeholder} />
         <PasswordInput
             placeholder="Hasło"
             value={loginPassword}
@@ -37,40 +38,40 @@ const LoginForm = React.memo(({ identifier, setIdentifier, loginPassword, setLog
             containerStyle={{marginTop: Spacing.small}}
         />
         <TouchableOpacity style={styles.forgotPasswordButton} onPress={() => setForgotPasswordModalVisible(true)}>
-            <Text style={styles.forgotPasswordText}>Zapomniałem hasła</Text>
+            <Text style={[styles.forgotPasswordText, { color: theme.colors.primary }]}>Zapomniałem hasła</Text>
         </TouchableOpacity>
         <TouchableOpacity style={[GlobalStyles.button, styles.buttonMarginTop]} onPress={handleLogin} disabled={isLoading}>
             {isLoading ? <ActivityIndicator color="white" /> : <Text style={GlobalStyles.buttonText}>Zaloguj się</Text>}
         </TouchableOpacity>
         <View style={styles.dividerContainer}>
-            <View style={styles.dividerLine} /><Text style={styles.dividerText}>lub</Text><View style={styles.dividerLine} />
+            <View style={[styles.dividerLine, { backgroundColor: theme.colors.border }]} /><Text style={[styles.dividerText, { color: theme.colors.textSecondary }]}>lub</Text><View style={[styles.dividerLine, { backgroundColor: theme.colors.border }]} />
         </View>
-        <TouchableOpacity style={[styles.socialButton, isLoading && styles.disabledGoogleButton]} onPress={onGoogleButtonPress} disabled={isLoading} >
-            {isLoading ? <ActivityIndicator color={Colors.primary} /> : (
+        <TouchableOpacity style={[styles.socialButton, isLoading && styles.disabledGoogleButton, { borderColor: theme.colors.border, backgroundColor: theme.colors.card }]} onPress={onGoogleButtonPress} disabled={isLoading} >
+            {isLoading ? <ActivityIndicator color={theme.colors.primary} /> : (
                 <>
                     <Image source={require('../../assets/google-icon.png')} style={styles.socialIcon} />
-                    <Text style={styles.socialButtonText}>Zaloguj się z Google</Text>
+                    <Text style={[styles.socialButtonText, { color: theme.colors.textPrimary }]}>Zaloguj się z Google</Text>
                 </>
             )}
         </TouchableOpacity>
     </View>
 ));
 
-const RegisterForm = React.memo(({ registerData, handleRegisterDataChange, emailError, passwordError, validateEmail, validatePassword, isLoading, isRegisterFormValid, handleRegister, onGoogleButtonPress, setPhoneModalVisible }: any) => (
+const RegisterForm = React.memo(({ registerData, handleRegisterDataChange, emailError, passwordError, validateEmail, validatePassword, isLoading, isRegisterFormValid, handleRegister, onGoogleButtonPress, setPhoneModalVisible, theme }: any) => (
     <View style={styles.formInnerContainer}>
         <View style={styles.inputWrapper}>
-            <TextInput style={[GlobalStyles.input]} placeholder="Twój Nick" value={registerData.nickname} onChangeText={(val: string) => handleRegisterDataChange('nickname', val)} editable={!isLoading} placeholderTextColor={Colors.placeholder} />
+            <TextInput style={[GlobalStyles.input, { backgroundColor: theme.colors.inputBackground, borderColor: theme.colors.border, color: theme.colors.textPrimary }]} placeholder="Twój Nick" value={registerData.nickname} onChangeText={(val: string) => handleRegisterDataChange('nickname', val)} editable={!isLoading} placeholderTextColor={theme.colors.placeholder} />
         </View>
         <View style={styles.inputWrapper}>
             <TextInput
-                style={[GlobalStyles.input, emailError ? styles.inputError : {}]}
+                style={[GlobalStyles.input, { backgroundColor: theme.colors.inputBackground, borderColor: theme.colors.border, color: theme.colors.textPrimary }, emailError ? styles.inputError : {}]}
                 placeholder="Adres e-mail"
                 value={registerData.email}
                 onChangeText={(val: string) => handleRegisterDataChange('email', val)}
                 keyboardType="email-address"
                 autoCapitalize="none"
                 editable={!isLoading}
-                placeholderTextColor={Colors.placeholder}
+                placeholderTextColor={theme.colors.placeholder}
                 onBlur={() => validateEmail(registerData.email)}
             />
             {!!emailError && <Text style={styles.errorText}>{emailError}</Text>}
@@ -94,22 +95,22 @@ const RegisterForm = React.memo(({ registerData, handleRegisterDataChange, email
             {isLoading ? <ActivityIndicator color="white" /> : <Text style={GlobalStyles.buttonText}>Stwórz konto</Text>}
         </TouchableOpacity>
         <View style={styles.dividerContainer}>
-            <View style={styles.dividerLine} /><Text style={styles.dividerText}>lub</Text><View style={styles.dividerLine} />
+            <View style={[styles.dividerLine, { backgroundColor: theme.colors.border }]} /><Text style={[styles.dividerText, { color: theme.colors.textSecondary }]}>lub</Text><View style={[styles.dividerLine, { backgroundColor: theme.colors.border }]} />
         </View>
         <View style={styles.socialButtonsContainer}>
-            <TouchableOpacity style={[styles.socialButton, styles.socialButtonHalf, isLoading && styles.disabledGoogleButton]} onPress={onGoogleButtonPress} disabled={isLoading} >
-                {isLoading ? <ActivityIndicator color={Colors.primary} /> : (
+            <TouchableOpacity style={[styles.socialButton, styles.socialButtonHalf, isLoading && styles.disabledGoogleButton, { borderColor: theme.colors.border, backgroundColor: theme.colors.card }]} onPress={onGoogleButtonPress} disabled={isLoading} >
+                {isLoading ? <ActivityIndicator color={theme.colors.primary} /> : (
                     <>
                         <Image source={require('../../assets/google-icon.png')} style={styles.socialIcon} />
-                        <Text style={styles.socialButtonText}>Google</Text>
+                        <Text style={[styles.socialButtonText, { color: theme.colors.textPrimary }]}>Google</Text>
                     </>
                 )}
             </TouchableOpacity>
-            <TouchableOpacity style={[styles.socialButton, styles.socialButtonHalf, isLoading && styles.disabledGoogleButton]} onPress={() => setPhoneModalVisible(true)} disabled={isLoading}>
-                {isLoading ? <ActivityIndicator color={Colors.primary} /> : (
+            <TouchableOpacity style={[styles.socialButton, styles.socialButtonHalf, isLoading && styles.disabledGoogleButton, { borderColor: theme.colors.border, backgroundColor: theme.colors.card }]} onPress={() => setPhoneModalVisible(true)} disabled={isLoading}>
+                {isLoading ? <ActivityIndicator color={theme.colors.primary} /> : (
                     <>
-                        <Feather name="phone" size={18} color={Colors.textPrimary} style={styles.socialIcon} />
-                        <Text style={styles.socialButtonText}>Telefon</Text>
+                        <Feather name="phone" size={18} color={theme.colors.textPrimary} style={styles.socialIcon} />
+                        <Text style={[styles.socialButtonText, { color: theme.colors.textPrimary }]}>Telefon</Text>
                     </>
                 )}
             </TouchableOpacity>
@@ -120,6 +121,7 @@ const RegisterForm = React.memo(({ registerData, handleRegisterDataChange, email
 
 const LoginScreen = () => {
     const navigation = useNavigation<LoginNavigationProp>();
+    const theme = useTheme();
     
     const [identifier, setIdentifier] = useState('');
     const [loginPassword, setLoginPassword] = useState('');
@@ -277,7 +279,7 @@ const LoginScreen = () => {
             const user = userCredential.user;
             const userDoc = await getDoc(doc(db, 'users', user.uid));
             if (!userDoc.exists()) {
-                navigation.navigate('Nickname', { user });
+                navigation.navigate('Nickname');
             }
         } catch (error: any) {
             if ((error.code === '12501') || (error.code === 'SIGN_IN_CANCELLED')) {
@@ -373,7 +375,7 @@ const LoginScreen = () => {
     }));
 
     return (
-        <View style={styles.container}>
+        <View style={[styles.container, { backgroundColor: theme.colors.background }]}>
             <ScrollView
                 contentContainerStyle={styles.scrollContentContainer}
                 keyboardShouldPersistTaps="handled"
@@ -384,14 +386,14 @@ const LoginScreen = () => {
                     <Animated.View style={animatedHeaderStyle}>
                         <View style={styles.headerContainer}>
                             <Image source={require('../../assets/icon.png')} style={styles.logo} />
-                            <Text style={styles.header}>Daily Flow</Text>
-                            <Text style={styles.subtitle}>Twoje centrum organizacji</Text>
+                            <Text style={[styles.header, { color: theme.colors.textPrimary }]}>Daily Flow</Text>
+                            <Text style={[styles.subtitle, { color: theme.colors.textSecondary }]}>Twoje centrum organizacji</Text>
                         </View>
                     </Animated.View>
 
                     <GestureDetector gesture={gesture}>
                         <View style={styles.formContainer}>
-                            <View style={styles.modeSwitcher}>
+                            <View style={[styles.modeSwitcher, { backgroundColor: theme.colors.inputBackground, borderWidth: 1, borderColor: theme.colors.border }]}> 
                                 <TouchableOpacity style={styles.modeButton} onPress={() => { swipeDirection.value = -1; targetProgress.value = 0; }}>
                                     <Animated.Text style={[styles.modeButtonText, loginTextStyle]}>Zaloguj się</Animated.Text>
                                 </TouchableOpacity>
@@ -400,12 +402,12 @@ const LoginScreen = () => {
                                 </TouchableOpacity>
                             </View>
 
-                            <View style={styles.formSliderContainer}>
+                            <View style={[styles.formSliderContainer, { backgroundColor: 'transparent' }]}>
                                 <Animated.View style={[styles.formWrapper, loginFormAnimatedStyle]}>
-                                    <LoginForm identifier={identifier} setIdentifier={setIdentifier} loginPassword={loginPassword} setLoginPassword={setLoginPassword} isLoading={isLoading} handleLogin={handleLogin} setForgotPasswordModalVisible={setForgotPasswordModalVisible} onGoogleButtonPress={onGoogleButtonPress} />
+                                    <LoginForm identifier={identifier} setIdentifier={setIdentifier} loginPassword={loginPassword} setLoginPassword={setLoginPassword} isLoading={isLoading} handleLogin={handleLogin} setForgotPasswordModalVisible={setForgotPasswordModalVisible} onGoogleButtonPress={onGoogleButtonPress} theme={theme} />
                                 </Animated.View>
                                 <Animated.View style={[styles.formWrapper, registerFormAnimatedStyle]}>
-                                    <RegisterForm registerData={registerData} handleRegisterDataChange={handleRegisterDataChange} emailError={emailError} passwordError={passwordError} validateEmail={validateEmail} validatePassword={validatePassword} isLoading={isLoading} isRegisterFormValid={isRegisterFormValid} handleRegister={handleRegister} onGoogleButtonPress={onGoogleButtonPress} setPhoneModalVisible={setPhoneModalVisible} />
+                                    <RegisterForm registerData={registerData} handleRegisterDataChange={handleRegisterDataChange} emailError={emailError} passwordError={passwordError} validateEmail={validateEmail} validatePassword={validatePassword} isLoading={isLoading} isRegisterFormValid={isRegisterFormValid} handleRegister={handleRegister} onGoogleButtonPress={onGoogleButtonPress} setPhoneModalVisible={setPhoneModalVisible} theme={theme} />
                                 </Animated.View>
                             </View>
                         </View>

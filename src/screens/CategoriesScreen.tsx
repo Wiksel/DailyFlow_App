@@ -2,15 +2,20 @@
 import React, { useState } from 'react';
 // Dodano import ScrollView
 import { View, Text, StyleSheet, FlatList, TextInput, TouchableOpacity, ActivityIndicator, ScrollView } from 'react-native';
+import Animated, { FadeInUp, Layout } from 'react-native-reanimated';
 import auth, { getAuth } from '@react-native-firebase/auth'; // ZMIANA
 import { db } from '../../firebaseConfig'; // <--- TEN IMPORT ZOSTAJE
 import { collection, addDoc, deleteDoc, doc, updateDoc, query, where, getDocs, writeBatch } from 'firebase/firestore';
 import { Feather } from '@expo/vector-icons';
+import AnimatedIconButton from '../components/AnimatedIconButton';
 import { useCategories } from '../contexts/CategoryContext';
 import { Category } from '../types';
 import { useToast } from '../contexts/ToastContext';
 import ActionModal from '../components/ActionModal';
-import { Colors, Spacing, Typography, GlobalStyles, isColorLight } from '../styles/AppStyles';
+import { Colors, Spacing, Typography, GlobalStyles, isColorLight, densityScale } from '../styles/AppStyles';
+import { useTheme } from '../contexts/ThemeContext';
+import { useUI } from '../contexts/UIContext';
+import AppHeader from '../components/AppHeader';
 
 const COLORS = [
     '#3498db', '#2ecc71', '#f1c40f', '#e74c3c',
@@ -20,6 +25,9 @@ const COLORS = [
 
 const CategoriesScreen = () => {
     const { categories, loading } = useCategories();
+    const theme = useTheme();
+    const { density } = useUI();
+    const isCompact = density === 'compact';
     const [newCategoryName, setNewCategoryName] = useState('');
     const [selectedColor, setSelectedColor] = useState(COLORS[0]);
     const [editingCategory, setEditingCategory] = useState<Category | null>(null);
@@ -77,57 +85,68 @@ const CategoriesScreen = () => {
     };
 
     const renderCategory = ({ item }: { item: Category }) => (
-        <View style={styles.categoryItem}>
+        <View style={[
+            styles.categoryItem,
+            { backgroundColor: theme.colors.card, borderColor: theme.colors.border },
+            isCompact && { paddingVertical: Spacing.small, paddingHorizontal: Spacing.medium }
+        ]}>
             <View style={[styles.colorDot, { backgroundColor: item.color }]} />
-            <Text style={styles.categoryName}>{item.name}</Text>
-            <TouchableOpacity onPress={() => startEditing(item)} style={{ marginHorizontal: Spacing.medium }}>
-                <Feather name="edit-2" size={22} color={Colors.primary} />
-            </TouchableOpacity>
-            <TouchableOpacity onPress={() => handleDeleteCategory(item)}>
-                <Feather name="trash-2" size={22} color={Colors.danger} />
-            </TouchableOpacity>
+            <Text style={[styles.categoryName, { color: theme.colors.textPrimary }, isCompact && { fontSize: densityScale(Typography.body.fontSize, true) }]}>{item.name}</Text>
+            <AnimatedIconButton icon="edit-2" size={22} color={theme.colors.primary} onPress={() => startEditing(item)} style={{ marginHorizontal: Spacing.medium }} accessibilityLabel={`Edytuj kategorię ${item.name}`} />
+            <AnimatedIconButton icon="trash-2" size={22} color={theme.colors.danger} onPress={() => handleDeleteCategory(item)} accessibilityLabel={`Usuń kategorię ${item.name}`} />
         </View>
     );
 
     return (
-        <View style={GlobalStyles.container}>
-            <View style={styles.addSection}>
+        <View style={[GlobalStyles.container, { backgroundColor: theme.colors.background }]}>
+            <AppHeader title="Kategorie" />
+            <View style={[styles.addSection, { backgroundColor: theme.colors.card, borderColor: theme.colors.border, borderRadius: 12, marginHorizontal: Spacing.medium }] }>
                 <Text style={styles.sectionTitle}>{editingCategory ? 'Edytuj kategorię' : 'Dodaj nową kategorię'}</Text>
                 <TextInput
-                    style={styles.input}
+                    style={[
+                        styles.input,
+                        { backgroundColor: theme.colors.inputBackground, borderColor: theme.colors.border, color: theme.colors.textPrimary },
+                        isCompact && { paddingVertical: Spacing.xSmall, fontSize: densityScale(Typography.body.fontSize, true) }
+                    ]}
                     placeholder="Nazwa kategorii"
                     value={newCategoryName}
                     onChangeText={setNewCategoryName}
-                    placeholderTextColor={Colors.placeholder}
+                    placeholderTextColor={theme.colors.placeholder}
                     editable={!isSubmitting}
                 />
-                <Text style={styles.label}>Wybierz kolor</Text>
+                <Text style={[styles.label, { color: theme.colors.textPrimary }]}>Wybierz kolor</Text>
                 {/* Zmieniono View na ScrollView */}
                 <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.colorContainer}>
                     {COLORS.map(color => (
                         <TouchableOpacity
                             key={color}
-                            style={[styles.colorButton, { backgroundColor: color }, selectedColor === color && styles.colorSelected]}
+                            style={[styles.colorButton, { backgroundColor: color }, selectedColor === color && [styles.colorSelected, { borderColor: theme.colors.primary }]]}
                             onPress={() => setSelectedColor(color)}
                             disabled={isSubmitting}
+                            accessibilityLabel={`Kolor ${color}${selectedColor===color ? ' wybrany' : ''}`}
                         />
                     ))}
                 </ScrollView>
-                <TouchableOpacity style={styles.addButton} onPress={handleAddOrUpdateCategory} disabled={isSubmitting}>
+                <TouchableOpacity style={[styles.addButton, { backgroundColor: theme.colors.primary }]} onPress={handleAddOrUpdateCategory} disabled={isSubmitting}>
                     {isSubmitting ? <ActivityIndicator color="white" /> : <Text style={styles.addButtonText}>{editingCategory ? 'Zapisz zmiany' : 'Dodaj kategorię'}</Text>}
                 </TouchableOpacity>
                 {editingCategory && (
                     <TouchableOpacity style={styles.cancelButton} onPress={cancelEditing} disabled={isSubmitting}>
-                        {isSubmitting ? <ActivityIndicator color={Colors.danger} /> : <Text style={styles.cancelButtonText}>Anuluj edycję</Text>}
+                        {isSubmitting ? <ActivityIndicator color={theme.colors.danger} /> : <Text style={[styles.cancelButtonText, { color: theme.colors.danger }]}>Anuluj edycję</Text>}
                     </TouchableOpacity>
                 )}
             </View>
-            <FlatList
+            <Animated.FlatList
                 data={categories}
-                renderItem={renderCategory}
+                renderItem={(args) => (
+                  <Animated.View entering={FadeInUp.duration(200)} layout={Layout.springify()}>
+                    {renderCategory(args)}
+                  </Animated.View>
+                )}
                 keyExtractor={item => item.id}
-                ListHeaderComponent={<Text style={styles.listHeader}>Twoje kategorie</Text>}
-                ListEmptyComponent={<Text style={styles.emptyText}>Brak własnych kategorii.</Text>}
+                ListHeaderComponent={<Text style={[styles.listHeader, { color: theme.colors.textPrimary, marginTop: Spacing.medium }]}>Twoje kategorie</Text>}
+                ListEmptyComponent={<Text style={[styles.emptyText, { color: theme.colors.textSecondary }]}>Brak własnych kategorii.</Text>}
+                contentContainerStyle={{ paddingBottom: Spacing.xLarge * 2 }}
             />
             {confirmDeleteCategory && (
                 <ActionModal
@@ -186,6 +205,7 @@ const styles = StyleSheet.create({
         fontSize: Typography.h3.fontSize,
         fontWeight: Typography.bold.fontWeight, // <-- Zmiana tutaj
         marginBottom: Spacing.small,
+        color: Colors.textPrimary,
     },
     listHeader: {
         fontSize: Typography.h3.fontSize,

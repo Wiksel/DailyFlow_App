@@ -1,8 +1,9 @@
 // src/components/SearchBar.tsx
 import React from 'react';
-import { View, TextInput, StyleSheet, ViewStyle, TextStyle } from 'react-native';
+import { View, TextInput, StyleSheet, ViewStyle, TextStyle, TouchableOpacity } from 'react-native';
 import { Feather } from '@expo/vector-icons';
-import { Colors, Spacing, Typography, GlobalStyles } from '../styles/AppStyles'; // Import globalnych stylów
+import { Colors, Spacing, Typography, GlobalStyles } from '../styles/AppStyles';
+import { useTheme } from '../contexts/ThemeContext';
 
 interface SearchBarProps {
     value: string;
@@ -13,41 +14,47 @@ interface SearchBarProps {
 }
 
 const SearchBar = ({ value, onChangeText, placeholder, style, inputStyle }: SearchBarProps) => {
-    return (
-        <View style={[styles.searchContainer, style]}>
-            <Feather name="search" size={20} color={Colors.placeholder} style={styles.searchIcon} />
-            <TextInput
-                style={[GlobalStyles.input, styles.searchInput, inputStyle]} // Rozszerz o GlobalStyles.input
-                placeholder={placeholder}
-                value={value}
-                onChangeText={onChangeText}
-                placeholderTextColor={Colors.placeholder}
-            />
-        </View>
-    );
+  const theme = useTheme();
+  const showClear = !!value?.length;
+  return (
+    <View style={[styles.searchContainer, { backgroundColor: theme.colors.card, borderColor: theme.colors.border }, style]}>
+      <Feather name="search" size={20} color={theme.colors.placeholder} style={styles.searchIcon} />
+      <TextInput
+        style={[GlobalStyles.input, styles.searchInput, { backgroundColor: theme.colors.inputBackground, color: theme.colors.textPrimary, borderColor: theme.colors.border }, inputStyle]}
+        placeholder={placeholder}
+        value={value}
+        onChangeText={onChangeText}
+        placeholderTextColor={theme.colors.placeholder}
+        accessibilityLabel={placeholder}
+      />
+      {showClear && (
+        <TouchableOpacity onPress={() => onChangeText('')} accessibilityLabel="Wyczyść wyszukiwanie" style={styles.clearBtn}>
+          <Feather name="x-circle" size={18} color={theme.colors.placeholder} />
+        </TouchableOpacity>
+      )}
+    </View>
+  );
 };
 
 const styles = StyleSheet.create({
     searchContainer: {
         flexDirection: 'row',
         alignItems: 'center',
-        backgroundColor: 'white',
         paddingHorizontal: Spacing.medium,
-        paddingVertical: Spacing.small, // Dostosuj padding, aby pasował do GlobalStyles.input
+        paddingVertical: Spacing.small,
         borderBottomWidth: 1,
-        borderColor: Colors.border,
     },
     searchIcon: {
         marginRight: Spacing.small,
     },
     searchInput: {
         flex: 1,
-        // Usunięto redundantne style, które są już w GlobalStyles.input
-        // height: 40,
-        // backgroundColor: Colors.inputBackground,
-        // borderRadius: 8,
-        // paddingHorizontal: Spacing.small,
-        // fontSize: Typography.body.fontSize,
+        minHeight: 40,
+    },
+    clearBtn: {
+        marginLeft: Spacing.small,
+        paddingHorizontal: Spacing.xSmall,
+        paddingVertical: Spacing.xSmall,
     },
 });
 
