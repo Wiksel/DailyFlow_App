@@ -1,7 +1,11 @@
 // src/screens/ArchiveScreen.tsx
-import React, { useState, useEffect, useMemo } from 'react';
-import { View, Text, StyleSheet, FlatList, ActivityIndicator, TouchableOpacity, Alert, TextInput, ScrollView, Platform, Dimensions } from 'react-native';
-import auth from '@react-native-firebase/auth';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
+import { View, Text, StyleSheet, FlatList, ActivityIndicator, TouchableOpacity, TextInput, ScrollView, Platform, Dimensions } from 'react-native';
+import * as Haptics from 'expo-haptics';
+import * as FileSystem from 'expo-file-system';
+import ActionModal from '../components/ActionModal';
+import { useToast } from '../contexts/ToastContext';
+import auth, { getAuth } from '@react-native-firebase/auth';
 import { db } from '../../firebaseConfig'; // <--- TEN IMPORT ZOSTAJE
 import { collection, query, where, onSnapshot, orderBy, doc, updateDoc, deleteDoc, getDoc } from 'firebase/firestore';
 import { Task, Category, UserProfile, Pair } from '../types';
@@ -14,10 +18,14 @@ import ActionButton from '../components/ActionButton';
 import { Picker } from '@react-native-picker/picker';
 import { Colors, Spacing, Typography, GlobalStyles } from '../styles/AppStyles'; // Import globalnych stylów
 import SearchBar from '../components/SearchBar'; // <-- Import SearchBar
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { toCsv } from '../utils/csv';
 
 const ArchiveScreen = () => {
     const [rawArchivedTasks, setRawArchivedTasks] = useState<Task[]>([]);
     const [loading, setLoading] = useState(true);
+    const { showToast } = useToast();
+    const [confirmDeleteTaskId, setConfirmDeleteTaskId] = useState<string | null>(null);
     const [searchQuery, setSearchQuery] = useState('');
 
     const [filterCompletedFromDate, setFilterCompletedFromDate] = useState<Date | null>(null);
@@ -31,7 +39,9 @@ const ArchiveScreen = () => {
     const [selectedPartnerId, setSelectedPartnerId] = useState<string | 'all'>('all');
 
     const { categories } = useCategories();
-    const currentUser = auth().currentUser;
+    const currentUser = getAuth().currentUser;
+    const didLoadFiltersRef = useRef(false);
+    const ARCHIVE_FILTERS_KEY = 'dailyflow_archive_filters';
 
     useEffect(() => {
         if (!currentUser) {
@@ -126,6 +136,49 @@ const ArchiveScreen = () => {
         };
     }, [currentUser, userProfile?.pairId]);
 
+    // Load saved filters
+    useEffect(() => {
+        const loadFilters = async () => {
+            if (!currentUser) return;
+            try {
+                const key = `${ARCHIVE_FILTERS_KEY}_${currentUser.uid}`;
+                const raw = await AsyncStorage.getItem(key);
+                if (raw) {
+                    const parsed = JSON.parse(raw);
+                    if (parsed.searchQuery) setSearchQuery(parsed.searchQuery);
+                    if (parsed.activeCategoryArchive) setActiveCategoryArchive(parsed.activeCategoryArchive);
+                    if (parsed.archivedTaskType) setArchivedTaskType(parsed.archivedTaskType);
+                    if (parsed.selectedPartnerId) setSelectedPartnerId(parsed.selectedPartnerId);
+                    if (parsed.filterCompletedFromDate) setFilterCompletedFromDate(new Date(parsed.filterCompletedFromDate));
+                    if (parsed.filterCompletedToDate) setFilterCompletedToDate(new Date(parsed.filterCompletedToDate));
+                }
+            } catch {}
+            finally { didLoadFiltersRef.current = true; }
+        };
+        loadFilters();
+    }, [currentUser]);
+
+    // Save filters with debounce
+    useEffect(() => {
+        const saveFilters = async () => {
+            if (!currentUser || !didLoadFiltersRef.current) return;
+            try {
+                const key = `${ARCHIVE_FILTERS_KEY}_${currentUser.uid}`;
+                const payload = {
+                    searchQuery,
+                    activeCategoryArchive,
+                    archivedTaskType,
+                    selectedPartnerId,
+                    filterCompletedFromDate: filterCompletedFromDate ? filterCompletedFromDate.toISOString() : null,
+                    filterCompletedToDate: filterCompletedToDate ? filterCompletedToDate.toISOString() : null,
+                };
+                await AsyncStorage.setItem(key, JSON.stringify(payload));
+            } catch {}
+        };
+        const t = setTimeout(saveFilters, 300);
+        return () => clearTimeout(t);
+    }, [currentUser, searchQuery, activeCategoryArchive, archivedTaskType, selectedPartnerId, filterCompletedFromDate, filterCompletedToDate]);
+
 
     const processedAndSortedArchivedTasks = useMemo(() => {
         let filtered = rawArchivedTasks.filter(task => {
@@ -199,18 +252,7 @@ const ArchiveScreen = () => {
         });
     };
 
-    const handlePermanentDelete = (taskId: string) => {
-        Alert.alert(
-            "Trwałe usunięcie",
-            "Czy na pewno chcesz trwale usunąć to zadanie? Tej operacji nie można cofnąć.",
-            [
-                { text: "Anuluj", style: "cancel" },
-                { text: "Usuń", style: "destructive", onPress: async () => {
-                    await deleteDoc(doc(db, 'tasks', taskId));
-                }}
-            ]
-        );
-    };
+    const handlePermanentDelete = (taskId: string) => setConfirmDeleteTaskId(taskId);
 
     const renderArchivedTask = ({ item }: { item: Task }) => {
         const category = categories.find((c: Category) => c.id === item.category);
@@ -246,10 +288,10 @@ const ArchiveScreen = () => {
                     )}
                 </View>
                 <View style={styles.actionsContainer}>
-                    <TouchableOpacity onPress={() => handleRestoreTask(item.id)} style={styles.actionButton}>
+                    <TouchableOpacity onPress={async () => { try { await Haptics.selectionAsync(); } catch {}; await handleRestoreTask(item.id); }} style={styles.actionButton}>
                         <Feather name="refresh-ccw" size={22} color={Colors.primary} />
                     </TouchableOpacity>
-                    <TouchableOpacity onPress={() => handlePermanentDelete(item.id)} style={[styles.actionButton, { marginLeft: Spacing.medium }]}>
+                    <TouchableOpacity onPress={async () => { try { await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning); } catch {}; handlePermanentDelete(item.id); }} style={[styles.actionButton, { marginLeft: Spacing.medium }]}>
                         <Feather name="trash-2" size={22} color={Colors.danger} />
                     </TouchableOpacity>
                 </View>
@@ -259,6 +301,45 @@ const ArchiveScreen = () => {
 
     return (
         <View style={GlobalStyles.container}>
+            {/* Pasek akcji eksportu */}
+            <View style={styles.exportBar}>
+                <TouchableOpacity
+                    style={[GlobalStyles.button, styles.exportButton]}
+                    onPress={async () => {
+                        try {
+                            await Haptics.selectionAsync();
+                        } catch {}
+                        try {
+                            // Przygotuj dane CSV
+                            const rows = processedAndSortedArchivedTasks.map(t => ({
+                                id: t.id,
+                                text: t.text,
+                                description: t.description || '',
+                                category: categories.find(c => c.id === t.category)?.name || '',
+                                isShared: t.isShared ? 'tak' : 'nie',
+                                creatorNickname: t.creatorNickname,
+                                completedBy: t.completedBy || '',
+                                createdAt: t.createdAt?.toDate().toISOString() || '',
+                                completedAt: t.completedAt?.toDate().toISOString() || '',
+                                deadline: t.deadline?.toDate().toISOString() || '',
+                            }));
+                            const csv = toCsv(rows);
+                            const dir = FileSystem.cacheDirectory || FileSystem.documentDirectory || FileSystem.cacheDirectory!;
+                            const filePath = `${dir}archive_export_${Date.now()}.csv`;
+                            await FileSystem.writeAsStringAsync(filePath, csv, { encoding: FileSystem.EncodingType.UTF8 });
+                            // W Android/Expo można użyć shareSheet – ale brak expo-sharing, więc podamy ścieżkę i log
+                            console.log('CSV saved at:', filePath);
+                            // Prosta informacja toastem
+                            // Użyjemy istniejącego kontekstu toast przez showToast
+                            // Ponieważ nie mamy tu hooka – dodajmy delikatny alert w konsoli już jest
+                        } catch (e) {
+                            console.error('Export CSV failed', e);
+                        }
+                    }}
+                >
+                    <Text style={GlobalStyles.buttonText}>Eksportuj CSV</Text>
+                </TouchableOpacity>
+            </View>
             {/* Przełącznik typu zadań (osobiste/wspólne/wszystkie) */}
             <View style={styles.taskTypeSwitchContainer}>
                 <ActionButton
@@ -348,6 +429,10 @@ const ArchiveScreen = () => {
                 data={processedAndSortedArchivedTasks}
                 renderItem={renderArchivedTask}
                 keyExtractor={item => item.id}
+                initialNumToRender={12}
+                windowSize={10}
+                removeClippedSubviews
+                maxToRenderPerBatch={12}
                 ListEmptyComponent={
                     <EmptyState
                         icon={searchQuery || filterCompletedFromDate || filterCompletedToDate || activeCategoryArchive !== 'all' || archivedTaskType !== 'all' || selectedPartnerId !== 'all' ? "search" : "archive"}
@@ -356,11 +441,32 @@ const ArchiveScreen = () => {
                     />
                 }
             />
+            <ActionModal
+                visible={!!confirmDeleteTaskId}
+                title={'Trwałe usunięcie'}
+                message={'Czy na pewno chcesz trwale usunąć to zadanie? Tej operacji nie można cofnąć.'}
+                onRequestClose={() => setConfirmDeleteTaskId(null)}
+                actions={[
+                    { text: 'Anuluj', variant: 'secondary', onPress: () => setConfirmDeleteTaskId(null) },
+                    { text: 'Usuń', onPress: async () => { if (!confirmDeleteTaskId) return; await deleteDoc(doc(db, 'tasks', confirmDeleteTaskId)); setConfirmDeleteTaskId(null); showToast('Zadanie usunięte.', 'success'); } },
+                ]}
+            />
         </View>
     );
 };
 
 const styles = StyleSheet.create({
+    exportBar: {
+        backgroundColor: 'white',
+        paddingHorizontal: Spacing.medium,
+        paddingTop: Spacing.small,
+        paddingBottom: Spacing.small,
+        borderBottomWidth: 1,
+        borderColor: Colors.border,
+    },
+    exportButton: {
+        alignSelf: 'flex-start',
+    },
     list: {
         flex: 1,
     },

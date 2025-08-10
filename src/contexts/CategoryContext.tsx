@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, ReactNode, useEffect } from 'react';
+import React, { createContext, useContext, useState, ReactNode, useEffect, useRef } from 'react';
 import { collection, query, where, onSnapshot } from 'firebase/firestore';
 import auth from '@react-native-firebase/auth';
 import { db } from '../../firebaseConfig';
@@ -27,32 +27,47 @@ export const CategoryProvider = ({ children }: CategoryProviderProps) => {
     const [categories, setCategories] = useState<Category[]>([]);
     const [loading, setLoading] = useState(true);
 
-    const user = auth().currentUser;
+    // Przechowuj aktywną subskrypcję kategorii, aby móc ją odpiąć przy zmianie użytkownika
+    const categoriesUnsubscribeRef = useRef<null | (() => void)>(null);
 
     useEffect(() => {
-        if (user) {
-            const categoriesRef = collection(db, 'categories');
-            const q = query(categoriesRef, where("userId", "==", user.uid));
+        setLoading(true);
+        const unsubscribeAuth = auth().onAuthStateChanged((firebaseUser) => {
+            // Odpnij poprzednią subskrypcję kolekcji kategorii
+            if (categoriesUnsubscribeRef.current) {
+                categoriesUnsubscribeRef.current();
+                categoriesUnsubscribeRef.current = null;
+            }
 
-            const unsubscribe = onSnapshot(q, (snapshot) => {
-                const categoriesData = snapshot.docs.map(doc => ({ ...doc.data(), id: doc.id } as Category));
-                setCategories(categoriesData);
+            if (firebaseUser) {
+                const categoriesRef = collection(db, 'categories');
+                const q = query(categoriesRef, where('userId', '==', firebaseUser.uid));
+                categoriesUnsubscribeRef.current = onSnapshot(
+                    q,
+                    (snapshot) => {
+                        const categoriesData = snapshot.docs.map((doc) => ({ ...doc.data(), id: doc.id } as Category));
+                        setCategories(categoriesData);
+                        setLoading(false);
+                    },
+                    (error) => {
+                        console.error('Błąd podczas pobierania kategorii z Firestore!', error);
+                        setLoading(false);
+                    }
+                );
+            } else {
+                setCategories([]);
                 setLoading(false);
-            }, (error) => {
-                console.error("Błąd podczas pobierania kategorii z Firestore!", error);
-                setLoading(false);
-            });
+            }
+        });
 
-            return () => unsubscribe();
-        } else {
-            setCategories([]);
-            setLoading(false);
-        }
-    }, [user]);
+        return () => {
+            unsubscribeAuth();
+            if (categoriesUnsubscribeRef.current) {
+                categoriesUnsubscribeRef.current();
+                categoriesUnsubscribeRef.current = null;
+            }
+        };
+    }, []);
 
-    return (
-        <CategoryContext.Provider value={{ categories, loading }}>
-            {children}
-        </CategoryContext.Provider>
-    );
+    return <CategoryContext.Provider value={{ categories, loading }}>{children}</CategoryContext.Provider>;
 };

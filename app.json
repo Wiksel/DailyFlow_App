@@ -13,7 +13,7 @@
       "backgroundColor": "#ffffff"
     },
     "updates": {
-      "url": "https://u.expo.dev/wiksel/dailyflow"
+      "url": "https://u.expo.dev/7f7b0517-0345-4c21-b37e-05bae802f0a5"
     },
     "runtimeVersion": "1.0.0",
     "ios": {
@@ -39,7 +39,8 @@
     "extra": {
       "eas": {
         "projectId": "7f7b0517-0345-4c21-b37e-05bae802f0a5"
-      }
+      },
+      "googleWebClientId": "168363541358-dpjc8d1ulrvso0cjg8s34qoujhkskfsd.apps.googleusercontent.com"
     }
   }
 }

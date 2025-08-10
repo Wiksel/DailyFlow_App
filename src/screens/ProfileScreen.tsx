@@ -1,13 +1,14 @@
 import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, TextInput, Alert, ActivityIndicator, ScrollView, Image } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
-import auth from '@react-native-firebase/auth';
+import auth, { getAuth } from '@react-native-firebase/auth';
 import { db } from '../../firebaseConfig';
 import { doc, getDoc, onSnapshot, collection, query, where, getDocs, writeBatch, updateDoc, deleteDoc, addDoc } from 'firebase/firestore';
 import { TaskStackNavigationProp } from '../types/navigation';
 import { UserProfile, Pair } from '../types';
 import { useToast } from '../contexts/ToastContext';
 import ActionButton from '../components/ActionButton';
+import ActionModal from '../components/ActionModal';
 import { Feather } from '@expo/vector-icons';
 import { Colors, Spacing, Typography, GlobalStyles } from '../styles/AppStyles';
 
@@ -22,16 +23,25 @@ const ProfileScreen = () => {
     const [loading, setLoading] = useState(true);
     const [isSaving, setIsSaving] = useState(false);
     const [isPairActionLoading, setIsPairActionLoading] = useState(false);
+    const [confirmDeleteVisible, setConfirmDeleteVisible] = useState(false);
+    const [isDeleting, setIsDeleting] = useState(false);
 
-    const currentUser = auth().currentUser;
+    const currentUser = getAuth().currentUser;
 
     useEffect(() => {
         if (!currentUser) return;
         const userUnsubscribe = onSnapshot(doc(db, 'users', currentUser.uid), (docSnapshot) => {
+            if (!docSnapshot.exists()) {
+                setUserProfile(null);
+                setNickname('');
+                setPartnerEmail('');
+                setLoading(false);
+                return;
+            }
             const profileData = docSnapshot.data() as UserProfile;
             setUserProfile(profileData);
-            setNickname(profileData.nickname || '');
-            if (profileData.pairId) {
+            setNickname(profileData?.nickname || '');
+            if (profileData?.pairId) {
                 fetchPartnerEmail(profileData.pairId);
             } else {
                 setPartnerEmail('');
@@ -105,7 +115,7 @@ const ProfileScreen = () => {
             showToast("Zaproszenie zostało wysłane!", 'success');
             setInviteEmail('');
         } catch (error: any) {
-            showToast(`Błąd wysyłania zaproszenia: ${error.message}`, 'error');
+            showToast('Błąd wysyłania zaproszenia.', 'error');
         } finally {
             setIsPairActionLoading(false);
         }
@@ -127,7 +137,7 @@ const ProfileScreen = () => {
             await batch.commit();
             showToast("Gratulacje! Jesteście w parze.", 'success');
         } catch (error: any) {
-            showToast(`Błąd akceptacji zaproszenia: ${error.message}`, 'error');
+            showToast('Błąd akceptacji zaproszenia.', 'error');
         } finally {
             setIsPairActionLoading(false);
         }
@@ -139,7 +149,7 @@ const ProfileScreen = () => {
             await deleteDoc(doc(db, 'pairs', pairId));
             showToast("Zaproszenie odrzucone.", 'success');
         } catch (error: any) {
-            showToast(`Błąd odrzucenia zaproszenia: ${error.message}`, 'error');
+            showToast('Błąd odrzucenia zaproszenia.', 'error');
         } finally {
             setIsPairActionLoading(false);
         }
@@ -164,16 +174,61 @@ const ProfileScreen = () => {
             await batch.commit();
             showToast("Opuściłeś parę.", 'success');
         } catch (error: any) {
-            showToast(`Błąd opuszczania pary: ${error.message}`, 'error');
+            showToast('Błąd opuszczania pary.', 'error');
         } finally {
             setIsPairActionLoading(false);
         }
     };
 
     const handleLogout = () => {
-        auth().signOut().catch(error => {
+        getAuth().signOut().catch(error => {
             console.error("Błąd wylogowania:", error);
         });
+    };
+
+    const deleteAccountData = async (uid: string) => {
+        const batch = writeBatch(db);
+        const userRef = doc(db, 'users', uid);
+        batch.delete(userRef);
+
+        const categoriesSnap = await getDocs(query(collection(db, 'categories'), where('userId', '==', uid)));
+        categoriesSnap.forEach((d) => batch.delete(doc(db, 'categories', d.id)));
+
+        const tasksSnap = await getDocs(query(collection(db, 'tasks'), where('userId', '==', uid)));
+        tasksSnap.forEach((d) => batch.delete(doc(db, 'tasks', d.id)));
+
+        const pairsSnap = await getDocs(query(collection(db, 'pairs'), where('members', 'array-contains', uid)));
+        pairsSnap.forEach((d) => batch.delete(doc(db, 'pairs', d.id)));
+
+        await batch.commit();
+    };
+
+    const handleConfirmDelete = async () => {
+        const currentUser = getAuth().currentUser;
+        if (!currentUser) return;
+        setConfirmDeleteVisible(false);
+        setIsDeleting(true);
+        try {
+            const userDoc = await getDoc(doc(db, 'users', currentUser.uid));
+            const pairId = userDoc.data()?.pairId;
+            if (pairId) {
+                showToast('Najpierw opuść parę w Profilu, a potem usuń konto.', 'error');
+                return;
+            }
+
+            await deleteAccountData(currentUser.uid);
+            await currentUser.delete();
+            showToast('Konto zostało usunięte.', 'success');
+            try { await getAuth().signOut(); } catch {}
+        } catch (e: any) {
+            if (e?.code === 'auth/requires-recent-login') {
+                showToast('Ta operacja wymaga ponownego logowania.', 'error');
+            } else {
+                showToast('Nie udało się usunąć konta.', 'error');
+            }
+        } finally {
+            setIsDeleting(false);
+        }
     };
 
     if (loading) {
@@ -211,28 +266,32 @@ const ProfileScreen = () => {
                 </View>
             </View>
 
+            {/* Sekcja zmiany nicku przeniesiona do Ustawień konta – usunięta z Profilu */}
+
             <View style={GlobalStyles.section}>
-                <Text style={styles.sectionTitle}>Twój profil</Text>
+                <Text style={styles.sectionTitle}>Zaproś do pary</Text>
                 <TextInput
                     style={GlobalStyles.input}
-                    placeholder="Wpisz swój nick"
-                    value={nickname}
-                    onChangeText={setNickname}
-                    editable={!isSaving}
+                    placeholder="E-mail partnera"
+                    value={inviteEmail}
+                    onChangeText={setInviteEmail}
+                    autoCapitalize="none"
+                    editable={!isPairActionLoading}
                 />
                 <ActionButton
-                    title="Zapisz nick"
-                    onPress={handleSaveNickname}
-                    isLoading={isSaving}
+                    title="Wyślij zaproszenie"
+                    onPress={handleSendInvite}
+                    isLoading={isPairActionLoading}
                     style={{ marginTop: Spacing.small }}
                 />
             </View>
 
             <View style={GlobalStyles.section}>
                 <Text style={styles.sectionTitle}>Zarządzanie</Text>
-                <ActionButton title="Zarządzaj kategoriami" onPress={() => navigation.navigate('Categories')} style={styles.manageButton} />
-                <ActionButton title="Szablony obowiązków" onPress={() => navigation.navigate('ChoreTemplates', {})} style={styles.manageButton} />
-                <ActionButton title="Ustawienia priorytetów" onPress={() => navigation.navigate('Settings')} style={[styles.manageButton, styles.settingsButton]} />
+                <ActionButton title="Zarządzaj kategoriami" onPress={() => navigation.navigate('Categories')} style={[styles.manageButton, styles.purpleButton]} />
+                <ActionButton title="Szablony obowiązków" onPress={() => navigation.navigate('ChoreTemplates', {})} style={[styles.manageButton, styles.purpleButton]} />
+                <ActionButton title="Ustawienia priorytetów" onPress={() => navigation.navigate('Settings')} style={[styles.manageButton, styles.purpleButton]} />
+                <ActionButton title="Ustawienia konta" onPress={() => navigation.navigate('AccountSettings')} style={[styles.manageButton, styles.purpleButton]} />
             </View>
 
             {userProfile?.pairId ? (
@@ -272,30 +331,14 @@ const ProfileScreen = () => {
                             ))}
                         </View>
                     )}
-                    <View style={GlobalStyles.section}>
-                        <Text style={styles.sectionTitle}>Zaproś do pary</Text>
-                        <TextInput
-                            style={GlobalStyles.input}
-                            placeholder="E-mail partnera"
-                            value={inviteEmail}
-                            onChangeText={setInviteEmail}
-                            autoCapitalize="none"
-                            editable={!isPairActionLoading}
-                        />
-                        <ActionButton
-                            title="Wyślij zaproszenie"
-                            onPress={handleSendInvite}
-                            isLoading={isPairActionLoading}
-                            style={{ marginTop: Spacing.small }}
-                        />
-                    </View>
                 </>
             )}
             <ActionButton
                 title="Wyloguj się"
                 onPress={handleLogout}
-                style={{ margin: Spacing.medium, backgroundColor: Colors.textSecondary }}
+                style={{ marginHorizontal: Spacing.medium, marginTop: Spacing.medium, marginBottom: Spacing.small, backgroundColor: Colors.textSecondary }}
             />
+            {/* Usunięto „Usuń konto” z Profilu – dostępne w Ustawieniach konta */}
         </ScrollView>
     );
 };
@@ -350,6 +393,7 @@ const styles = StyleSheet.create({
     sectionTitle: { ...Typography.h3, marginBottom: Spacing.medium },
     manageButton: { marginBottom: Spacing.small },
     settingsButton: { backgroundColor: Colors.secondary },
+    purpleButton: { backgroundColor: Colors.purple },
     pairInfo: { ...Typography.body, textAlign: 'center', marginBottom: Spacing.medium },
     dangerButton: { backgroundColor: Colors.danger },
     inviteContainer: {

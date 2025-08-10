@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Platform, ActivityIndicator, Alert, FlatList, TextInput } from 'react-native';
 import { useRoute, useNavigation } from '@react-navigation/native';
 import { doc, getDoc, updateDoc, Timestamp, collection, query, where, getDocs, addDoc, onSnapshot, orderBy } from 'firebase/firestore'; // ZMIANA: Dodano 'getDoc' i 'where'
-import auth from '@react-native-firebase/auth';
+import auth, { getAuth } from '@react-native-firebase/auth';
 import { db } from '../../firebaseConfig';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { DateTimePickerEvent } from '@react-native-community/datetimepicker';
@@ -10,8 +10,10 @@ import { TaskStackParamList, TaskStackNavigationProp } from '../types/navigation
 import TaskForm, { TaskFormData } from '../components/TaskForm';
 import { UserProfile, Comment } from '../types';
 import { Feather } from '@expo/vector-icons';
+import * as Haptics from 'expo-haptics';
 import { useToast } from '../contexts/ToastContext';
 import { Colors, Spacing, Typography, GlobalStyles } from '../styles/AppStyles';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 type TaskDetailScreenProps = NativeStackScreenProps<TaskStackParamList, 'TaskDetail'>;
 
@@ -23,7 +25,7 @@ const TaskDetailScreen = () => {
     const [task, setTask] = useState<TaskFormData | null>(null);
     const [loading, setLoading] = useState(true);
     const [showDatePicker, setShowDatePicker] = useState(false);
-    const currentUser = auth().currentUser;
+    const currentUser = getAuth().currentUser;
 
     const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
     const [comments, setComments] = useState<Comment[]>([]);
@@ -32,6 +34,7 @@ const TaskDetailScreen = () => {
     const [isSavingTask, setIsSavingTask] = useState(false);
     const [isSavingTemplate, setIsSavingTemplate] = useState(false);
     const { showToast } = useToast();
+    const insets = useSafeAreaInsets();
 
     const commentsFlatListRef = useRef<FlatList<Comment>>(null);
 
@@ -174,53 +177,58 @@ const TaskDetailScreen = () => {
         </View>
     );
 
-    return (
-        <ScrollView
-            style={[GlobalStyles.container, styles.screenPadding]}
-            keyboardShouldPersistTaps="handled"
-        >
-            <TaskForm
-                taskData={task}
-                onDataChange={handleDataChange}
-                showDatePicker={showDatePicker}
-                onShowDatePicker={() => setShowDatePicker(true)}
-                onDatePickerChange={onDateChange}
-            />
+    const ACTION_BAR_HEIGHT = 96;
 
-            <View style={styles.actionsContainer}>
-                <TouchableOpacity style={styles.saveButton} onPress={handleUpdate} disabled={isSavingTask}>
+    return (
+        <View style={[GlobalStyles.container, styles.screenPadding]}>
+            <ScrollView
+                style={{ flex: 1 }}
+                contentContainerStyle={{ paddingBottom: ACTION_BAR_HEIGHT + insets.bottom + Spacing.medium }}
+                keyboardShouldPersistTaps="handled"
+            >
+                <TaskForm
+                    taskData={task}
+                    onDataChange={handleDataChange}
+                    showDatePicker={showDatePicker}
+                    onShowDatePicker={() => setShowDatePicker(true)}
+                    onDatePickerChange={onDateChange}
+                />
+
+                <View style={styles.commentsSection}>
+                    <Text style={styles.sectionTitle}>Komentarze</Text>
+                    <FlatList
+                        ref={commentsFlatListRef}
+                        data={comments}
+                        renderItem={renderComment}
+                        keyExtractor={item => item.id}
+                        ListEmptyComponent={<Text style={styles.emptyCommentText}>Brak komentarzy. Bądź pierwszy!</Text>}
+                        scrollEnabled={false}
+                    />
+                    <View style={styles.addCommentContainer}>
+                        <TextInput
+                            style={styles.commentInput}
+                            placeholder="Dodaj komentarz..."
+                            value={newComment}
+                            onChangeText={setNewComment}
+                            multiline
+                            placeholderTextColor={Colors.placeholder}
+                        />
+                        <TouchableOpacity style={[styles.commentButton, isSubmittingComment && styles.commentButtonDisabled]} onPress={handleAddComment} disabled={isSubmittingComment}>
+                            {isSubmittingComment ? <ActivityIndicator color="white" /> : <Feather name="send" size={22} color="white" />}
+                        </TouchableOpacity>
+                    </View>
+                </View>
+            </ScrollView>
+
+            <View style={[styles.actionBar, { paddingBottom: insets.bottom + Spacing.xSmall }]}>
+                <TouchableOpacity style={styles.saveButton} onPress={async () => { try { await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium); } catch {}; await handleUpdate(); }} disabled={isSavingTask}>
                     {isSavingTask ? <ActivityIndicator color="white" /> : <Text style={styles.buttonText}>Zapisz zmiany</Text>}
                 </TouchableOpacity>
-                <TouchableOpacity style={styles.templateButton} onPress={handleSaveAsTemplate} disabled={isSavingTemplate}>
+                <TouchableOpacity style={styles.templateButton} onPress={async () => { try { await Haptics.selectionAsync(); } catch {}; await handleSaveAsTemplate(); }} disabled={isSavingTemplate}>
                     {isSavingTemplate ? <ActivityIndicator color="white" /> : <Text style={styles.buttonText}>Zapisz jako szablon</Text>}
                 </TouchableOpacity>
             </View>
-
-            <View style={styles.commentsSection}>
-                <Text style={styles.sectionTitle}>Komentarze</Text>
-                <FlatList
-                    ref={commentsFlatListRef}
-                    data={comments}
-                    renderItem={renderComment}
-                    keyExtractor={item => item.id}
-                    ListEmptyComponent={<Text style={styles.emptyCommentText}>Brak komentarzy. Bądź pierwszy!</Text>}
-                    scrollEnabled={false}
-                />
-                <View style={styles.addCommentContainer}>
-                    <TextInput
-                        style={styles.commentInput}
-                        placeholder="Dodaj komentarz..."
-                        value={newComment}
-                        onChangeText={setNewComment}
-                        multiline
-                        placeholderTextColor={Colors.placeholder}
-                    />
-                    <TouchableOpacity style={[styles.commentButton, isSubmittingComment && styles.commentButtonDisabled]} onPress={handleAddComment} disabled={isSubmittingComment}>
-                        {isSubmittingComment ? <ActivityIndicator color="white" /> : <Feather name="send" size={22} color="white" />}
-                    </TouchableOpacity>
-                </View>
-            </View>
-        </ScrollView>
+        </View>
     );
 };
 
@@ -235,6 +243,23 @@ const styles = StyleSheet.create({
     },
     actionsContainer: {
         paddingVertical: Spacing.large
+    },
+    actionBar: {
+        position: 'absolute',
+        left: 0,
+        right: 0,
+        bottom: 0,
+        backgroundColor: 'white',
+        borderTopWidth: 1,
+        borderColor: Colors.border,
+        paddingHorizontal: Spacing.medium,
+        paddingTop: Spacing.small,
+        // cień
+        shadowColor: Colors.shadow,
+        shadowOffset: { width: 0, height: -2 },
+        shadowOpacity: 0.12,
+        shadowRadius: 4,
+        elevation: 10,
     },
     saveButton: {
         ...GlobalStyles.button,

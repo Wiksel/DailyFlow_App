@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Platform, Modal, ScrollView } from 'react-native';
 import { Timestamp } from 'firebase/firestore';
+import { useToast } from '../contexts/ToastContext';
 import { DateTimePickerEvent } from '@react-native-community/datetimepicker';
 import { useCategories } from '../contexts/CategoryContext';
 import TaskForm, { TaskFormData } from '../components/TaskForm';
@@ -14,6 +15,7 @@ interface AddTaskModalProps {
 
 const AddTaskModal = ({ visible, onClose, onAddTask, initialCategory }: AddTaskModalProps) => {
     const { categories } = useCategories();
+    const { showToast } = useToast();
 
     const [taskData, setTaskData] = useState<TaskFormData>({
         text: '',
@@ -47,12 +49,12 @@ const AddTaskModal = ({ visible, onClose, onAddTask, initialCategory }: AddTaskM
 
     const handleSave = () => {
         if (!taskData.text.trim()) {
-            alert("Nazwa zadania nie może być pusta.");
+            showToast('Nazwa zadania nie może być pusta.', 'error');
             return;
         }
         onAddTask(taskData);
         resetForm();
-        onClose(); // Zamykamy modal po zapisaniu
+        onClose();
     };
     
     const handleDataChange = <K extends keyof TaskFormData>(key: K, value: TaskFormData[K]) => {

@@ -1,9 +1,10 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, ActivityIndicator, Alert } from 'react-native';
-import auth from '@react-native-firebase/auth'; // ZMIANA
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, ActivityIndicator } from 'react-native';
+import auth, { getAuth } from '@react-native-firebase/auth'; // ZMIANA
 import { db } from '../../firebaseConfig';
 import { doc, onSnapshot, updateDoc } from 'firebase/firestore';
 import Slider from '@react-native-community/slider';
+import { useToast } from '../contexts/ToastContext';
 import { Colors, Spacing, Typography, GlobalStyles } from '../styles/AppStyles';
 
 export interface PrioritySettings {
@@ -22,8 +23,10 @@ export interface PrioritySettings {
 const SettingsScreen = () => {
     const [settings, setSettings] = useState<PrioritySettings | null>(null);
     const [loading, setLoading] = useState(true);
+    const [saving, setSaving] = useState(false);
+    const { showToast } = useToast();
     
-    const currentUser = auth().currentUser;
+    const currentUser = getAuth().currentUser;
 
     useEffect(() => {
         if (!currentUser) return;
@@ -48,12 +51,17 @@ const SettingsScreen = () => {
     }, [currentUser]);
 
     const handleSave = async () => {
-        if (!currentUser || !settings) return;
-        const userRef = doc(db, 'users', currentUser.uid);
-        await updateDoc(userRef, {
-            prioritySettings: settings,
-        });
-        Alert.alert("Sukces", "Ustawienia zostały zapisane.");
+        if (!currentUser || !settings || saving) return;
+        setSaving(true);
+        try {
+            const userRef = doc(db, 'users', currentUser.uid);
+            await updateDoc(userRef, { prioritySettings: settings });
+            showToast('Ustawienia zostały zapisane.', 'success');
+        } catch (e) {
+            showToast('Nie udało się zapisać ustawień.', 'error');
+        } finally {
+            setSaving(false);
+        }
     };
     
     const handleThresholdChange = (key: keyof PrioritySettings, value: number) => {
@@ -186,8 +194,8 @@ const SettingsScreen = () => {
                 <Text style={styles.label}>Zwiększaj o +1 co {settings.agingBoostDays} dni</Text>
                 <Slider value={settings.agingBoostDays} onValueChange={(v) => handleThresholdChange('agingBoostDays', v)} minimumValue={1} maximumValue={30} step={1} />
             </View>
-            <TouchableOpacity style={styles.saveButton} onPress={handleSave}>
-                <Text style={styles.saveButtonText}>Zapisz ustawienia</Text>
+            <TouchableOpacity style={[styles.saveButton, saving && GlobalStyles.disabledButton]} onPress={handleSave} disabled={saving}>
+                <Text style={styles.saveButtonText}>{saving ? 'Zapisywanie…' : 'Zapisz ustawienia'}</Text>
             </TouchableOpacity>
         </ScrollView>
     );

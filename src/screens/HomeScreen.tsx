@@ -1,7 +1,9 @@
-import React, { useState, useEffect, useMemo } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, FlatList, ActivityIndicator, Alert, Modal, TextInput, Image } from 'react-native';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
+import { View, Text, StyleSheet, TouchableOpacity, FlatList, ActivityIndicator, Modal, TextInput, Image, Vibration } from 'react-native';
+import * as Haptics from 'expo-haptics';
+import Animated, { FadeInUp, FadeOutUp, Layout } from 'react-native-reanimated';
 import { useNavigation } from '@react-navigation/native';
-import auth from '@react-native-firebase/auth';
+import auth, { getAuth } from '@react-native-firebase/auth';
 import { db } from '../../firebaseConfig';
 import { collection, addDoc, query, where, onSnapshot, doc, updateDoc, deleteDoc, increment, Timestamp, getDoc } from 'firebase/firestore';
 import { Feather } from '@expo/vector-icons';
@@ -15,10 +17,12 @@ import EmptyState from '../components/EmptyState';
 import { useCategories } from '../contexts/CategoryContext';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useToast } from '../contexts/ToastContext';
+import ActionModal from '../components/ActionModal';
 import { Colors, Spacing, GlobalStyles, Typography } from '../styles/AppStyles';
 import SearchBar from '../components/SearchBar';
 
 const CACHED_TASKS_KEY = 'dailyflow_cached_tasks';
+const HOME_FILTERS_KEY = 'dailyflow_home_filters';
 
 type SerializableTask = Omit<Task, 'createdAt' | 'deadline' | 'completedAt'> & {
     createdAt: string | null;
@@ -39,7 +43,8 @@ const HomeScreen = () => {
     const [addTaskModalVisible, setAddTaskModalVisible] = useState(false);
     const [filterFromDate, setFilterFromDate] = useState<Date | null>(null);
     const [filterToDate, setFilterToDate] = useState<Date | null>(null);
-    const currentUser = auth().currentUser;
+    const didLoadFiltersRef = useRef(false);
+    const currentUser = getAuth().currentUser;
     const { categories } = useCategories();
     const { showToast } = useToast();
 
@@ -63,6 +68,47 @@ const HomeScreen = () => {
         };
         loadTasksFromCache();
     }, [currentUser]);
+
+    // Persistuj/ładuj filtry widoku Home per użytkownik
+    useEffect(() => {
+        const loadFilters = async () => {
+            if (!currentUser) return;
+            try {
+                const key = `${HOME_FILTERS_KEY}_${currentUser.uid}`;
+                const raw = await AsyncStorage.getItem(key);
+                if (raw) {
+                    const parsed = JSON.parse(raw);
+                    if (parsed.taskType) setTaskType(parsed.taskType);
+                    if (parsed.activeCategory) setActiveCategory(parsed.activeCategory);
+                    if (parsed.searchQuery) setSearchQuery(parsed.searchQuery);
+                    if (parsed.filterFromDate) setFilterFromDate(new Date(parsed.filterFromDate));
+                    if (parsed.filterToDate) setFilterToDate(new Date(parsed.filterToDate));
+                }
+            } catch {}
+            finally { didLoadFiltersRef.current = true; }
+        };
+        loadFilters();
+    }, [currentUser]);
+
+    useEffect(() => {
+        const saveFilters = async () => {
+            if (!currentUser || !didLoadFiltersRef.current) return;
+            try {
+                const key = `${HOME_FILTERS_KEY}_${currentUser.uid}`;
+                const payload = {
+                    taskType,
+                    activeCategory,
+                    searchQuery,
+                    filterFromDate: filterFromDate ? filterFromDate.toISOString() : null,
+                    filterToDate: filterToDate ? filterToDate.toISOString() : null,
+                };
+                await AsyncStorage.setItem(key, JSON.stringify(payload));
+            } catch {}
+        };
+        // Debounce zapisu
+        const t = setTimeout(saveFilters, 300);
+        return () => clearTimeout(t);
+    }, [currentUser, taskType, activeCategory, searchQuery, filterFromDate, filterToDate]);
 
     useEffect(() => {
         if (!currentUser) return;
@@ -203,12 +249,18 @@ const HomeScreen = () => {
     const handleAddTask = async (taskData: any) => {
         if (!currentUser) return;
         try {
+            if (taskType === 'shared' && !userProfile?.pairId) {
+                showToast('Musisz być w parze, aby dodawać wspólne zadania.', 'info');
+                return;
+            }
             await addDoc(collection(db, 'tasks'), {
                 ...taskData,
-                completed: false, status: 'active', userId: currentUser.uid,
-                creatorNickname: userProfile?.nickname || currentUser.email!.split('@')[0],
+                completed: false,
+                status: 'active',
+                userId: currentUser.uid,
+                creatorNickname: userProfile?.nickname || currentUser.email?.split('@')[0] || 'Użytkownik',
                 isShared: taskType === 'shared',
-                pairId: taskType === 'shared' ? userProfile?.pairId : null,
+                pairId: taskType === 'shared' ? (userProfile?.pairId ?? null) : null,
                 createdAt: Timestamp.now(),
              });
             showToast("Zadanie dodane!", 'success');
@@ -221,13 +273,23 @@ const HomeScreen = () => {
     const handleAddTaskFromTemplate = async (template: ChoreTemplate) => {
         if (!currentUser) return;
         try {
+            if (taskType === 'shared' && !userProfile?.pairId) {
+                showToast('Musisz być w parze, aby dodawać wspólne zadania.', 'info');
+                return;
+            }
             const newDocRef = await addDoc(collection(db, 'tasks'), {
-                text: template.name, description: '', category: template.category,
-                basePriority: 3, difficulty: template.difficulty, deadline: null,
-                completed: false, status: 'active', userId: currentUser.uid,
-                creatorNickname: userProfile?.nickname || currentUser.email!.split('@')[0],
+                text: template.name,
+                description: '',
+                category: template.category,
+                basePriority: 3,
+                difficulty: template.difficulty,
+                deadline: null,
+                completed: false,
+                status: 'active',
+                userId: currentUser.uid,
+                creatorNickname: userProfile?.nickname || currentUser.email?.split('@')[0] || 'Użytkownik',
                 isShared: taskType === 'shared',
-                pairId: taskType === 'shared' ? userProfile?.pairId : null,
+                pairId: taskType === 'shared' ? (userProfile?.pairId ?? null) : null,
                 createdAt: Timestamp.now(),
             });
 
@@ -239,9 +301,12 @@ const HomeScreen = () => {
         }
     };
 
+    const pendingToggleIdsRef = useRef<Set<string>>(new Set());
     const toggleComplete = async (task: Task) => {
         if (!currentUser || !userProfile) return;
+        if (pendingToggleIdsRef.current.has(task.id)) return;
         try {
+            pendingToggleIdsRef.current.add(task.id);
             const taskRef = doc(db, 'tasks', task.id);
             const userRef = doc(db, 'users', currentUser.uid);
             const isCompleting = !task.completed;
@@ -254,43 +319,34 @@ const HomeScreen = () => {
                 points: increment(isCompleting ? 10 : -10),
                 completedTasksCount: increment(isCompleting ? 1 : -1)
             });
+            // Subtelny feedback dotykowy
+            try { await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); } catch { try { Vibration.vibrate(10); } catch {} }
             showToast(isCompleting ? "Zadanie ukończone!" : "Cofnięto ukończenie zadania.", 'success');
         } catch (error) {
-            console.error("Błąd zmiany statusu zadania: ", error);
+            // Log w konsoli wystarczy, unikamy wycieku szczegółów do UI
+            console.error("Błąd zmiany statusu zadania");
+        } finally {
+            pendingToggleIdsRef.current.delete(task.id);
         }
     };
 
-    const handleTaskAction = (task: Task) => {
-        const action = task.completed ? "Zarchiwizuj" : "Usuń";
-        const handler = async () => {
-            try {
-                if (task.completed) {
-                    await updateDoc(doc(db, 'tasks', task.id), { status: 'archived' });
-                    showToast("Zadanie zarchiwizowane.", 'success');
-                } else {
-                    await deleteDoc(doc(db, 'tasks', task.id));
-                    showToast("Zadanie usunięte.", 'success');
-                }
-            } catch (error) {
-                console.error(`Błąd ${action.toLowerCase()} zadania: `, error);
-            }
-        };
-        Alert.alert(`Potwierdź ${action}`, `Czy na pewno chcesz ${action.toLowerCase()} to zadanie?`,
-            [{ text: "Anuluj" }, { text: action, style: "destructive", onPress: handler }]
-        );
-    };
+    const [confirmModalTask, setConfirmModalTask] = useState<Task | null>(null);
+    const handleTaskAction = (task: Task) => setConfirmModalTask(task);
 
     const renderTask = ({ item }: { item: Task }) => {
         const category = categories.find((c: Category) => c.id === item.category);
         return (
             <TouchableOpacity onPress={() => navigation.navigate('TaskDetail', { taskId: item.id })}>
-                <View style={[
-                    styles.taskContainer,
-                    item.completed && styles.taskContainerCompleted,
-                    item.priority >= 4 && { borderLeftWidth: 4, borderLeftColor: Colors.danger },
-                    item.priority === 3 && { borderLeftWidth: 3, borderLeftColor: Colors.warning },
-                    item.priority < 3 && { borderLeftWidth: 2, borderLeftColor: Colors.success },
-                ]}>
+                {/* Wrapper z animacją layoutu, bez zmian opacity */}
+                <Animated.View layout={Layout.springify()}>
+                    {/* Wewnętrzny widok z animacją wejścia/wyjścia i ewentualną zmianą opacity */}
+                    <Animated.View entering={FadeInUp.duration(250)} exiting={FadeOutUp.duration(200)} style={[
+                        styles.taskContainer,
+                        item.completed && styles.taskContainerCompleted,
+                        item.priority >= 4 && { borderLeftWidth: 4, borderLeftColor: Colors.danger },
+                        item.priority === 3 && { borderLeftWidth: 3, borderLeftColor: Colors.warning },
+                        item.priority < 3 && { borderLeftWidth: 2, borderLeftColor: Colors.success },
+                    ]}>
                     <TouchableOpacity onPress={() => toggleComplete(item)} style={styles.checkboxTouchable}>
                         <View style={[styles.checkbox, item.completed && styles.checkboxCompleted]}>
                             {item.completed && <Feather name="check" size={18} color="white" />}
@@ -320,7 +376,8 @@ const HomeScreen = () => {
                             <Feather name={item.completed ? "archive" : "trash-2"} size={20} color={item.completed ? Colors.textSecondary : Colors.danger} />
                         </TouchableOpacity>
                     </View>
-                </View>
+                    </Animated.View>
+                </Animated.View>
             </TouchableOpacity>
         );
     };
@@ -339,6 +396,9 @@ const HomeScreen = () => {
                     </TouchableOpacity>
                     <TouchableOpacity onPress={() => navigation.navigate('ChoreTemplates', {})} style={{marginRight: Spacing.medium}}>
                         <Feather name="file-text" size={26} color={Colors.textPrimary} />
+                    </TouchableOpacity>
+                    <TouchableOpacity onPress={() => navigation.navigate('WeekPlan')} style={{marginRight: Spacing.medium}}>
+                        <Feather name="calendar" size={26} color={Colors.textPrimary} />
                     </TouchableOpacity>
                     <TouchableOpacity onPress={() => navigation.navigate('Profile')}>
                          {userProfile?.photoURL ? (
@@ -386,6 +446,10 @@ const HomeScreen = () => {
                     renderItem={renderTask}
                     keyExtractor={item => item.id}
                     style={styles.list}
+                    initialNumToRender={12}
+                    windowSize={10}
+                    removeClippedSubviews
+                    maxToRenderPerBatch={12}
                     ListEmptyComponent={
                         <EmptyState
                             icon={searchQuery || filterFromDate || filterToDate || activeCategory !== 'all' ? "search" : "inbox"}
@@ -401,13 +465,19 @@ const HomeScreen = () => {
             <View style={styles.fabContainer}>
                 <TouchableOpacity
                     style={styles.templateFab}
-                    onPress={() => setTemplatesModalVisible(true)}
+                    onPress={() => {
+                        if (taskType === 'shared' && !userProfile?.pairId) { showToast('Musisz być w parze, aby korzystać ze wspólnych szablonów.', 'info'); return; }
+                        setTemplatesModalVisible(true);
+                    }}
                 >
                     <Feather name="file-text" size={24} color="white" />
                 </TouchableOpacity>
                  <TouchableOpacity
                     style={styles.fab}
-                    onPress={() => setAddTaskModalVisible(true)}
+                    onPress={() => {
+                        if (taskType === 'shared' && !userProfile?.pairId) { showToast('Musisz być w parze, aby dodawać wspólne zadania.', 'info'); return; }
+                        setAddTaskModalVisible(true);
+                    }}
                 >
                     <Feather name="plus" size={30} color="white" />
                 </TouchableOpacity>
@@ -440,6 +510,32 @@ const HomeScreen = () => {
                     </View>
                 </View>
             </Modal>
+
+            <ActionModal
+                visible={!!confirmModalTask}
+                title={`Potwierdź ${confirmModalTask?.completed ? 'archiwizację' : 'usunięcie'}`}
+                message={`Czy na pewno chcesz ${confirmModalTask?.completed ? 'zarchiwizować' : 'usunąć'} to zadanie?`}
+                onRequestClose={() => setConfirmModalTask(null)}
+                actions={[
+                    { text: 'Anuluj', onPress: () => setConfirmModalTask(null), variant: 'secondary' },
+                    { text: confirmModalTask?.completed ? 'Zarchiwizuj' : 'Usuń', onPress: async () => {
+                        const task = confirmModalTask!;
+                        try {
+                            if (task.completed) {
+                                await updateDoc(doc(db, 'tasks', task.id), { status: 'archived' });
+                                showToast('Zadanie zarchiwizowane.', 'success');
+                            } else {
+                                await deleteDoc(doc(db, 'tasks', task.id));
+                                showToast('Zadanie usunięte.', 'success');
+                            }
+                        } catch (e) {
+                            console.error('Błąd operacji na zadaniu', e);
+                        } finally {
+                            setConfirmModalTask(null);
+                        }
+                    } },
+                ]}
+            />
         </View>
     );
 };

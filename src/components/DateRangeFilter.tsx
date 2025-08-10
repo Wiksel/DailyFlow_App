@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Platform, Alert } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Platform } from 'react-native';
+import { useToast } from '../contexts/ToastContext';
 import DateTimePicker, { DateTimePickerEvent } from '@react-native-community/datetimepicker';
 import { Feather } from '@expo/vector-icons';
 
@@ -24,6 +25,7 @@ const DateRangeFilter = ({
 }: DateRangeFilterProps) => {
     const [isExpanded, setIsExpanded] = useState(false);
     const [showDatePickerFor, setShowDatePickerFor] = useState<DatePickerMode>(null);
+    const { showToast } = useToast();
 
     const handlePredefinedRange = (rangeType: string) => {
         const now = new Date();
@@ -104,14 +106,14 @@ const DateRangeFilter = ({
             if (showDatePickerFor === 'from') {
                 finalSelectedDate.setHours(0, 0, 0, 0);
                 if (toDate && finalSelectedDate.getTime() > toDate.getTime()) {
-                    Alert.alert("Błąd daty", "Data początkowa nie może być późniejsza niż data końcowa.");
+                    showToast('Data początkowa nie może być późniejsza niż data końcowa.', 'error');
                     return;
                 }
                 onFromDateChange(finalSelectedDate);
             } else if (showDatePickerFor === 'to') {
                 finalSelectedDate.setHours(23, 59, 59, 999);
                 if (fromDate && finalSelectedDate.getTime() < fromDate.getTime()) {
-                    Alert.alert("Błąd daty", "Data końcowa nie może być wcześniejsza niż data początkowa.");
+                    showToast('Data końcowa nie może być wcześniejsza niż data początkowa.', 'error');
                     return;
                 }
                 onToDateChange(finalSelectedDate);

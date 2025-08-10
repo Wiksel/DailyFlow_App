@@ -146,40 +146,38 @@ export const checkIfPhoneExists = async (phoneNumber: string): Promise<boolean> 
     // Usuń duplikaty
     const uniqueFormats = [...new Set(possibleFormats)];
     
-    console.log('checkIfPhoneExists - sprawdzane formaty:', uniqueFormats);
-    console.log('checkIfPhoneExists - oryginalny numer:', phoneNumber);
+    // Debug logi usunięte w produkcji
     
     // Sprawdź każdy możliwy format
     for (const format of uniqueFormats) {
         const phoneQuery = query(usersRef, where('phoneNumber', '==', format), limit(1));
         const phoneSnapshot = await getDocs(phoneQuery);
         
-        console.log(`checkIfPhoneExists - format "${format}": ${phoneSnapshot.empty ? 'nie znaleziono' : 'znaleziono'}`);
-        
         if (!phoneSnapshot.empty) {
-            console.log(`checkIfPhoneExists - ZNALEZIONO użytkownika z numerem: ${format}`);
             return true;
         }
     }
     
-    console.log('checkIfPhoneExists - NIE ZNALEZIONO żadnego użytkownika');
     return false;
 };
 
 // Funkcja pomocnicza do debugowania - sprawdza wszystkie numery telefonów w bazie
 export const debugPhoneNumbers = async () => {
-    const usersRef = collection(db, 'users');
-    const allUsersQuery = query(usersRef);
-    const allUsersSnapshot = await getDocs(allUsersQuery);
-    
-    console.log('=== DEBUG: Wszystkie numery telefonów w bazie ===');
-    allUsersSnapshot.forEach(doc => {
-        const userData = doc.data();
-        if (userData.phoneNumber) {
-            console.log(`User ID: ${doc.id}, Phone: ${userData.phoneNumber}, Email: ${userData.email}`);
-        }
-    });
-    console.log('=== KONIEC DEBUG ===');
+    // Intencjonalnie pusta w produkcji – pozostawiona do ew. lokalnych testów
 };
 
+
+// Globalna flaga do blokowania nawigacji podczas resetu hasła przez SMS
+let passwordResetInProgress = false;
+
+export const setPasswordResetInProgress = (inProgress: boolean) => {
+    passwordResetInProgress = inProgress;
+    if (!inProgress) return;
+    // Auto-timeout: zabezpieczenie aby flaga nie blokowała nawigacji w razie błędu/porzucenia procesu
+    setTimeout(() => {
+        passwordResetInProgress = false;
+    }, 5 * 60 * 1000); // 5 minut
+};
+
+export const isPasswordResetInProgress = () => passwordResetInProgress;
 

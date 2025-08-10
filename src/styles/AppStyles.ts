@@ -2,6 +2,7 @@ import { StyleSheet } from 'react-native';
 
 export const Colors = {
     primary: '#0782F9',      // Główny niebieski
+    purple: '#7e57c2',       // Przyjemny fiolet
     secondary: '#5bc0de',    // Info / Cyjan
     success: '#28a745',      // Zielony
     danger: '#e74c3c',       // Czerwony

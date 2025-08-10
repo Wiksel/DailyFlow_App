@@ -1,3 +1,11 @@
+import 'react-native-get-random-values';
+
+// Silence RNFirebase v22 modular deprecation warnings while we migrate
+// Must be set before any Firebase modules initialize
+// See: https://rnfirebase.io/migrating-to-v22
+// eslint-disable-next-line @typescript-eslint/ban-ts-comment
+// @ts-ignore
+globalThis.RNFB_SILENCE_MODULAR_DEPRECATION_WARNINGS = true;
 import { registerRootComponent } from 'expo';
 
 import App from './App';

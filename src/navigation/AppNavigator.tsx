@@ -4,11 +4,13 @@ import { NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { Feather } from '@expo/vector-icons';
-import auth, { FirebaseAuthTypes } from '@react-native-firebase/auth';
+import type { FirebaseAuthTypes } from '@react-native-firebase/auth';
+import { getAuth, onAuthStateChanged } from '@react-native-firebase/auth';
 import { GoogleSignin } from '@react-native-google-signin/google-signin';
 import { doc, getDoc } from 'firebase/firestore';
 import { db } from '../../firebaseConfig';
 import { RootTabParamList, TaskStackParamList, BudgetStackParamList, AuthStackParamList } from '../types/navigation';
+import { isPasswordResetInProgress } from '../utils/authUtils';
 import { ToastProvider } from '../contexts/ToastContext';
 import { CategoryProvider } from '../contexts/CategoryContext';
 import LoginScreen from '../screens/LoginScreen';
@@ -20,9 +22,12 @@ import BudgetsScreen from '../screens/BudgetsScreen';
 import BudgetDetailScreen from '../screens/BudgetDetailScreen';
 import ChoreTemplatesScreen from '../screens/ChoreTemplatesScreen';
 import SettingsScreen from '../screens/SettingsScreen';
+import WeekPlanScreen from '../screens/WeekPlanScreen';
+import AccountSettingsScreen from '../screens/AccountSettingsScreen';
 import CategoriesScreen from '../screens/CategoriesScreen';
 import ArchiveScreen from '../screens/ArchiveScreen';
 import { GlobalStyles } from '../styles/AppStyles';
+import Constants from 'expo-constants';
 
 const AuthStack = createNativeStackNavigator<AuthStackParamList>();
 const Tab = createBottomTabNavigator<RootTabParamList>();
@@ -38,6 +43,8 @@ function TaskStack() {
       <TasksStackNavigator.Screen name="Profile" component={ProfileScreen} options={{ title: 'Profil i para' }} />
       <TasksStackNavigator.Screen name="ChoreTemplates" component={ChoreTemplatesScreen} options={{ title: 'Szablony obowiązków' }} />
       <TasksStackNavigator.Screen name="Settings" component={SettingsScreen} options={{ title: 'Ustawienia' }} />
+      <TasksStackNavigator.Screen name="WeekPlan" component={WeekPlanScreen} options={{ title: 'Plan tygodnia' }} />
+      <TasksStackNavigator.Screen name="AccountSettings" component={AccountSettingsScreen} options={{ title: 'Ustawienia konta' }} />
       <TasksStackNavigator.Screen name="Categories" component={CategoriesScreen} options={{ title: 'Zarządzaj kategoriami' }} />
     </TasksStackNavigator.Navigator>
   );
@@ -78,15 +85,20 @@ const AppNavigator = () => {
   const [initializing, setInitializing] = useState(true);
 
   useEffect(() => {
-    GoogleSignin.configure({
-        webClientId: '168363541358-dpjc8d1ulrvso0cjg8s34qoujhkskfsd.apps.googleusercontent.com',
-    });
+    const webClientId = (Constants?.expoConfig?.extra as any)?.googleWebClientId;
+    if (webClientId) {
+      GoogleSignin.configure({ webClientId });
+    }
 
-    const subscriber = auth().onAuthStateChanged(async (user) => {
+    const subscriber = onAuthStateChanged(getAuth(), async (user) => {
       setUser(user);
       if (user) {
-        const userDoc = await getDoc(doc(db, 'users', user.uid));
-        setUserProfileExists(userDoc.exists());
+        try {
+          const userDoc = await getDoc(doc(db, 'users', user.uid));
+          setUserProfileExists(userDoc.exists());
+        } catch {
+          setUserProfileExists(false);
+        }
       } else {
         setUserProfileExists(false);
       }
@@ -101,13 +113,19 @@ const AppNavigator = () => {
     return <View style={GlobalStyles.centered}><ActivityIndicator size="large" /></View>;
   }
 
-  const needsOnboarding = user && user.emailVerified && !userProfileExists;
+  // Dopuszczamy logowanie także użytkowników telefonicznych i Google (nie wymagamy weryfikacji e‑maila dla Google)
+  const hasDummyEmail = !!user?.email && (user!.email!.endsWith('@dailyflow.app'));
+  const hasGoogleProvider = !!user?.providerData?.some((p) => p.providerId === 'google.com');
+  const requiresEmailVerification = !!user?.email && !hasDummyEmail && !user?.phoneNumber && !hasGoogleProvider;
+  const isVerified = requiresEmailVerification ? !!user?.emailVerified : true;
+  const suppressAppTabs = isPasswordResetInProgress();
+  const needsOnboarding = !!user && isVerified && !userProfileExists;
 
   return (
     <ToastProvider>
       <CategoryProvider>
         <NavigationContainer>
-          {user && user.emailVerified && !needsOnboarding ? (
+          {user && isVerified && !needsOnboarding && !suppressAppTabs ? (
             <AppTabs />
           ) : (
             <AuthScreens user={user} onProfileCreated={() => setUserProfileExists(true)} />

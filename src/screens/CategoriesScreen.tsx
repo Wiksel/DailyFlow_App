@@ -1,14 +1,15 @@
 // src/screens/CategoriesScreen.tsx
 import React, { useState } from 'react';
 // Dodano import ScrollView
-import { View, Text, StyleSheet, FlatList, TextInput, TouchableOpacity, Alert, ActivityIndicator, ScrollView } from 'react-native';
-import auth from '@react-native-firebase/auth'; // ZMIANA
+import { View, Text, StyleSheet, FlatList, TextInput, TouchableOpacity, ActivityIndicator, ScrollView } from 'react-native';
+import auth, { getAuth } from '@react-native-firebase/auth'; // ZMIANA
 import { db } from '../../firebaseConfig'; // <--- TEN IMPORT ZOSTAJE
 import { collection, addDoc, deleteDoc, doc, updateDoc, query, where, getDocs, writeBatch } from 'firebase/firestore';
 import { Feather } from '@expo/vector-icons';
 import { useCategories } from '../contexts/CategoryContext';
 import { Category } from '../types';
 import { useToast } from '../contexts/ToastContext';
+import ActionModal from '../components/ActionModal';
 import { Colors, Spacing, Typography, GlobalStyles, isColorLight } from '../styles/AppStyles';
 
 const COLORS = [
@@ -23,8 +24,9 @@ const CategoriesScreen = () => {
     const [selectedColor, setSelectedColor] = useState(COLORS[0]);
     const [editingCategory, setEditingCategory] = useState<Category | null>(null);
     const [isSubmitting, setIsSubmitting] = useState(false);
-    const currentUser = auth().currentUser; // ZMIANA
+    const currentUser = getAuth().currentUser; // ZMIANA
     const { showToast } = useToast();
+    const [confirmDeleteCategory, setConfirmDeleteCategory] = useState<Category | null>(null);
 
     const handleAddOrUpdateCategory = async () => {
         if (!newCategoryName.trim() || !currentUser) {
@@ -60,56 +62,7 @@ const CategoriesScreen = () => {
         }
     };
 
-    const handleDeleteCategory = (category: Category) => {
-        Alert.alert(
-            "Potwierdź usunięcie",
-            `Czy na pewno chcesz usunąć kategorię "${category.name}"? Zadania przypisane do niej zostaną przeniesione do kategorii "Inne".`,
-            [
-                { text: "Anuluj", style: "cancel" },
-                { text: "Usuń", style: "destructive", onPress: async () => {
-                    setIsSubmitting(true);
-                    try {
-                        if (!currentUser) {
-                            showToast("Użytkownik nie jest zalogowany.", 'error');
-                            return;
-                        }
-
-                        const otherCategory = categories.find(cat => cat.name === 'Inne');
-                        const defaultCategoryId = otherCategory?.id;
-
-                        if (!defaultCategoryId) {
-                            showToast("Błąd: Nie znaleziono domyślnej kategorii 'Inne'. Upewnij się, że istnieje.", 'error');
-                            return;
-                        }
-
-                        const tasksRef = collection(db, 'tasks');
-                        const tasksToUpdateQuery = query(
-                            tasksRef,
-                            where('category', '==', category.id),
-                            where('userId', '==', currentUser.uid)
-                        );
-                        const tasksSnapshot = await getDocs(tasksToUpdateQuery);
-
-                        const batch = writeBatch(db);
-
-                        tasksSnapshot.docs.forEach(taskDoc => {
-                            batch.update(taskDoc.ref, { category: defaultCategoryId });
-                        });
-
-                        batch.delete(doc(db, 'categories', category.id));
-
-                        await batch.commit();
-                        showToast("Kategoria i powiązane zadania zaktualizowane!", 'success');
-                    } catch (error: any) {
-                        showToast(`Błąd podczas usuwania kategorii: ${error.message}`, 'error');
-                        console.error("Błąd usuwania kategorii:", error);
-                    } finally {
-                        setIsSubmitting(false);
-                    }
-                }}
-            ]
-        );
-    };
+    const handleDeleteCategory = (category: Category) => setConfirmDeleteCategory(category);
 
     const startEditing = (category: Category) => {
         setEditingCategory(category);
@@ -176,6 +129,46 @@ const CategoriesScreen = () => {
                 ListHeaderComponent={<Text style={styles.listHeader}>Twoje kategorie</Text>}
                 ListEmptyComponent={<Text style={styles.emptyText}>Brak własnych kategorii.</Text>}
             />
+            {confirmDeleteCategory && (
+                <ActionModal
+                    visible={!!confirmDeleteCategory}
+                    title={'Potwierdź usunięcie'}
+                    message={`Czy na pewno chcesz usunąć kategorię "${confirmDeleteCategory?.name ?? ''}"? Zadania przypisane do niej zostaną przeniesione do kategorii "Inne".`}
+                    onRequestClose={() => setConfirmDeleteCategory(null)}
+                    actions={[
+                        { text: 'Anuluj', variant: 'secondary', onPress: () => setConfirmDeleteCategory(null) },
+                        { text: 'Usuń', onPress: async () => {
+                            if (!confirmDeleteCategory) return;
+                            setIsSubmitting(true);
+                            try {
+                                if (!currentUser) {
+                                    showToast('Użytkownik nie jest zalogowany.', 'error');
+                                    return;
+                                }
+                                const otherCategory = categories.find(cat => cat.name === 'Inne');
+                                const defaultCategoryId = otherCategory?.id;
+                                if (!defaultCategoryId) {
+                                    showToast("Błąd: Nie znaleziono domyślnej kategorii 'Inne'. Upewnij się, że istnieje.", 'error');
+                                    return;
+                                }
+                                const tasksRef = collection(db, 'tasks');
+                                const tasksToUpdateQuery = query(tasksRef, where('category', '==', confirmDeleteCategory.id), where('userId', '==', currentUser.uid));
+                                const tasksSnapshot = await getDocs(tasksToUpdateQuery);
+                                const batch = writeBatch(db);
+                                tasksSnapshot.docs.forEach(taskDoc => { batch.update(taskDoc.ref, { category: defaultCategoryId }); });
+                                batch.delete(doc(db, 'categories', confirmDeleteCategory.id));
+                                await batch.commit();
+                                showToast('Kategoria i powiązane zadania zaktualizowane!', 'success');
+                            } catch (error: any) {
+                                showToast('Błąd podczas usuwania kategorii.', 'error');
+                            } finally {
+                                setIsSubmitting(false);
+                                setConfirmDeleteCategory(null);
+                            }
+                        } },
+                    ]}
+                />
+            )}
         </View>
     );
 };
@@ -272,3 +265,6 @@ const styles = StyleSheet.create({
 });
 
 export default CategoriesScreen;
+// Render confirm modal at bottom
+/* eslint-disable react/display-name */
+export const CategoriesScreenWithModals = () => null;

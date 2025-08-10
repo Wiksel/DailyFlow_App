@@ -14,8 +14,10 @@ export type TaskStackParamList = {
   Profile: undefined;
   ChoreTemplates: { templateId?: string };
   Settings: undefined;
+  AccountSettings: { openDeleteConfirm?: boolean } | undefined;
   Categories: undefined; 
   Archive: undefined;
+  WeekPlan: undefined;
 };
 
 export type BudgetStackParamList = {

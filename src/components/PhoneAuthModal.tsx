@@ -1,10 +1,10 @@
-import React, { useState, useRef } from 'react';
-import { View, Text, Modal, StyleSheet, TextInput, TouchableOpacity, ActivityIndicator, Keyboard, Animated } from 'react-native';
-import auth from '@react-native-firebase/auth';
+import React, { useEffect, useRef, useState } from 'react';
+import { View, Text, Modal, StyleSheet, TextInput, TouchableOpacity, ActivityIndicator, Keyboard, AppState, AppStateStatus } from 'react-native';
+import auth, { getAuth, EmailAuthProvider } from '@react-native-firebase/auth';
 import type { FirebaseAuthTypes } from '@react-native-firebase/auth';
 import CountryPicker, { Country } from 'react-native-country-picker-modal';
 import { createNewUserInFirestore, checkIfPhoneExists, debugPhoneNumbers } from '../utils/authUtils';
-import { useToast } from '../contexts/ToastContext';
+import { useToast, ToastOverlay, ToastOverlaySuppressor } from '../contexts/ToastContext';
 import { Colors, Spacing, Typography, GlobalStyles } from '../styles/AppStyles';
 import PasswordInput from './PasswordInput';
 import { Feather } from '@expo/vector-icons';
@@ -12,11 +12,12 @@ import { Feather } from '@expo/vector-icons';
 interface PhoneAuthModalProps {
   visible: boolean;
   onClose: () => void;
+  onRegistered?: () => void;
 }
 
 type AuthStep = 'enter-phone' | 'enter-code' | 'enter-details';
 
-const PhoneAuthModal = ({ visible, onClose }: PhoneAuthModalProps) => {
+const PhoneAuthModal = ({ visible, onClose, onRegistered }: PhoneAuthModalProps) => {
   const [step, setStep] = useState<AuthStep>('enter-phone');
   const [isLoading, setIsLoading] = useState(false);
   const { showToast: showGlobalToast } = useToast();
@@ -32,35 +33,17 @@ const PhoneAuthModal = ({ visible, onClose }: PhoneAuthModalProps) => {
   });
   const [phoneNumber, setPhoneNumber] = useState('');
   const [formattedPhoneNumber, setFormattedPhoneNumber] = useState('');
+  const phoneInputRef = useRef<TextInput>(null);
 
   const [code, setCode] = useState('');
   const [nickname, setNickname] = useState('');
   const [password, setPassword] = useState('');
   const [passwordError, setPasswordError] = useState('');
   const [confirmation, setConfirmation] = useState<FirebaseAuthTypes.ConfirmationResult | null>(null);
+  const [isResending, setIsResending] = useState(false);
+  const verificationIdRef = useRef<string | null>(null);
   
-  const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' | 'info' } | null>(null);
-  const [isToastVisible, setIsToastVisible] = useState(false);
-  const fadeAnim = useRef(new Animated.Value(0)).current;
-
-  const showToast = (message: string, type: 'success' | 'error' | 'info') => {
-    // Jeśli toast jest już wyświetlany, po prostu zaktualizuj wiadomość
-    if (isToastVisible) {
-      setToast({ message, type });
-      return;
-    }
-    
-    setIsToastVisible(true);
-    setToast({ message, type });
-    Animated.sequence([
-      Animated.timing(fadeAnim, { toValue: 1, duration: 300, useNativeDriver: true }),
-      Animated.delay(2500),
-      Animated.timing(fadeAnim, { toValue: 0, duration: 300, useNativeDriver: true }),
-    ]).start(() => {
-      setToast(null);
-      setIsToastVisible(false);
-    });
-  };
+  // Używamy wyłącznie globalnego toastu z kontekstu
 
   const resetState = () => {
     setStep('enter-phone');
@@ -95,7 +78,7 @@ const PhoneAuthModal = ({ visible, onClose }: PhoneAuthModalProps) => {
   };
 
   const validatePassword = (passwordToValidate: string) => {
-    const passwordRegex = /^(?=.*[A-Za-z])(?=.*\d)[A-Za-z\d]{6,}$/;
+    const passwordRegex = /^(?=.*[A-Za-z])(?=.*\d).{6,}$/;
     if (!passwordToValidate.trim() || !passwordRegex.test(passwordToValidate)) {
         setPasswordError('Hasło jest za słabe.');
         return false;
@@ -104,50 +87,114 @@ const PhoneAuthModal = ({ visible, onClose }: PhoneAuthModalProps) => {
     return true;
   };
 
-  const sendVerificationCode = async () => {
-    if (isLoading) return;
+  const [resendSeconds, setResendSeconds] = useState(0);
+  const resendUntilRef = useRef<number | null>(null);
+  useEffect(() => {
+    if (visible && step === 'enter-phone') {
+      const t = setTimeout(() => phoneInputRef.current?.focus(), 250);
+      return () => clearTimeout(t);
+    }
+  }, [visible, step]);
+
+  // Licznik oparty na znaczniku czasu, działa także w tle
+  useEffect(() => {
+    if (!visible || step !== 'enter-code') return;
+    const updateRemaining = () => {
+      const now = Date.now();
+      const until = resendUntilRef.current ?? now;
+      const remaining = Math.max(0, Math.ceil((until - now) / 1000));
+      setResendSeconds(remaining);
+      if (remaining <= 0) {
+        resendUntilRef.current = null;
+      }
+    };
+
+    updateRemaining();
+    const intervalId = setInterval(updateRemaining, 500);
+
+    const handleAppStateChange = (state: AppStateStatus) => {
+      if (state === 'active') updateRemaining();
+    };
+    const appStateSub = AppState.addEventListener('change', handleAppStateChange);
+
+    return () => {
+      clearInterval(intervalId);
+      appStateSub.remove();
+    };
+  }, [visible, step]);
+
+  const sendVerificationCode = async (isResend: boolean = false) => {
+    if (isResend ? isResending : isLoading) return;
     Keyboard.dismiss();
 
     if (phoneNumber.length !== 9) {
-      showToast('Proszę podać poprawny 9-cyfrowy numer telefonu.', 'error');
+      showGlobalToast('Proszę podać poprawny 9-cyfrowy numer telefonu.', 'error');
       return;
     }
     
-    setIsLoading(true);
+    if (isResend) { setIsResending(true); } else { setIsLoading(true); }
     const fullPhoneNumber = `+${country.callingCode[0]}${phoneNumber}`;
     
     try {
-      // Sprawdź czy konto już istnieje
-      console.log('PhoneAuthModal - sprawdzanie numeru:', fullPhoneNumber);
-      
-      // Debug: sprawdź wszystkie numery w bazie
-      await debugPhoneNumbers();
-      
-      const phoneExists = await checkIfPhoneExists(fullPhoneNumber);
-      console.log('PhoneAuthModal - wynik sprawdzenia:', phoneExists);
-      
-      // Tymczasowo wyłącz sprawdzanie dla testów
-      // if (phoneExists) {
-      //   showToast('Konto z tym numerem już istnieje.\nZaloguj się.', 'error');
-      //   setIsLoading(false);
-      //   return;
-      // }
+      // Sprawdź czy konto już istnieje tylko przy pierwszym wysłaniu
+      if (!isResend) {
+        const phoneExists = await checkIfPhoneExists(fullPhoneNumber);
+        if (phoneExists) {
+          showGlobalToast('Konto z tym numerem już istnieje.\nZaloguj się.', 'error');
+          return;
+        }
+      }
 
-      const confirmationResult = await auth().signInWithPhoneNumber(fullPhoneNumber, true);
+      const confirmationResult = await Promise.race([
+        auth().signInWithPhoneNumber(fullPhoneNumber),
+        new Promise<never>((_, reject) => setTimeout(() => reject(new Error('timeout')), 20000)),
+      ]);
       setConfirmation(confirmationResult);
+      // Zapamiętaj verificationId na wypadek późniejszego potwierdzania przez credential
+      // @ts-ignore
+      verificationIdRef.current = (confirmationResult as any).verificationId || null;
       setStep('enter-code');
-      showToast('Kod weryfikacyjny został wysłany!', 'success');
+      showGlobalToast('Kod weryfikacyjny został wysłany!', 'success');
+      resendUntilRef.current = Date.now() + 30_000;
+      setResendSeconds(30);
     } catch (error: any) {
-      console.log('Błąd wysyłania kodu SMS (obsłużony):', error.code);
-      if (error.code === 'auth/too-many-requests') {
-        showToast('Zbyt wiele prób. Spróbuj ponownie później.', 'error');
-      } else if (error.code === 'auth/invalid-phone-number') {
-        showToast('Nieprawidłowy format numeru telefonu.', 'error');
+      if (error?.code === 'auth/too-many-requests') {
+        showGlobalToast('Zbyt wiele prób. Spróbuj ponownie później.', 'error');
+      } else if (error?.code === 'auth/invalid-phone-number') {
+        showGlobalToast('Nieprawidłowy format numeru telefonu.', 'error');
+      } else if (error?.message === 'timeout') {
+        showGlobalToast('Przekroczono czas wysyłki SMS. Spróbuj ponownie.', 'error');
       } else {
-        showToast('Wystąpił nieoczekiwany błąd.', 'error');
+        showGlobalToast('Wystąpił nieoczekiwany błąd.', 'error');
       }
     } finally {
-      setIsLoading(false);
+      if (isResend) { setIsResending(false); } else { setIsLoading(false); }
+    }
+  };
+
+  const resendCode = async () => {
+    if (isResending || resendSeconds > 0) return;
+    const fullPhoneNumber = `+${country.callingCode[0]}${phoneNumber}`;
+    setIsResending(true);
+    try {
+      const confirmationResult = await Promise.race([
+        auth().signInWithPhoneNumber(fullPhoneNumber),
+        new Promise<never>((_, reject) => setTimeout(() => reject(new Error('timeout')), 20000)),
+      ]);
+      setConfirmation(confirmationResult);
+      // @ts-ignore
+      verificationIdRef.current = (confirmationResult as any).verificationId || null;
+      showGlobalToast('Kod weryfikacyjny został wysłany!', 'success');
+      resendUntilRef.current = Date.now() + 30_000;
+      setResendSeconds(30);
+    } catch (e: any) {
+      if (e?.message === 'timeout') {
+        showGlobalToast('Przekroczono czas wysyłki SMS. Spróbuj ponownie.', 'error');
+      } else {
+        showGlobalToast('Nie udało się wysłać kodu. Spróbuj ponownie.', 'error');
+      }
+    } finally {
+      setIsResending(false);
     }
   };
 
@@ -156,19 +203,25 @@ const PhoneAuthModal = ({ visible, onClose }: PhoneAuthModalProps) => {
     Keyboard.dismiss();
     
     if (code.length !== 6) {
-        showToast('Kod musi mieć 6 cyfr.', 'error');
+        showGlobalToast('Kod musi mieć 6 cyfr.', 'error');
         return;
     }
 
-    if (!confirmation) return;
+    // Obsłuż obie ścieżki: przez confirmation albo przez verificationId
+    if (!confirmation && !verificationIdRef.current) return;
 
     setIsLoading(true);
     try {
-      await confirmation.confirm(code);
-      showToast('Numer zweryfikowany pomyślnie!\nTeraz podaj nick i hasło.', 'success');
+      if (confirmation) {
+        await confirmation.confirm(code);
+      } else if (verificationIdRef.current) {
+        const credential = auth.PhoneAuthProvider.credential(verificationIdRef.current, code);
+        await auth().signInWithCredential(credential);
+      }
+      showGlobalToast('Numer zweryfikowany pomyślnie!\nTeraz podaj nick i hasło.', 'success');
       setStep('enter-details');
     } catch (error: any) {
-      showToast('Nieprawidłowy kod weryfikacyjny.', 'error');
+      showGlobalToast('Nieprawidłowy kod weryfikacyjny.', 'error');
     } finally {
       setIsLoading(false);
     }
@@ -177,20 +230,20 @@ const PhoneAuthModal = ({ visible, onClose }: PhoneAuthModalProps) => {
   const finishRegistration = async () => {
     if (isLoading) return;
     if (!nickname.trim()) {
-      showToast('Nick jest wymagany.', 'error');
+      showGlobalToast('Nick jest wymagany.', 'error');
       return;
     }
     if (!validatePassword(password)) return;
 
-    const user = auth().currentUser;
+    const user = getAuth().currentUser;
     if (!user || !user.phoneNumber) {
-      showToast('Błąd: Brak uwierzytelnionego użytkownika.', 'error');
+      showGlobalToast('Błąd: Brak uwierzytelnionego użytkownika.', 'error');
       return;
     }
     setIsLoading(true);
     try {
       const dummyEmail = `${user.phoneNumber}@dailyflow.app`;
-      const emailCredential = auth.EmailAuthProvider.credential(dummyEmail, password);
+      const emailCredential = EmailAuthProvider.credential(dummyEmail, password);
       
       // Spróbuj połączyć credentials - może już istnieć
       try {
@@ -203,6 +256,8 @@ const PhoneAuthModal = ({ visible, onClose }: PhoneAuthModalProps) => {
       }
       
       await createNewUserInFirestore(user, nickname);
+      // Wyloguj po zakończeniu rejestracji, aby wrócić do ekranu logowania
+      await getAuth().signOut();
       
       // Zamknij modal od razu
       handleClose();
@@ -210,16 +265,16 @@ const PhoneAuthModal = ({ visible, onClose }: PhoneAuthModalProps) => {
       // Pokaż globalny toast po zamknięciu modala
       setTimeout(() => {
         showGlobalToast('Witaj w DailyFlow!\nKonto utworzone pomyślnie!', 'success');
+        onRegistered && onRegistered();
       }, 300);
     } catch (error: any) {
-      console.log('Błąd rejestracji:', error.code, error.message);
-      showToast(`Błąd rejestracji. Spróbuj ponownie.`, 'error');
+      showGlobalToast(`Błąd rejestracji. Spróbuj ponownie.`, 'error');
     } finally {
       setIsLoading(false);
     }
   };
 
-  const isDetailsFormValid = nickname.trim().length > 0 && /^(?=.*[A-Za-z])(?=.*\d)[A-Za-z\d]{6,}$/.test(password);
+  const isDetailsFormValid = nickname.trim().length > 0 && /^(?=.*[A-Za-z])(?=.*\d).{6,}$/.test(password);
   
   const renderStep = () => {
     switch (step) {
@@ -234,19 +289,22 @@ const PhoneAuthModal = ({ visible, onClose }: PhoneAuthModalProps) => {
                     withFilter withFlag withCallingCode withCallingCodeButton withCountryNameButton={false}
                     onSelect={(selectedCountry: Country) => setCountry(selectedCountry)}
                     containerButtonStyle={styles.countryPickerButton}
+                    onOpen={() => setTimeout(() => phoneInputRef.current?.focus(), 0)}
                 />
               <TextInput 
                 style={styles.phoneInput} 
                 placeholder="000 000 000" 
                 keyboardType="phone-pad" 
+                ref={phoneInputRef}
+                autoFocus={false}
                 value={formattedPhoneNumber}
                 onChangeText={handlePhoneNumberChange}
                 maxLength={11}
-                onSubmitEditing={sendVerificationCode} 
+                onSubmitEditing={() => sendVerificationCode()} 
                 blurOnSubmit={true}
               />
             </View>
-            <TouchableOpacity style={GlobalStyles.button} onPress={sendVerificationCode} disabled={isLoading}>
+            <TouchableOpacity style={GlobalStyles.button} onPress={() => sendVerificationCode()} disabled={isLoading}>
               <Text style={[GlobalStyles.buttonText, isLoading && styles.buttonTextHidden]}>Wyślij kod</Text>
               {isLoading && <ActivityIndicator color="white" style={styles.activityIndicator} />}
             </TouchableOpacity>
@@ -257,10 +315,17 @@ const PhoneAuthModal = ({ visible, onClose }: PhoneAuthModalProps) => {
           <>
             <Text style={styles.modalTitle}>Wpisz kod weryfikacyjny</Text>
             <Text style={styles.modalSubtitle}>{`Wysłaliśmy 6-cyfrowy kod\nna numer +${country.callingCode[0]} ${formattedPhoneNumber}.`}</Text>
-            <TextInput style={[GlobalStyles.input, { textAlign: 'center', letterSpacing: 8 }]} placeholder="000000" keyboardType="number-pad" value={code} onChangeText={setCode} maxLength={6} onSubmitEditing={confirmCode} blurOnSubmit={true} />
+            <TextInput style={[GlobalStyles.input, { textAlign: 'center', letterSpacing: 8 }]} placeholder="000000" keyboardType="number-pad" value={code} onChangeText={setCode} maxLength={6} onSubmitEditing={() => confirmCode()} blurOnSubmit={true} />
             <TouchableOpacity style={[GlobalStyles.button, { marginTop: Spacing.small }]} onPress={confirmCode} disabled={isLoading}>
               <Text style={[GlobalStyles.buttonText, isLoading && styles.buttonTextHidden]}>Zatwierdź</Text>
               {isLoading && <ActivityIndicator color="white" style={styles.activityIndicator} />}
+            </TouchableOpacity>
+            <TouchableOpacity style={[GlobalStyles.button, { marginTop: Spacing.xSmall, backgroundColor: Colors.secondary }]} onPress={resendCode} disabled={isResending || resendSeconds > 0}>
+              {isResending ? (
+                <ActivityIndicator color="white" />
+              ) : (
+                <Text style={GlobalStyles.buttonText}>{resendSeconds > 0 ? `Wyślij ponownie (${resendSeconds}s)` : 'Wyślij kod ponownie'}</Text>
+              )}
             </TouchableOpacity>
           </>
         );
@@ -296,19 +361,17 @@ const PhoneAuthModal = ({ visible, onClose }: PhoneAuthModalProps) => {
   return (
     <Modal visible={visible} transparent={true} animationType="fade" onRequestClose={handleClose}>
       <View style={styles.modalContainer}>
+        {/* Wyłącz globalny overlay na czas wyświetlania modala */}
+        <ToastOverlaySuppressor />
         <View style={styles.modalContent}>
           <TouchableOpacity style={styles.closeButton} onPress={handleClose}>
             <Text style={styles.closeButtonText}>Anuluj</Text>
           </TouchableOpacity>
           {renderStep()}
         </View>
+        {/* Lokalny ToastOverlay – wyżej, ale w granicach ekranu */}
+        <ToastOverlay topOffset={-Spacing.large} />
       </View>
-      {toast && (
-          <Animated.View style={[styles.toastContainer, { opacity: fadeAnim, backgroundColor: getToastStyle(toast.type).backgroundColor }]}>
-              <Feather name={getToastStyle(toast.type).iconName} size={24} color="white" style={styles.toastIcon} />
-              <Text style={styles.toastText}>{toast.message}</Text>
-          </Animated.View>
-      )}
     </Modal>
   );
 };
@@ -336,9 +399,7 @@ const styles = StyleSheet.create({
     errorText: { color: Colors.danger, alignSelf: 'flex-start', width: '100%', marginLeft: Spacing.small, marginTop: Spacing.xSmall, marginBottom: Spacing.small, },
     buttonTextHidden: { opacity: 0, },
     activityIndicator: { position: 'absolute', },
-    toastContainer: { position: 'absolute', top: Spacing.large, left: Spacing.medium, right: Spacing.medium, padding: Spacing.medium, borderRadius: 12, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(0,0,0,0.8)', elevation: 10, zIndex: 9999, },
-    toastIcon: { marginRight: Spacing.medium, },
-    toastText: { ...Typography.body, color: 'white', fontWeight: '600', flexShrink: 1, },
+    
 });
 
 export default PhoneAuthModal;

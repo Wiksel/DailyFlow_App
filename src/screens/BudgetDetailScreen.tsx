@@ -1,28 +1,13 @@
 import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, FlatList, TouchableOpacity, Modal, TextInput, ActivityIndicator } from 'react-native';
 import { useRoute } from '@react-navigation/native';
-import { doc, onSnapshot, collection, addDoc, query, orderBy, getDoc, writeBatch, increment, where } from 'firebase/firestore';
-import auth from '@react-native-firebase/auth';
-import { db } from '../../firebaseConfig'; // <--- TEN IMPORT ZOSTAJE
+import { doc, onSnapshot, collection, addDoc, query, orderBy, getDoc, writeBatch, increment, where, Timestamp } from 'firebase/firestore';
+import auth, { getAuth } from '@react-native-firebase/auth';
+import { db } from '../../firebaseConfig';
 import { Feather } from '@expo/vector-icons';
 import { useToast } from '../contexts/ToastContext';
 import { Colors, Spacing, Typography, GlobalStyles } from '../styles/AppStyles';
-
-interface Budget {
-    name: string;
-    targetAmount: number;
-    currentAmount: number;
-}
-
-interface Expense {
-    id: string;
-    name: string;
-    amount: number;
-    budgetId: string;
-    addedBy: string;
-    addedByName: string;
-    date: { toDate: () => Date }; // Changed to match Firestore Timestamp
-}
+import type { Budget, Expense } from '../types';
 
 const BudgetDetailScreen = () => {
     const route = useRoute();
@@ -36,7 +21,7 @@ const BudgetDetailScreen = () => {
     const [loading, setLoading] = useState(true);
     const [isSubmittingExpense, setIsSubmittingExpense] = useState(false);
 
-    const currentUser = auth().currentUser;
+    const currentUser = getAuth().currentUser;
     const { showToast } = useToast();
 
     useEffect(() => {
@@ -100,7 +85,7 @@ const BudgetDetailScreen = () => {
                 budgetId: budgetId,
                 addedBy: currentUser.uid,
                 addedByName: userNickname,
-                date: new Date(),
+                date: Timestamp.now(),
             });
 
             const budgetRef = doc(db, 'budgets', budgetId);
@@ -113,8 +98,8 @@ const BudgetDetailScreen = () => {
             setNewExpenseName('');
             setNewExpenseAmount('');
         } catch (error: any) {
-            console.error("Błąd dodawania wydatku:", error);
-            showToast(`Błąd dodawania wydatku: ${error.message}`, 'error');
+            console.error("Błąd dodawania wydatku");
+            showToast('Błąd dodawania wydatku.', 'error');
         } finally {
             setIsSubmittingExpense(false);
         }

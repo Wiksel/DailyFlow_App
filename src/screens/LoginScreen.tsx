@@ -1,11 +1,13 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { View, Text, StyleSheet, TextInput, TouchableOpacity, ActivityIndicator, Image, Alert, Dimensions, ScrollView, Platform, Keyboard } from 'react-native';
+import { View, Text, StyleSheet, TextInput, TouchableOpacity, ActivityIndicator, Image, Dimensions, ScrollView, Platform, Keyboard } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
-import auth, { FirebaseAuthTypes } from '@react-native-firebase/auth';
+import auth, { FirebaseAuthTypes, getAuth, signInWithEmailAndPassword, createUserWithEmailAndPassword, GoogleAuthProvider, signInWithCredential } from '@react-native-firebase/auth';
 import { GoogleSignin } from '@react-native-google-signin/google-signin';
 import { useToast } from '../contexts/ToastContext';
 import { Colors, Spacing, Typography, GlobalStyles } from '../styles/AppStyles';
 import { Feather } from '@expo/vector-icons';
+import ActionModal from '../components/ActionModal';
+import LinkAccountsModal from '../components/LinkAccountsModal';
 import PhoneAuthModal from '../components/PhoneAuthModal';
 import ForgotPasswordModal from '../components/ForgotPasswordModal';
 import { createNewUserInFirestore, findUserEmailByIdentifier } from '../utils/authUtils';
@@ -126,12 +128,21 @@ const LoginScreen = () => {
     const [passwordError, setPasswordError] = useState('');
     const [isLoading, setIsLoading] = useState(false);
     const { showToast } = useToast();
+    
+    const [unverifiedDialogVisible, setUnverifiedDialogVisible] = useState(false);
+    const [pendingVerificationUserEmail, setPendingVerificationUserEmail] = useState<string | null>(null);
+    const [emailVerificationDialogVisible, setEmailVerificationDialogVisible] = useState(false);
+    const [emailVerificationUser, setEmailVerificationUser] = useState<FirebaseAuthTypes.User | null>(null);
+    const [linkModalVisible, setLinkModalVisible] = useState(false);
+    const [linkEmail, setLinkEmail] = useState('');
+    const [pendingGoogleCredential, setPendingGoogleCredential] = useState<any>(null);
     const [phoneModalVisible, setPhoneModalVisible] = useState(false);
     const [forgotPasswordModalVisible, setForgotPasswordModalVisible] = useState(false);
     
     const progress = useSharedValue(0);
     const swipeDirection = useSharedValue(1);
     const targetProgress = useSharedValue(0);
+    const isTransitioning = useSharedValue(false);
     const keyboardProgress = useSharedValue(0);
     
     const KEYBOARD_UP_TRANSLATE_Y = -100; // Przywrócenie poprawnej wartości
@@ -139,7 +150,7 @@ const LoginScreen = () => {
     const HEADER_MARGIN_BOTTOM = Spacing.xLarge;
 
     const isEmailValidCheck = (email: string) => /\S+@\S+\.\S+/.test(email);
-    const isPasswordValidCheck = (password: string) => /^(?=.*[A-Za-z])(?=.*\d)[A-Za-z\d]{6,}$/.test(password);
+    const isPasswordValidCheck = (password: string) => /^(?=.*[A-Za-z])(?=.*\d).{6,}$/.test(password);
 
     const handleRegisterDataChange = (name: keyof typeof registerData, value: string) => {
         setRegisterData((prevState) => ({ ...prevState, [name]: value }));
@@ -170,8 +181,26 @@ const LoginScreen = () => {
         setPasswordError('');
         return true;
     };
-    const handleAuthError = (error: any) => { console.log("Błąd autoryzacji przechwycony:", error.message); const code = error.code || ''; if (code === 'auth/invalid-credential' || code === 'auth/wrong-password') { showToast('Nieprawidłowe dane logowania.\nSprawdź identyfikator i hasło.', 'error'); } else if (code === 'auth/too-many-requests') { Alert.alert("Zablokowano Dostęp", "Wykryliśmy nietypową aktywność. Dostęp został tymczasowo zablokowany. Spróbuj ponownie za kilka minut."); } else if (code === 'auth/email-already-in-use') { showToast('Ten adres e-mail jest już używany.', 'error'); } else if (code === 'auth/weak-password') { showToast('Hasło jest zbyt słabe. Użyj min. 6 znaków, w tym cyfry i litery.', 'error'); } else if (code === 'auth/invalid-email') { showToast('Podany adres e-mail jest nieprawidłowy.', 'error'); } else { showToast('Wystąpił nieoczekiwany błąd. Spróbuj ponownie.', 'error'); } };
-    const handleResendVerification = async (user: FirebaseAuthTypes.User) => { try { await user.sendEmailVerification(); Alert.alert( "Link wysłany!", "Nowy link weryfikacyjny został wysłany na Twój adres e-mail.\n\nSprawdź swoją skrzynkę (również folder spam)." ); } catch (error: any) { handleAuthError(error); } };
+    const handleAuthError = (error: any) => {
+        console.log("Błąd autoryzacji przechwycony:", error.message);
+        const code = error.code || '';
+        if (code === 'auth/invalid-credential' || code === 'auth/wrong-password') {
+            showToast('Nieprawidłowe dane logowania.\nSprawdź identyfikator i hasło.', 'error');
+        } else if (code === 'auth/too-many-requests') {
+            showToast('Dostęp tymczasowo zablokowany. \nSpróbuj ponownie później.', 'info');
+        } else if (code === 'auth/email-already-in-use') {
+            showToast('Ten adres e-mail jest już używany.', 'error');
+        } else if (code === 'auth/weak-password') {
+            showToast('Hasło jest zbyt słabe. Użyj min. 6 znaków, w tym cyfry i litery.', 'error');
+        } else if (code === 'auth/invalid-email') {
+            showToast('Podany adres e-mail jest nieprawidłowy.', 'error');
+        } else if (code === 'auth/account-exists-with-different-credential') {
+            showToast('Konto istnieje z innym sposobem logowania.', 'info');
+        } else {
+            showToast('Wystąpił nieoczekiwany błąd. Spróbuj ponownie.', 'error');
+        }
+    };
+    const handleResendVerification = async (user: FirebaseAuthTypes.User) => { try { await user.sendEmailVerification(); showToast('Nowy link weryfikacyjny został wysłany. Sprawdź skrzynkę (także spam).', 'success'); } catch (error: any) { handleAuthError(error); } };
     const handleLogin = async () => { 
         if (isLoading) return; // Zapobiegaj wielokrotnemu wywoływaniu
         if (!identifier.trim() || !loginPassword.trim()) { 
@@ -186,27 +215,84 @@ const LoginScreen = () => {
                 setIsLoading(false); 
                 return; 
             } 
-            const userCredentials = await auth().signInWithEmailAndPassword(userEmail, loginPassword); 
+            const userCredentials = await signInWithEmailAndPassword(getAuth(), userEmail, loginPassword); 
             await userCredentials.user.reload(); 
-            const freshUser = auth().currentUser; 
-            if (freshUser && !freshUser.emailVerified) { 
-                Alert.alert( 
-                    "Konto niezweryfikowane", 
-                    "Wygląda na to, że nie kliknąłeś jeszcze w link aktywacyjny.\n\nSprawdź swoją skrzynkę e-mail (również folder spam!).", 
-                    [ 
-                        { text: "OK", onPress: () => auth().signOut() }, 
-                        { text: "Wyślij link ponownie", onPress: () => handleResendVerification(freshUser) } 
-                    ] 
-                ); 
-            } 
+            const freshUser = getAuth().currentUser; 
+            const hasGoogleProvider = !!freshUser?.providerData?.some(p => p.providerId === 'google.com');
+            if (freshUser && !freshUser.emailVerified && !freshUser.phoneNumber && !(freshUser.email || '').endsWith('@dailyflow.app') && !hasGoogleProvider) {
+                setUnverifiedDialogVisible(true);
+                setPendingVerificationUserEmail(freshUser.email || null);
+            }
         } catch (error: any) { 
             handleAuthError(error); 
         } finally { 
             setIsLoading(false); 
         } 
     };
-    const handleRegister = async () => { const { nickname, email, password } = registerData; if (!nickname.trim()) { showToast('Nick jest wymagany.', 'error'); return; } const isEmailValid = validateEmail(email); const isPasswordValid = validatePassword(password); if (!isEmailValid || !isPasswordValid) return; setIsLoading(true); try { const userCredentials = await auth().createUserWithEmailAndPassword(email, password); await createNewUserInFirestore(userCredentials.user, nickname); await userCredentials.user.sendEmailVerification(); await auth().signOut(); Alert.alert( "Prawie gotowe!\nSprawdź swój e-mail", `Wysłaliśmy link weryfikacyjny na adres ${email}.\n\nKliknij go, aby dokończyć rejestrację, a następnie zaloguj się do aplikacji.`, [{ text: "Rozumiem", onPress: () => { targetProgress.value = 0; } }] ); } catch (error: any) { handleAuthError(error); } finally { setIsLoading(false); } };
-    const onGoogleButtonPress = async () => { setIsLoading(true); try { await GoogleSignin.hasPlayServices({ showPlayServicesUpdateDialog: true }); await GoogleSignin.signIn(); const { idToken } = await GoogleSignin.getTokens(); if (!idToken) throw new Error("Brak tokena Google"); const googleCredential = auth.GoogleAuthProvider.credential(idToken); const userCredential = await auth().signInWithCredential(googleCredential); const user = userCredential.user; const userDoc = await getDoc(doc(db, 'users', user.uid)); if (!userDoc.exists()) { navigation.navigate('Nickname', { user }); } } catch (error: any) { if (error.code === '12501' || error.code === 'SIGN_IN_CANCELLED') { showToast('Logowanie anulowane.', 'info'); } else { console.log("Błąd logowania Google:", error); showToast('Wystąpił błąd podczas logowania przez Google.', 'error'); } } finally { setIsLoading(false); } };
+    const handleRegister = async () => {
+        const { nickname, email, password } = registerData;
+        if (!nickname.trim()) { showToast('Nick jest wymagany.', 'error'); return; }
+        const isEmailValid = validateEmail(email);
+        const isPasswordValid = validatePassword(password);
+        if (!isEmailValid || !isPasswordValid) return;
+        setIsLoading(true);
+        try {
+            const userCredentials = await createUserWithEmailAndPassword(getAuth(), email, password);
+            await createNewUserInFirestore(userCredentials.user, nickname);
+            await userCredentials.user.sendEmailVerification();
+            setEmailVerificationUser(userCredentials.user);
+            setEmailVerificationDialogVisible(true);
+        } catch (error: any) {
+            handleAuthError(error);
+        } finally {
+            setIsLoading(false);
+        }
+    };
+    const onGoogleButtonPress = async () => {
+        setIsLoading(true);
+        try {
+            await GoogleSignin.hasPlayServices({ showPlayServicesUpdateDialog: true });
+            await GoogleSignin.signIn();
+            const idToken = (await GoogleSignin.getTokens())?.idToken;
+            if (!idToken) throw new Error('Brak tokena Google');
+            const googleCredential = GoogleAuthProvider.credential(idToken);
+
+            const currentUserInfo = await GoogleSignin.getCurrentUser();
+            const email = currentUserInfo?.user?.email;
+            if (email) {
+                try {
+                    const methods = await auth().fetchSignInMethodsForEmail(email);
+                    const hasPassword = methods.includes('password');
+                    if (hasPassword) {
+                        // Zapytaj o połączenie kont
+                        setPendingGoogleCredential(googleCredential);
+                        setLinkEmail(email);
+                        setLinkModalVisible(true);
+                        return;
+                    }
+                } catch {}
+            }
+
+            const userCredential = await signInWithCredential(getAuth(), googleCredential);
+            const user = userCredential.user;
+            const userDoc = await getDoc(doc(db, 'users', user.uid));
+            if (!userDoc.exists()) {
+                navigation.navigate('Nickname', { user });
+            }
+        } catch (error: any) {
+            if ((error.code === '12501') || (error.code === 'SIGN_IN_CANCELLED')) {
+                showToast('Logowanie anulowane.', 'info');
+            } else if (error.code === 'auth/account-exists-with-different-credential') {
+                setLinkEmail(error?.email || linkEmail);
+                setPendingGoogleCredential(error?.credential || pendingGoogleCredential);
+                setLinkModalVisible(true);
+            } else {
+                showToast('Wystąpił błąd podczas logowania przez Google.', 'error');
+            }
+        } finally {
+            setIsLoading(false);
+        }
+    };
     const isRegisterFormValid = registerData.nickname.trim().length > 0 && isEmailValidCheck(registerData.email) && isPasswordValidCheck(registerData.password);
 
     useEffect(() => {
@@ -236,10 +322,25 @@ const LoginScreen = () => {
         }
     );
 
+    // Odblokuj gesty po zakończeniu animacji (gdy progress ~ target)
+    useAnimatedReaction(
+        () => ({ p: progress.value, t: targetProgress.value }),
+        ({ p, t }) => {
+            if (Math.abs(p - t) < 0.01) {
+                isTransitioning.value = false;
+            }
+        }
+    );
+
     const gesture = Gesture.Pan()
+        .activeOffsetX([-20, 20])
+        .failOffsetY([-10, 10])
         .onEnd((event) => {
             'worklet';
-            if (Math.abs(event.translationX) > 50 || Math.abs(event.velocityX) > 400) {
+            if (isTransitioning.value) {
+                return;
+            }
+            if ((Math.abs(event.translationX) > 80 && Math.abs(event.translationX) > Math.abs(event.translationY)) || Math.abs(event.velocityX) > 700) {
                 const isSwipingRight = event.translationX > 0;
                 // POPRAWKA 1: Logika kierunku jest teraz w pełni kontekstowa
                 if (progress.value === 0) { // Na ekranie logowania
@@ -247,6 +348,7 @@ const LoginScreen = () => {
                 } else { // Na ekranie rejestracji
                     swipeDirection.value = isSwipingRight ? 1 : -1;
                 }
+                isTransitioning.value = true;
                 targetProgress.value = targetProgress.value === 0 ? 1 : 0;
             }
         });
@@ -276,6 +378,7 @@ const LoginScreen = () => {
                 contentContainerStyle={styles.scrollContentContainer}
                 keyboardShouldPersistTaps="handled"
                 showsVerticalScrollIndicator={false}
+                bounces={false}
             >
                 <Animated.View style={[styles.contentContainer, animatedContainerStyle]}>
                     <Animated.View style={animatedHeaderStyle}>
@@ -309,8 +412,55 @@ const LoginScreen = () => {
                     </GestureDetector>
                 </Animated.View>
             </ScrollView>
-            <PhoneAuthModal visible={phoneModalVisible} onClose={() => setPhoneModalVisible(false)} />
+            <PhoneAuthModal visible={phoneModalVisible} onClose={() => setPhoneModalVisible(false)} onRegistered={() => { swipeDirection.value = -1; targetProgress.value = 0; }} />
             <ForgotPasswordModal visible={forgotPasswordModalVisible} onClose={() => setForgotPasswordModalVisible(false)} />
+            {/* Dialog: konto niezweryfikowane */}
+            <ActionModal
+                visible={unverifiedDialogVisible}
+                title={pendingVerificationUserEmail ? 'Zweryfikuj konto' : 'Konto niezweryfikowane'}
+                message={pendingVerificationUserEmail ? `Wygląda na to, że nie kliknąłeś jeszcze w link aktywacyjny wysłany na ${pendingVerificationUserEmail}.` : 'Wygląda na to, że nie kliknąłeś jeszcze w link aktywacyjny.'}
+                actions={[
+                    { text: 'Wyślij link ponownie', onPress: () => { const u = getAuth().currentUser; if (u) handleResendVerification(u); setUnverifiedDialogVisible(false); } },
+                    { text: 'OK', onPress: () => { getAuth().signOut(); setUnverifiedDialogVisible(false); } , variant: 'secondary' },
+                ]}
+                onRequestClose={() => setUnverifiedDialogVisible(false)}
+            />
+            {/* Dialog: po rejestracji e-mail */}
+            <ActionModal
+                visible={emailVerificationDialogVisible}
+                title={'Prawie gotowe! Sprawdź e‑mail'}
+                message={registerData.email ? `Wysłaliśmy link weryfikacyjny na adres ${registerData.email}. Kliknij go, aby dokończyć rejestrację.` : 'Wysłaliśmy link weryfikacyjny na Twój adres e‑mail.'}
+                actions={[
+                    { text: 'Wyślij ponownie', onPress: async () => { if (emailVerificationUser) { try { await emailVerificationUser.sendEmailVerification(); showToast('Link wysłany ponownie.', 'success'); } catch (e:any) { handleAuthError(e); } } } },
+                    { text: 'Rozumiem', onPress: async () => { setEmailVerificationDialogVisible(false); await getAuth().signOut(); targetProgress.value = 0; }, variant: 'secondary' },
+                ]}
+                onRequestClose={() => setEmailVerificationDialogVisible(false)}
+            />
+            {/* Dialog: łączenie kont */}
+            <LinkAccountsModal
+                visible={linkModalVisible}
+                email={linkEmail}
+                onCancel={() => { setLinkModalVisible(false); setPendingGoogleCredential(null); showToast('Nie połączono kont.', 'info'); }}
+                onConfirm={async (password) => {
+                    try {
+                        const userCred = await signInWithEmailAndPassword(getAuth(), linkEmail, password);
+                        if (pendingGoogleCredential) {
+                            await userCred.user.linkWithCredential(pendingGoogleCredential);
+                        }
+                        const user = getAuth().currentUser;
+                        if (user) {
+                            const userDoc = await getDoc(doc(db, 'users', user.uid));
+                            if (!userDoc.exists()) {
+                                await createNewUserInFirestore(user, user.displayName || user.email || '');
+                            }
+                        }
+                        setLinkModalVisible(false);
+                        showToast('Konta połączone. Zalogowano.', 'success');
+                    } catch (e:any) {
+                        handleAuthError(e);
+                    }
+                }}
+            />
         </View>
     );
 };

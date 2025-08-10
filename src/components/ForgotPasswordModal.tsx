@@ -1,7 +1,7 @@
-import React, { useState, useRef } from 'react';
-import { View, Text, Modal, StyleSheet, TextInput, TouchableOpacity, ActivityIndicator, Animated } from 'react-native';
-import auth from '@react-native-firebase/auth';
-import { useToast } from '../contexts/ToastContext';
+import React, { useState } from 'react';
+import { View, Text, Modal, StyleSheet, TextInput, TouchableOpacity, ActivityIndicator } from 'react-native';
+import auth, { getAuth, sendPasswordResetEmail } from '@react-native-firebase/auth';
+import { useToast, ToastOverlay, ToastOverlaySuppressor } from '../contexts/ToastContext';
 import { Colors, Spacing, Typography, GlobalStyles } from '../styles/AppStyles';
 import { findUserEmailByIdentifier } from '../utils/authUtils';
 import PhonePasswordResetModal from './PhonePasswordResetModal';
@@ -13,37 +13,16 @@ interface ForgotPasswordModalProps {
 }
 
 const ForgotPasswordModal = ({ visible, onClose }: ForgotPasswordModalProps) => {
-  const [identifier, setIdentifier] = useState(''); // Zmiana z email na identifier
+  const [identifier, setIdentifier] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [showPhoneReset, setShowPhoneReset] = useState(false);
   const { showToast } = useToast();
   
-  const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' | 'info' } | null>(null);
-  const [isToastVisible, setIsToastVisible] = useState(false);
-  const fadeAnim = useRef(new Animated.Value(0)).current;
-
-  const showCustomToast = (message: string, type: 'success' | 'error' | 'info') => {
-    // Jeśli toast jest już wyświetlany, po prostu zaktualizuj wiadomość
-    if (isToastVisible) {
-      setToast({ message, type });
-      return;
-    }
-    
-    setIsToastVisible(true);
-    setToast({ message, type });
-    Animated.sequence([
-      Animated.timing(fadeAnim, { toValue: 1, duration: 300, useNativeDriver: true }),
-      Animated.delay(2500),
-      Animated.timing(fadeAnim, { toValue: 0, duration: 300, useNativeDriver: true }),
-    ]).start(() => {
-      setToast(null);
-      setIsToastVisible(false);
-    });
-  };
+  const showCustomToast = useToast().showToast;
 
   const handlePasswordReset = async () => {
     if (!identifier.trim()) {
-      showCustomToast('Proszę wprowadzić e-mail.', 'error');
+      showCustomToast('Proszę wprowadzić e‑mail lub telefon.', 'error');
       return;
     }
     
@@ -58,7 +37,7 @@ const ForgotPasswordModal = ({ visible, onClose }: ForgotPasswordModalProps) => 
         return;
       }
 
-      await auth().sendPasswordResetEmail(email);
+      await sendPasswordResetEmail(getAuth(), email);
       showCustomToast('Wysłaliśmy link do zresetowania hasła na adres powiązany z Twoim kontem. Sprawdź również folder spam.', 'success');
       setTimeout(() => {
         onClose();
@@ -93,20 +72,17 @@ const ForgotPasswordModal = ({ visible, onClose }: ForgotPasswordModalProps) => 
 
   return (
     <>
-             <Modal visible={visible} transparent={true} animationType="slide" onRequestClose={handleClose}>
+      <Modal visible={visible} transparent={true} animationType="fade" onRequestClose={handleClose}>
          <View style={styles.modalContainer}>
+           {/* Wyłącz globalny overlay na czas wyświetlania modala */}
+           <ToastOverlaySuppressor />
            <View style={styles.modalContent}>
-             {toast && (
-                 <Animated.View style={[styles.toastContainer, { opacity: fadeAnim, backgroundColor: getToastStyle(toast.type).backgroundColor }]}>
-                     <Feather name={getToastStyle(toast.type).iconName} size={24} color="white" style={styles.toastIcon} />
-                     <Text style={styles.toastText}>{toast.message}</Text>
-                 </Animated.View>
-             )}
+             
              <Text style={styles.modalTitle}>Zresetuj hasło</Text>
-             <Text style={styles.modalSubtitle}>Podaj swój e-mail, a wyślemy Ci link do ustawienia nowego hasła.</Text>
+              <Text style={styles.modalSubtitle}>Podaj swój e‑mail lub telefon, a wyślemy link do ustawienia hasła.</Text>
              <TextInput
                style={GlobalStyles.input}
-               placeholder="Adres e-mail"
+                placeholder="E‑mail lub telefon (9 cyfr)"
                value={identifier}
                onChangeText={setIdentifier}
                autoCapitalize="none"
@@ -139,12 +115,19 @@ const ForgotPasswordModal = ({ visible, onClose }: ForgotPasswordModalProps) => 
                <Text style={styles.cancelButtonText}>Anuluj</Text>
              </TouchableOpacity>
            </View>
+           {/* Lokalny ToastOverlay – wyżej, ale w granicach ekranu */}
+           <ToastOverlay topOffset={-Spacing.large} />
          </View>
        </Modal>
       
       <PhonePasswordResetModal 
         visible={showPhoneReset} 
         onClose={() => setShowPhoneReset(false)} 
+        onSuccess={() => { 
+          // Zamknij również nadrzędne okno "Zresetuj hasło" po pomyślnej zmianie hasła przez telefon
+          setShowPhoneReset(false);
+          onClose();
+        }}
       />
     </>
   );

@@ -1,7 +1,8 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { View, Text, StyleSheet, FlatList, TextInput, TouchableOpacity, Alert, ActivityIndicator, ScrollView } from 'react-native';
+import { View, Text, StyleSheet, FlatList, TextInput, TouchableOpacity, ActivityIndicator, ScrollView } from 'react-native';
+import ActionModal from '../components/ActionModal';
 import { useRoute, RouteProp } from '@react-navigation/native';
-import auth from '@react-native-firebase/auth'; // ZMIANA
+import auth, { getAuth } from '@react-native-firebase/auth'; // ZMIANA
 import { db } from '../../firebaseConfig'; // <--- TEN IMPORT ZOSTAJE
 import { collection, query, where, onSnapshot, addDoc, deleteDoc, doc, updateDoc } from 'firebase/firestore';
 import Slider from '@react-native-community/slider';
@@ -31,7 +32,7 @@ const ChoreTemplatesScreen = () => {
     const [loading, setLoading] = useState(true);
     const [editingTemplate, setEditingTemplate] = useState<ChoreTemplate | null>(null);
     const [isSubmitting, setIsSubmitting] = useState(false);
-    const currentUser = auth().currentUser; // ZMIANA
+    const currentUser = getAuth().currentUser; // ZMIANA
 
 
     useEffect(() => {
@@ -107,34 +108,14 @@ const ChoreTemplatesScreen = () => {
                 setSelectedCategory(categories[0].id);
             }
         } catch (error: any) {
-            showToast(`Błąd: ${error.message}`, 'error');
-            console.error("Błąd dodawania/aktualizacji szablonu:", error);
+            showToast('Błąd dodawania/aktualizacji szablonu.', 'error');
         } finally {
             setIsSubmitting(false);
         }
     };
 
-    const handleDeleteTemplate = (template: ChoreTemplate) => {
-        Alert.alert(
-            "Potwierdź usunięcie",
-            `Czy na pewno chcesz usunąć szablon "${template.name}"?`,
-            [
-                { text: "Anuluj", style: "cancel" },
-                { text: "Usuń", style: "destructive", onPress: async () => {
-                    setIsSubmitting(true);
-                    try {
-                        await deleteDoc(doc(db, 'choreTemplates', template.id));
-                        showToast("Szablon usunięty!", 'success');
-                    } catch (error: any) {
-                        showToast(`Błąd podczas usuwania szablonu: ${error.message}`, 'error');
-                        console.error("Błąd usuwania szablonu:", error);
-                    } finally {
-                        setIsSubmitting(false);
-                    }
-                }}
-            ]
-        );
-    };
+    const [confirmDeleteTemplate, setConfirmDeleteTemplate] = useState<ChoreTemplate | null>(null);
+    const handleDeleteTemplate = (template: ChoreTemplate) => setConfirmDeleteTemplate(template);
 
     const startEditing = (template: ChoreTemplate) => {
         setEditingTemplate(template);
@@ -245,6 +226,16 @@ const ChoreTemplatesScreen = () => {
                     />
                 )}
             </View>
+            <ActionModal
+                visible={!!confirmDeleteTemplate}
+                title={'Potwierdź usunięcie'}
+                message={confirmDeleteTemplate ? `Czy na pewno chcesz usunąć szablon "${confirmDeleteTemplate.name}"?` : ''}
+                onRequestClose={() => setConfirmDeleteTemplate(null)}
+                actions={[
+                    { text: 'Anuluj', variant: 'secondary', onPress: () => setConfirmDeleteTemplate(null) },
+                    { text: 'Usuń', onPress: async () => { if (!confirmDeleteTemplate) return; setIsSubmitting(true); try { await deleteDoc(doc(db, 'choreTemplates', confirmDeleteTemplate.id)); showToast('Szablon usunięty!', 'success'); } catch (e:any) { showToast('Błąd podczas usuwania szablonu.', 'error'); } finally { setIsSubmitting(false); setConfirmDeleteTemplate(null); } } },
+                ]}
+            />
         </View>
     );
 };

@@ -1,8 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, FlatList, TouchableOpacity, Modal, TextInput, ActivityIndicator, Switch, Platform } from 'react-native';
+import * as Haptics from 'expo-haptics';
 import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import auth from '@react-native-firebase/auth';
+import auth, { getAuth } from '@react-native-firebase/auth';
 import { db } from '../../firebaseConfig';
 import { collection, query, where, onSnapshot, addDoc, doc, getDoc } from 'firebase/firestore';
 import { Feather } from '@expo/vector-icons';
@@ -33,7 +34,7 @@ const BudgetsScreen = () => {
     const [isSubmittingBudget, setIsSubmittingBudget] = useState(false);
     const [pairId, setPairId] = useState<string | null>(null);
 
-    const currentUser = auth().currentUser;
+    const currentUser = getAuth().currentUser;
     const { showToast } = useToast();
 
     useEffect(() => {
@@ -114,8 +115,8 @@ const BudgetsScreen = () => {
             setNewBudgetAmount('');
             setIsShared(false);
         } catch (error: any) {
-            console.error("Błąd dodawania budżetu:", error);
-            showToast(`Błąd dodawania budżetu: ${error.message}`, 'error');
+            console.error("Błąd dodawania budżetu");
+            showToast('Błąd dodawania budżetu.', 'error');
         } finally {
             setIsSubmittingBudget(false);
         }
@@ -135,7 +136,7 @@ const BudgetsScreen = () => {
             <TouchableOpacity onPress={() => navigation.navigate('BudgetDetail', { budgetId: item.id })}>
                 <View style={styles.budgetItem}>
                     <View style={styles.budgetInfo}>
-                        <Text style={styles.budgetName}>{item.name}</Text>
+                        <Text style={styles.budgetName} numberOfLines={1} ellipsizeMode="tail">{item.name}</Text>
                         <Text style={styles.budgetAmount}>
                             {item.currentAmount.toFixed(2)} zł / {item.targetAmount.toFixed(2)} zł
                         </Text>
@@ -157,7 +158,7 @@ const BudgetsScreen = () => {
         <View style={GlobalStyles.container}>
             <View style={styles.headerContainer}>
                 <Text style={styles.headerTitle}>Twoje Budżety</Text>
-                <TouchableOpacity onPress={() => setModalVisible(true)}>
+                <TouchableOpacity onPress={async () => { try { await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium); } catch {}; setModalVisible(true); }}>
                     <Feather name="plus-circle" size={30} color={Colors.primary} />
                 </TouchableOpacity>
             </View>

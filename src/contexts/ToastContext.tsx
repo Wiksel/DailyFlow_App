@@ -1,7 +1,8 @@
-import React, { createContext, useContext, useState, ReactNode } from 'react';
+import React, { createContext, useContext, useState, ReactNode, useEffect, useRef } from 'react';
 import { View, Text, StyleSheet, Animated } from 'react-native';
 import { Feather } from '@expo/vector-icons';
 import { Colors, Spacing, Typography } from '../styles/AppStyles';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 type ToastType = 'success' | 'error' | 'info';
 
@@ -12,6 +13,9 @@ interface ToastMessage {
 
 interface ToastContextData {
   showToast: (message: string, type: ToastType) => void;
+  _toastState: { toast: ToastMessage | null; fadeAnim: Animated.Value };
+  suppressGlobalOverlay: () => void;
+  releaseGlobalOverlay: () => void;
 }
 
 const ToastContext = createContext<ToastContextData | undefined>(undefined);
@@ -31,31 +35,44 @@ interface ToastProviderProps {
 export const ToastProvider = ({ children }: ToastProviderProps) => {
   const [toast, setToast] = useState<ToastMessage | null>(null);
   const fadeAnim = useState(new Animated.Value(0))[0];
+  const [overlaySuppressCount, setOverlaySuppressCount] = useState(0);
+  const hideTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const showToast = (message: string, type: ToastType) => {
-    // Jeśli toast jest już wyświetlany, po prostu zaktualizuj wiadomość
-    if (toast) {
-      setToast({ message, type });
-      return;
-    }
-    
+    // Ustaw treść
     setToast({ message, type });
-    Animated.sequence([
-      Animated.timing(fadeAnim, {
-        toValue: 1,
-        duration: 300,
-        useNativeDriver: true,
-      }),
-      Animated.delay(2500),
+
+    // Zatrzymaj i zresetuj animację oraz timer ukrywania
+    if (hideTimeoutRef.current) {
+      clearTimeout(hideTimeoutRef.current);
+      hideTimeoutRef.current = null;
+    }
+
+    // Upewnij się, że toast jest widoczny (fade in)
+    Animated.timing(fadeAnim, {
+      toValue: 1,
+      duration: 300,
+      useNativeDriver: true,
+    }).start();
+
+    // Ustaw nowy czas wygaśnięcia od zera
+    hideTimeoutRef.current = setTimeout(() => {
       Animated.timing(fadeAnim, {
         toValue: 0,
         duration: 300,
         useNativeDriver: true,
-      }),
-    ]).start(() => {
-      setToast(null);
-    });
+      }).start(() => setToast(null));
+    }, 2500);
   };
+
+  // Sprzątanie timera przy odmontowaniu providera
+  useEffect(() => {
+    return () => {
+      if (hideTimeoutRef.current) {
+        clearTimeout(hideTimeoutRef.current);
+      }
+    };
+  }, []);
 
   const getToastStyle = (type: ToastType) => {
     switch (type) {
@@ -72,23 +89,73 @@ export const ToastProvider = ({ children }: ToastProviderProps) => {
 
   const toastStyle = toast ? getToastStyle(toast.type) : null;
 
+  const suppressGlobalOverlay = () => setOverlaySuppressCount((c) => c + 1);
+  const releaseGlobalOverlay = () => setOverlaySuppressCount((c) => Math.max(0, c - 1));
+
   return (
-    <ToastContext.Provider value={{ showToast }}>
+    <ToastContext.Provider value={{ showToast, _toastState: { toast, fadeAnim }, suppressGlobalOverlay, releaseGlobalOverlay }}>
       {children}
-      {toast && toastStyle && (
-        <Animated.View style={[styles.toastContainer, { opacity: fadeAnim, backgroundColor: toastStyle.backgroundColor }]}>
-          <Feather name={toastStyle.iconName} size={24} color="white" style={styles.icon} />
-          <Text style={styles.toastText}>{toast.message}</Text>
-        </Animated.View>
-      )}
+      {overlaySuppressCount === 0 && <ToastOverlay />}
     </ToastContext.Provider>
   );
+};
+
+export const ToastOverlay = ({ topOffset }: { topOffset?: number }) => {
+  const context = useContext(ToastContext);
+  if (!context) return null;
+  const { _toastState } = context;
+  const { toast, fadeAnim } = _toastState;
+  const insets = useSafeAreaInsets();
+
+  if (!toast) return null;
+
+  const getToastStyle = (type: ToastType) => {
+    switch (type) {
+      case 'success':
+        return { backgroundColor: Colors.success, iconName: 'check-circle' as const };
+      case 'error':
+        return { backgroundColor: Colors.error, iconName: 'alert-triangle' as const };
+      case 'info':
+        return { backgroundColor: Colors.info, iconName: 'info' as const };
+      default:
+        return { backgroundColor: Colors.textSecondary, iconName: 'help-circle' as const };
+    }
+  };
+
+  const toastStyle = getToastStyle(toast.type);
+
+  return (
+    <View pointerEvents="none" style={StyleSheet.absoluteFill}>
+      <Animated.View
+        pointerEvents="none"
+        style={[
+          styles.toastContainer,
+          { opacity: fadeAnim, backgroundColor: toastStyle.backgroundColor, top: insets.top + (topOffset ?? Spacing.medium) },
+        ]}
+      >
+        <Feather name={toastStyle.iconName} size={24} color="white" style={styles.icon} />
+        <Text style={styles.toastText}>{toast.message}</Text>
+      </Animated.View>
+    </View>
+  );
+};
+
+// Komponent do lokalnego wyłączenia globalnego overlay (np. wewnątrz modalów)
+export const ToastOverlaySuppressor = () => {
+  const context = useContext(ToastContext);
+  if (!context) return null;
+  const { suppressGlobalOverlay, releaseGlobalOverlay } = context;
+  useEffect(() => {
+    suppressGlobalOverlay();
+    return () => releaseGlobalOverlay();
+  }, []);
+  return null;
 };
 
 const styles = StyleSheet.create({
   toastContainer: {
     position: 'absolute',
-    top: Spacing.xxLarge,
+    top: 0,
     left: Spacing.medium,
     right: Spacing.medium,
     padding: Spacing.medium,
