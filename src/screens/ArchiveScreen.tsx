@@ -318,8 +318,12 @@ const ArchiveScreen = () => {
             <AppHeader title="Archiwum" />
             {/* Pasek akcji eksportu */}
             <Animated.View entering={FadeInUp} layout={Layout.springify()} style={[GlobalStyles.card, styles.exportBar, { backgroundColor: theme.colors.card, borderColor: theme.colors.border }]}> 
-                <TouchableOpacity
-                    style={[GlobalStyles.button, styles.exportButton, { backgroundColor: theme.colors.primary }]}
+                <ActionButton
+                    leftIcon="download"
+                    leftIconSize={20}
+                    title="Eksportuj CSV"
+                    haptic="light"
+                    style={[styles.exportButton, { backgroundColor: theme.colors.primary }]}
                     onPress={async () => {
                         try {
                             await Haptics.selectionAsync();
@@ -350,11 +354,13 @@ const ArchiveScreen = () => {
                             showToast('Nie udało się wyeksportować CSV.', 'error');
                         }
                     }}
-                >
-                    <Text style={GlobalStyles.buttonText}>Eksportuj CSV</Text>
-                </TouchableOpacity>
-                <TouchableOpacity
-                    style={[GlobalStyles.button, styles.exportButton, { backgroundColor: theme.colors.secondary, marginLeft: Spacing.small }]}
+                />
+                <ActionButton
+                    leftIcon="upload"
+                    leftIconSize={20}
+                    title="Importuj CSV"
+                    haptic="light"
+                    style={[styles.exportButton, { backgroundColor: theme.colors.secondary, marginLeft: Spacing.small }]}
                     onPress={async () => {
                         try { await Haptics.selectionAsync(); } catch {}
                         try {
@@ -396,9 +402,7 @@ const ArchiveScreen = () => {
                             showToast('Nie udało się zaimportować CSV.', 'error');
                         }
                     }}
-                >
-                    <Text style={GlobalStyles.buttonText}>Importuj CSV</Text>
-                </TouchableOpacity>
+                />
             </Animated.View>
             {/* Przełącznik typu zadań (osobiste/wspólne/wszystkie) */}
             <Animated.View entering={FadeInUp.delay(60)} layout={Layout.springify()} style={[GlobalStyles.card, styles.taskTypeSwitchContainer, { backgroundColor: theme.colors.card, borderColor: theme.colors.border }]}> 

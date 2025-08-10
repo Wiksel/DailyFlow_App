@@ -1,5 +1,6 @@
 import React, { useRef } from 'react';
 import { Pressable, Text, ActivityIndicator, ViewStyle, TextStyle } from 'react-native';
+import { Feather } from '@expo/vector-icons';
 import { GlobalStyles } from '../styles/AppStyles';
 import { useTheme } from '../contexts/ThemeContext';
 import Animated, { useSharedValue, useAnimatedStyle, withSpring } from 'react-native-reanimated';
@@ -12,9 +13,12 @@ interface ActionButtonProps {
     textStyle?: TextStyle | TextStyle[];
     disabled?: boolean;
     haptic?: 'light' | 'medium' | 'heavy' | false;
+    leftIcon?: keyof typeof Feather.glyphMap;
+    leftIconColor?: string;
+    leftIconSize?: number;
 }
 
-const ActionButton = ({ title, onPress, isLoading = false, style, textStyle, disabled = false, haptic = 'light' }: ActionButtonProps) => {
+const ActionButton = ({ title, onPress, isLoading = false, style, textStyle, disabled = false, haptic = 'light', leftIcon, leftIconColor, leftIconSize = 18 }: ActionButtonProps) => {
   const theme = useTheme();
   const lastPressRef = useRef<number>(0);
   const buttonDisabled = isLoading || disabled;
@@ -51,7 +55,10 @@ const ActionButton = ({ title, onPress, isLoading = false, style, textStyle, dis
         {isLoading ? (
           <ActivityIndicator color="white" />
         ) : (
-          <Text style={[GlobalStyles.buttonText, textStyle]}>{title}</Text>
+          <>
+            {leftIcon ? <Feather name={leftIcon} size={leftIconSize} color={leftIconColor || 'white'} /> : null}
+            <Text style={[GlobalStyles.buttonText, { marginLeft: leftIcon ? 8 : 0 }, textStyle]}>{title}</Text>
+          </>
         )}
       </Animated.View>
     </Pressable>
