@@ -126,7 +126,11 @@ const BudgetDetailScreen = () => {
     );
 
     if (loading || !budget) {
-        return <View style={GlobalStyles.container}><ActivityIndicator size="large" color={theme.colors.primary} /></View>;
+        return (
+            <View style={[GlobalStyles.container, { justifyContent: 'center', alignItems: 'center', backgroundColor: theme.colors.background }]}>
+                <ActivityIndicator size="large" color={theme.colors.primary} />
+            </View>
+        );
     }
 
     const progress = budget.targetAmount > 0 ? (budget.currentAmount / budget.targetAmount) * 100 : 0;

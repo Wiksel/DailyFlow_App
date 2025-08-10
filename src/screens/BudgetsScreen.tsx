@@ -171,7 +171,11 @@ const BudgetsScreen = () => {
     };
 
     if (loading) {
-        return <View style={GlobalStyles.container}><ActivityIndicator size="large" color={theme.colors.primary} /></View>;
+        return (
+            <View style={[GlobalStyles.container, { justifyContent: 'center', alignItems: 'center', backgroundColor: theme.colors.background }]}>
+                <ActivityIndicator size="large" color={theme.colors.primary} />
+            </View>
+        );
     }
 
     return (

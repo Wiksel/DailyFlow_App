@@ -97,6 +97,13 @@ const CategoriesScreen = () => {
         </View>
     );
 
+    if (loading) {
+        return (
+            <View style={[GlobalStyles.container, { backgroundColor: theme.colors.background, justifyContent: 'center', alignItems: 'center' }]}>
+                <ActivityIndicator size="large" color={theme.colors.primary} />
+            </View>
+        );
+    }
     return (
         <View style={[GlobalStyles.container, { backgroundColor: theme.colors.background }]}>
             <AppHeader title="Kategorie" />
