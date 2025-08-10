@@ -13,7 +13,7 @@ export const Colors = {
     textPrimary: '#333',     // Ciemny tekst
     textSecondary: '#6c757d', // Szary tekst
     backgroundLight: '#f5f5f5', // Jasne tło aplikacji
-    border: '#eee',          // Kolor obramowań
+    border: '#2b2b2b1a',          // Kolor obramowań (neutralny z alfą)
     inputBackground: '#f1f3f5', // Tło pól input
     activeTab: '#0782F9',    // Kolor aktywnej zakładki
     inactiveTab: 'gray',     // Kolor nieaktywnej zakładki

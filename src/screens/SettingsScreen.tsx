@@ -132,7 +132,11 @@ const SettingsScreen = () => {
     };
 
     if (loading || !settings) {
-        return <View style={styles.centered}><ActivityIndicator size="large" /></View>;
+        return (
+            <View style={[styles.centered, { backgroundColor: theme.colors.background }]}>
+                <ActivityIndicator size="large" color={theme.colors.primary} />
+            </View>
+        );
     }
 
     return (
