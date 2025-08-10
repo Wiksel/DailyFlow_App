@@ -194,6 +194,9 @@ const BudgetsScreen = () => {
                 )}
                 keyExtractor={item => item.id}
                 contentContainerStyle={{ paddingBottom: Spacing.xLarge * 2 }}
+                initialNumToRender={12}
+                windowSize={10}
+                maxToRenderPerBatch={12}
                 ListEmptyComponent={
                     <EmptyState
                         icon="dollar-sign"

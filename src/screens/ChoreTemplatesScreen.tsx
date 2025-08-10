@@ -236,7 +236,11 @@ const ChoreTemplatesScreen = () => {
                         keyExtractor={item => item.id}
                         ListHeaderComponent={<Text style={[styles.listHeader, { color: theme.colors.textPrimary }]}>Twoje szablony</Text>}
                         ListEmptyComponent={<Text style={[styles.emptyText, { color: theme.colors.textSecondary }]}>Brak szablonów w tej kategorii.</Text>}
-                    />
+                        initialNumToRender={12}
+                        windowSize={10}
+                        removeClippedSubviews
+                        maxToRenderPerBatch={12}
+                        />
                 )}
             </View>
             <ActionModal
