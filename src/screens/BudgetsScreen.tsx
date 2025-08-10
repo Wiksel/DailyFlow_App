@@ -210,7 +210,7 @@ const BudgetsScreen = () => {
 
             <Modal visible={modalVisible} animationType="slide" transparent={true} onRequestClose={() => setModalVisible(false)}>
                 <View style={styles.modalContainer}>
-                    <View style={[styles.modalContent, { backgroundColor: theme.colors.card }]}>
+                    <View style={[GlobalStyles.card, styles.modalContent, { backgroundColor: theme.colors.card }]}>
                         <Text style={styles.modalTitle}>Nowy Budżet</Text>
                         <TextInput
                             style={[GlobalStyles.input, { backgroundColor: theme.colors.inputBackground, borderColor: theme.colors.border, color: theme.colors.textPrimary }]}

@@ -317,7 +317,7 @@ const ArchiveScreen = () => {
         <View style={[GlobalStyles.container, { backgroundColor: theme.colors.background }]}>
             <AppHeader title="Archiwum" />
             {/* Pasek akcji eksportu */}
-            <Animated.View entering={FadeInUp} layout={Layout.springify()} style={[styles.exportBar, { backgroundColor: theme.colors.card, borderColor: theme.colors.border }]}> 
+            <Animated.View entering={FadeInUp} layout={Layout.springify()} style={[GlobalStyles.card, styles.exportBar, { backgroundColor: theme.colors.card, borderColor: theme.colors.border }]}> 
                 <TouchableOpacity
                     style={[GlobalStyles.button, styles.exportButton, { backgroundColor: theme.colors.primary }]}
                     onPress={async () => {
@@ -401,7 +401,7 @@ const ArchiveScreen = () => {
                 </TouchableOpacity>
             </Animated.View>
             {/* Przełącznik typu zadań (osobiste/wspólne/wszystkie) */}
-            <Animated.View entering={FadeInUp.delay(60)} layout={Layout.springify()} style={[styles.taskTypeSwitchContainer, { backgroundColor: theme.colors.card, borderColor: theme.colors.border }]}> 
+            <Animated.View entering={FadeInUp.delay(60)} layout={Layout.springify()} style={[GlobalStyles.card, styles.taskTypeSwitchContainer, { backgroundColor: theme.colors.card, borderColor: theme.colors.border }]}> 
                 <ActionButton
                     title="Osobiste"
                     onPress={() => { setArchivedTaskType('personal'); setSelectedPartnerId('all'); }}
@@ -442,7 +442,7 @@ const ArchiveScreen = () => {
 
             {/* Filtr po osobach, tylko jeśli wybrano "Wspólne" i użytkownik jest w parze */}
             {archivedTaskType === 'shared' && userProfile?.pairId && partnerNicknames.length > 0 && (
-                <Animated.View entering={FadeInUp.delay(120)} layout={Layout.springify()} style={[styles.partnerFilterContainer, { backgroundColor: theme.colors.card, borderColor: theme.colors.border }]}> 
+                <Animated.View entering={FadeInUp.delay(120)} layout={Layout.springify()} style={[GlobalStyles.card, styles.partnerFilterContainer, { backgroundColor: theme.colors.card, borderColor: theme.colors.border }]}> 
                     <Text style={[styles.partnerFilterLabel, { color: theme.colors.textSecondary }]}>Filtruj wg partnera:</Text>
                     <View style={[styles.pickerWrapper, { borderColor: theme.colors.border }]}>
                         <Picker

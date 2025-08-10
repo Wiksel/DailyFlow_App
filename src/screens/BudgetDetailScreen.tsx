@@ -139,7 +139,7 @@ const BudgetDetailScreen = () => {
     return (
         <View style={[GlobalStyles.container, { backgroundColor: theme.colors.background }]}>
             <AppHeader title="Szczegóły budżetu" />
-            <Animated.View entering={FadeInUp} layout={Layout.springify()} style={[styles.summaryContainer, { backgroundColor: theme.colors.card, borderColor: theme.colors.border }]}>
+            <Animated.View entering={FadeInUp} layout={Layout.springify()} style={[GlobalStyles.card, styles.summaryContainer, { backgroundColor: theme.colors.card, borderColor: theme.colors.border }]}> 
                 <Text style={[styles.budgetName, { color: theme.colors.textPrimary }]}>{budget.name}</Text>
                 <Text style={[styles.budgetAmount, { color: theme.colors.textSecondary }]}>{budget.currentAmount.toFixed(2)} zł / {budget.targetAmount.toFixed(2)} zł</Text>
                 <View style={[styles.progressBarContainer, { backgroundColor: theme.colors.border }]}>

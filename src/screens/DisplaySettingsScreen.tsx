@@ -18,7 +18,7 @@ const DisplaySettingsScreen = () => {
         <Text style={[styles.label, { color: theme.colors.textPrimary }]}>Motyw</Text>
         <View style={styles.row}>
           {(['system','light','dark'] as const).map(m => (
-            <TouchableOpacity key={m} style={[styles.chip, theme.mode === m && { backgroundColor: theme.colors.primary }]} onPress={() => theme.setMode(m)}>
+            <TouchableOpacity key={m} style={[styles.chip, theme.mode === m && { backgroundColor: theme.colors.primary }]} onPress={async () => { try { const h = await import('expo-haptics'); await h.selectionAsync(); } catch {}; theme.setMode(m); }}>
               <Text style={[styles.chipText, theme.mode === m && { color: 'white' }]}>
                 {m === 'system' ? 'Systemowy' : m === 'light' ? 'Jasny' : 'Ciemny'}
               </Text>
@@ -28,7 +28,7 @@ const DisplaySettingsScreen = () => {
         <Text style={[styles.label, { color: theme.colors.textPrimary, marginTop: Spacing.medium }]}>Motyw akcentu</Text>
         <View style={styles.row}>
           {(['blue','purple','mint','orange'] as const).map(a => (
-            <TouchableOpacity key={a} style={[styles.chip, { backgroundColor: theme.accent === a ? theme.colors.primary : theme.colors.inputBackground }]} onPress={() => theme.setAccent(a)}>
+            <TouchableOpacity key={a} style={[styles.chip, { backgroundColor: theme.accent === a ? theme.colors.primary : theme.colors.inputBackground }]} onPress={async () => { try { const h = await import('expo-haptics'); await h.selectionAsync(); } catch {}; theme.setAccent(a); }}>
               <Text style={[styles.chipText, { color: theme.accent === a ? 'white' : theme.colors.textPrimary }]}>
                 {a === 'blue' ? 'Niebieski' : a === 'purple' ? 'Fiolet' : a === 'mint' ? 'Mięta' : 'Pomarańcz'}
               </Text>
@@ -47,7 +47,7 @@ const DisplaySettingsScreen = () => {
         <Text style={[styles.label, { color: theme.colors.textPrimary, marginTop: Spacing.medium }]}>Gęstość interfejsu</Text>
         <View style={styles.row}>
           {['standard','compact'].map(mode => (
-            <TouchableOpacity key={mode} style={[styles.chip, { backgroundColor: (density===mode) ? theme.colors.primary : theme.colors.inputBackground }]} onPress={() => setDensity(mode as any)}>
+            <TouchableOpacity key={mode} style={[styles.chip, { backgroundColor: (density===mode) ? theme.colors.primary : theme.colors.inputBackground }]} onPress={async () => { try { const h = await import('expo-haptics'); await h.selectionAsync(); } catch {}; setDensity(mode as any); }}>
               <Text style={[styles.chipText, { color: (density===mode) ? 'white' : theme.colors.textPrimary }]}>
                 {mode==='compact' ? 'Kompaktowy' : 'Standardowy'}
               </Text>
