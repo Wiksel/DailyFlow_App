@@ -370,7 +370,8 @@ const ArchiveScreen = () => {
                                 if (!text) continue;
                                 const catName = (r['category'] || '').trim();
                                 const category = categories.find(c => c.name === catName)?.id || activeCategoryArchive !== 'all' ? activeCategoryArchive as string : (categories[0]?.id || 'default');
-                                await addDoc(collection(db, 'tasks'), {
+                                try {
+                                    await addDoc(collection(db, 'tasks'), {
                                     text,
                                     description: r['description'] || '',
                                     category,
@@ -385,8 +386,9 @@ const ArchiveScreen = () => {
                                     pairId: null,
                                     createdAt: new Date(),
                                     completedAt: new Date(),
-                                });
-                                imported++;
+                                    });
+                                    imported++;
+                                } catch {}
                             }
                             showToast(`Zaimportowano ${imported} pozycji.`, 'success');
                         } catch (e) {

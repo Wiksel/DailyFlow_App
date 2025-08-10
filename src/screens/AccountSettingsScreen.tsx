@@ -371,10 +371,10 @@ const AccountSettingsScreen = () => {
           <Text style={styles.label}>E‑mail i hasło</Text>
           {hasPassword ? (
             <>
-              <TouchableOpacity style={[GlobalStyles.button, styles.secondary]} onPress={() => setChangePasswordVisible(true)} disabled={isBusy}>
+        <TouchableOpacity style={[GlobalStyles.button, styles.secondary]} onPress={async () => { try { const m = await import('expo-haptics'); await m.selectionAsync(); } catch {}; setChangePasswordVisible(true); }} disabled={isBusy}>
                 <Text style={GlobalStyles.buttonText}>Zmień hasło</Text>
               </TouchableOpacity>
-              <TouchableOpacity style={[GlobalStyles.button, styles.danger, { marginTop: Spacing.small }]} onPress={() => setConfirmUnlink('password')} disabled={isBusy || requireAtLeastOneProvider()}>
+        <TouchableOpacity style={[GlobalStyles.button, styles.danger, { marginTop: Spacing.small }]} onPress={async () => { try { const m = await import('expo-haptics'); await m.notificationAsync(m.NotificationFeedbackType.Warning); } catch {}; setConfirmUnlink('password'); }} disabled={isBusy || requireAtLeastOneProvider()}>
                 <Text style={GlobalStyles.buttonText}>Odłącz</Text>
               </TouchableOpacity>
             </>
@@ -453,11 +453,11 @@ const AccountSettingsScreen = () => {
         <View style={styles.row}>
           <Text style={styles.label}>Google</Text>
           {hasGoogle ? (
-            <TouchableOpacity style={[GlobalStyles.button, styles.danger]} onPress={() => setConfirmUnlink('google.com')} disabled={isBusy || requireAtLeastOneProvider()}>
+            <TouchableOpacity style={[GlobalStyles.button, styles.danger]} onPress={async () => { try { const m = await import('expo-haptics'); await m.notificationAsync(m.NotificationFeedbackType.Warning); } catch {}; setConfirmUnlink('google.com'); }} disabled={isBusy || requireAtLeastOneProvider()}>
               <Text style={GlobalStyles.buttonText}>Odłącz Google</Text>
             </TouchableOpacity>
           ) : (
-            <TouchableOpacity style={GlobalStyles.button} onPress={linkGoogle} disabled={isBusy}>
+            <TouchableOpacity style={GlobalStyles.button} onPress={async () => { try { const m = await import('expo-haptics'); await m.selectionAsync(); } catch {}; linkGoogle(); }} disabled={isBusy}>
               <Text style={GlobalStyles.buttonText}>Połącz z Google</Text>
             </TouchableOpacity>
           )}
@@ -466,11 +466,11 @@ const AccountSettingsScreen = () => {
         <View style={styles.row}>
           <Text style={styles.label}>Telefon</Text>
           {hasPhone ? (
-            <TouchableOpacity style={[GlobalStyles.button, styles.danger]} onPress={() => unlinkProvider('phone')} disabled={isBusy || requireAtLeastOneProvider()}>
+            <TouchableOpacity style={[GlobalStyles.button, styles.danger]} onPress={async () => { try { const m = await import('expo-haptics'); await m.notificationAsync(m.NotificationFeedbackType.Warning); } catch {}; unlinkProvider('phone'); }} disabled={isBusy || requireAtLeastOneProvider()}>
               <Text style={GlobalStyles.buttonText}>Odłącz telefon</Text>
             </TouchableOpacity>
           ) : (
-            <TouchableOpacity style={GlobalStyles.button} onPress={() => showToast('Dodaj telefon przy logowaniu/rejestracji.', 'info')} disabled={isBusy}>
+            <TouchableOpacity style={GlobalStyles.button} onPress={async () => { try { const m = await import('expo-haptics'); await m.selectionAsync(); } catch {}; showToast('Dodaj telefon przy logowaniu/rejestracji.', 'info'); }} disabled={isBusy}>
               <Text style={GlobalStyles.buttonText}>Brak – dodaj</Text>
             </TouchableOpacity>
           )}
@@ -591,6 +591,7 @@ const AccountSettingsScreen = () => {
           {(['system','light','dark'] as const).map(mode => (
             <TouchableOpacity key={mode} style={[GlobalStyles.button, preferences.theme === mode && styles.secondary]} onPress={async () => {
               setPreferences(prev => ({ ...prev, theme: mode }));
+              try { const m = await import('expo-haptics'); await m.selectionAsync(); } catch {}
               if (user) await updateDoc(doc(db, 'users', user.uid), { preferences: { ...(preferences||{}), theme: mode } });
             }}>
               <Text style={GlobalStyles.buttonText}>{mode === 'system' ? 'System' : mode === 'light' ? 'Jasny' : 'Ciemny'}</Text>
@@ -602,6 +603,7 @@ const AccountSettingsScreen = () => {
           {(['pl','en'] as const).map(lng => (
             <TouchableOpacity key={lng} style={[GlobalStyles.button, preferences.language === lng && styles.secondary]} onPress={async () => {
               setPreferences(prev => ({ ...prev, language: lng }));
+              try { const m = await import('expo-haptics'); await m.selectionAsync(); } catch {}
               if (user) await updateDoc(doc(db, 'users', user.uid), { preferences: { ...(preferences||{}), language: lng } });
             }}>
               <Text style={GlobalStyles.buttonText}>{lng === 'pl' ? 'Polski' : 'English'}</Text>
@@ -612,7 +614,7 @@ const AccountSettingsScreen = () => {
 
       <View style={[GlobalStyles.section, { backgroundColor: theme.colors.card, borderColor: theme.colors.border }]}>
         <Text style={[styles.sectionTitle, { color: theme.colors.textPrimary }]}>Zarządzanie kontem</Text>
-        <TouchableOpacity style={[GlobalStyles.button, styles.danger]} onPress={() => setConfirmDeleteVisible(true)} disabled={isBusy}>
+        <TouchableOpacity style={[GlobalStyles.button, styles.danger]} onPress={async () => { try { const m = await import('expo-haptics'); await m.notificationAsync(m.NotificationFeedbackType.Warning); } catch {}; setConfirmDeleteVisible(true); }} disabled={isBusy}>
           <Text style={GlobalStyles.buttonText}>Usuń konto</Text>
         </TouchableOpacity>
       </View>

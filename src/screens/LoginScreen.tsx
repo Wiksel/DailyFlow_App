@@ -40,7 +40,7 @@ const LoginForm = React.memo(({ identifier, setIdentifier, loginPassword, setLog
         <TouchableOpacity style={styles.forgotPasswordButton} onPress={() => setForgotPasswordModalVisible(true)}>
             <Text style={[styles.forgotPasswordText, { color: theme.colors.primary }]}>Zapomniałem hasła</Text>
         </TouchableOpacity>
-        <TouchableOpacity style={[GlobalStyles.button, styles.buttonMarginTop]} onPress={handleLogin} disabled={isLoading}>
+            <TouchableOpacity style={[GlobalStyles.button, styles.buttonMarginTop]} onPress={async () => { try { const m = await import('expo-haptics'); await m.impactAsync(m.ImpactFeedbackStyle.Medium); } catch {}; handleLogin(); }} disabled={isLoading}>
             {isLoading ? <ActivityIndicator color="white" /> : <Text style={GlobalStyles.buttonText}>Zaloguj się</Text>}
         </TouchableOpacity>
         <View style={styles.dividerContainer}>
@@ -87,9 +87,9 @@ const RegisterForm = React.memo(({ registerData, handleRegisterDataChange, email
             />
             {!!passwordError && <Text style={styles.errorText}>{passwordError}</Text>}
         </View>
-        <TouchableOpacity
+            <TouchableOpacity
             style={[GlobalStyles.button, styles.buttonMarginTop, (isLoading || !isRegisterFormValid) && GlobalStyles.disabledButton]}
-            onPress={handleRegister}
+              onPress={async () => { if (isLoading || !isRegisterFormValid) return; try { const m = await import('expo-haptics'); await m.selectionAsync(); } catch {}; handleRegister(); }}
             disabled={isLoading || !isRegisterFormValid}
         >
             {isLoading ? <ActivityIndicator color="white" /> : <Text style={GlobalStyles.buttonText}>Stwórz konto</Text>}

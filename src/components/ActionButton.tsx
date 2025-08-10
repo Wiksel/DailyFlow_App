@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useRef } from 'react';
 import { Pressable, Text, ActivityIndicator, ViewStyle, TextStyle } from 'react-native';
 import { GlobalStyles } from '../styles/AppStyles';
 import { useTheme } from '../contexts/ThemeContext';
@@ -16,6 +16,7 @@ interface ActionButtonProps {
 
 const ActionButton = ({ title, onPress, isLoading = false, style, textStyle, disabled = false, haptic = 'light' }: ActionButtonProps) => {
   const theme = useTheme();
+  const lastPressRef = useRef<number>(0);
   const buttonDisabled = isLoading || disabled;
   const scale = useSharedValue(1);
   const animatedStyle = useAnimatedStyle(() => ({ transform: [{ scale: scale.value }], opacity: buttonDisabled ? 0.8 : 1 }));
@@ -26,6 +27,9 @@ const ActionButton = ({ title, onPress, isLoading = false, style, textStyle, dis
       onPressOut={() => { scale.value = withSpring(1, { damping: 18 }); }}
       onPress={async () => {
         if (buttonDisabled) return;
+        const now = Date.now();
+        if (now - lastPressRef.current < 700) return;
+        lastPressRef.current = now;
         try {
           const mod = await import('expo-haptics');
           if (haptic === 'light') await mod.impactAsync(mod.ImpactFeedbackStyle.Light);
