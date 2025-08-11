@@ -157,7 +157,7 @@ const DateRangeFilter = ({
     };
 
     return (
-        <View style={[styles.container, { backgroundColor: theme.colors.card, borderColor: theme.colors.border }]}>
+            <View style={[styles.container, { backgroundColor: theme.colors.card, borderColor: theme.colors.border }]}>
             <TouchableOpacity onPress={() => setIsExpanded(!isExpanded)} style={[styles.headerButton, { borderColor: theme.colors.border }]}>
                 <Text style={[styles.headerLabel, { color: theme.colors.textSecondary }, isFilterActive && { color: theme.colors.primary }]}>{label}</Text>
                 <Feather name={isExpanded ? "chevron-up" : "chevron-down"} size={20} color={isFilterActive ? theme.colors.primary : theme.colors.textSecondary} />
@@ -168,7 +168,7 @@ const DateRangeFilter = ({
                     {renderPredefinedRanges()}
                     
                     {/* DODANA PRZERWA między przyciskami a polami dat */}
-                    <View style={[styles.contentSeparator, { backgroundColor: theme.colors.border }]}></View>
+                        <View style={[styles.contentSeparator, { backgroundColor: theme.colors.border }]}></View>
 
                     <View style={styles.datePickerRow}>
                         {/* Przycisk OD z ikoną kalendarza */}
@@ -222,7 +222,6 @@ const DateRangeFilter = ({
 const styles = StyleSheet.create({
     container: {
         borderBottomWidth: 1,
-        borderColor: '#eee',
         padding: 0,
     },
     headerButton: {
@@ -231,12 +230,10 @@ const styles = StyleSheet.create({
         alignItems: 'center',
         padding: 15,
         borderBottomWidth: 1,
-        borderColor: '#eee',
     },
     headerLabel: {
         fontSize: 16,
         fontWeight: '600',
-        color: '#666',
     },
     headerLabelActive: {
         color: '#0782F9',
@@ -254,19 +251,16 @@ const styles = StyleSheet.create({
         paddingVertical: 8,
         paddingHorizontal: 12,
         borderRadius: 20,
-        backgroundColor: '#e9e9e9',
         marginRight: 8,
         justifyContent: 'center',
         alignItems: 'center',
     },
     predefinedButtonText: {
-        color: '#333',
         fontWeight: '500',
         fontSize: 13,
     },
     contentSeparator: {
         height: 1,
-        backgroundColor: '#f0f0f0',
         marginVertical: 10, // Zapewnia przerwę
     },
     datePickerRow: {
@@ -278,7 +272,6 @@ const styles = StyleSheet.create({
     datePickerButton: {
         flexDirection: 'row',
         alignItems: 'center',
-        backgroundColor: '#f0f0f0',
         borderRadius: 8,
         padding: 12,
         flex: 1,
@@ -292,7 +285,6 @@ const styles = StyleSheet.create({
     },
     datePickerText: {
         fontSize: 14,
-        color: '#333',
     },
     clearDateButton: {
         padding: 5,

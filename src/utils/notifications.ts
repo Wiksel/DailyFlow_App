@@ -11,7 +11,7 @@ async function getNotifications(): Promise<any | null> {
   }
 }
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { doc, updateDoc } from 'firebase/firestore';
+import { doc, updateDoc, increment, Timestamp, getDoc } from './firestoreCompat';
 import { getAuth } from '@react-native-firebase/auth';
 import { db } from '../../firebaseConfig';
 import { Task, UserProfile } from '../types';
@@ -33,11 +33,7 @@ export async function initNotifications() {
     { identifier: 'DONE', buttonTitle: 'Gotowe' },
     { identifier: 'SNOOZE_15', buttonTitle: 'Drzemka 15m' },
   ]);
-
-  const settings = await Notifications.getPermissionsAsync();
-  if (!settings.granted) {
-    await Notifications.requestPermissionsAsync();
-  }
+  // Nie prosimy o uprawnienia automatycznie – użytkownik może to zrobić na ekranie ustawień powiadomień
 }
 
 export async function registerNotificationResponseListener() {
@@ -50,7 +46,29 @@ export async function registerNotificationResponseListener() {
       const taskId: string | undefined = data?.taskId;
       if (!taskId) return;
       if (actionId === 'DONE') {
-        await updateDoc(doc(db, 'tasks', taskId), { completed: true, completedAt: new Date() });
+        // Ujednolicenie z logiką w UI: ustaw completed, completedAt, completedBy oraz zwiększ punkty/licznik
+        const auth = getAuth();
+        const uid = auth.currentUser?.uid;
+        let completedBy: string | null = null;
+        if (uid) {
+          try {
+            const userDoc = await getDoc(doc(db, 'users', uid));
+            completedBy = (userDoc.data() as any)?.nickname || null;
+          } catch {}
+        }
+        await updateDoc(doc(db, 'tasks', taskId), {
+          completed: true,
+          completedAt: Timestamp.now(),
+          ...(completedBy ? { completedBy } : {}),
+        });
+        if (uid) {
+          try {
+            await updateDoc(doc(db, 'users', uid), {
+              points: increment(10),
+              completedTasksCount: increment(1),
+            });
+          } catch {}
+        }
       } else if (actionId === 'SNOOZE_15') {
         const nextDate = new Date(Date.now() + 15 * 60 * 1000);
         await Notifications.scheduleNotificationAsync({

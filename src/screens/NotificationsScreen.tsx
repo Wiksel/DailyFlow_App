@@ -4,11 +4,13 @@ import { Colors, GlobalStyles, Spacing, Typography } from '../styles/AppStyles';
 import AppHeader from '../components/AppHeader';
 import { useTheme } from '../contexts/ThemeContext';
 import * as Notifications from 'expo-notifications';
+import { useToast } from '../contexts/ToastContext';
 
 const NotificationsScreen = () => {
   const theme = useTheme();
   const [loading, setLoading] = useState(true);
   const [enabled, setEnabled] = useState(false);
+  const { showToast } = useToast();
 
   useEffect(() => {
     (async () => {
@@ -25,6 +27,9 @@ const NotificationsScreen = () => {
     try {
       const res = await Notifications.requestPermissionsAsync();
       setEnabled(!!res.granted);
+      if (!res.granted) {
+        showToast('Aby korzystać z powiadomień, \nwłącz uprawnienia w ustawieniach systemowych.', 'info');
+      }
     } catch {}
     setLoading(false);
   };

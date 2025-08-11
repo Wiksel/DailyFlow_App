@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useState, ReactNode, useEffect, useRef } from 'react';
-import { collection, query, where, onSnapshot } from 'firebase/firestore';
+import { collection, query, where, onSnapshot } from '../utils/firestoreCompat';
 import auth from '@react-native-firebase/auth';
 import { db } from '../../firebaseConfig';
 import { Category } from '../types';

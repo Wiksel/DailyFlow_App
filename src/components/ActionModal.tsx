@@ -28,7 +28,7 @@ const ActionModal = ({ visible, title, message, actions, onRequestClose, childre
           <Text style={[styles.title, { color: theme.colors.textPrimary }]}>{title}</Text>
           {message ? <Text style={[styles.message, { color: theme.colors.textSecondary }]}>{message}</Text> : null}
           {children}
-          <View style={styles.actionsRow}>
+          <View style={styles.actionsContainer}>
             {actions.map((action, idx) => (
               <TouchableOpacity
                 key={`${action.text}-${idx}`}
@@ -77,13 +77,15 @@ const styles = StyleSheet.create({
     marginBottom: Spacing.large,
     lineHeight: Typography.body.fontSize * 1.4,
   },
-  actionsRow: {
+  actionsContainer: {
     flexDirection: 'row',
+    flexWrap: 'wrap',
     justifyContent: 'center',
-    gap: Spacing.medium,
+    gap: Spacing.small,
   },
   actionButton: {
     minWidth: 140,
+    flexGrow: 1,
   },
   secondaryButton: {
     backgroundColor: Colors.secondary,

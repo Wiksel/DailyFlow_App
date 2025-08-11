@@ -8,7 +8,8 @@ import { Swipeable } from 'react-native-gesture-handler';
 import { useNavigation } from '@react-navigation/native';
 import auth, { getAuth } from '@react-native-firebase/auth';
 import { db } from '../../firebaseConfig';
-import { collection, addDoc, query, where, onSnapshot, doc, updateDoc, deleteDoc, increment, Timestamp, getDoc } from 'firebase/firestore';
+import { collection, addDoc, query, where, onSnapshot, doc, updateDoc, deleteDoc, increment, Timestamp, getDoc } from '../utils/firestoreCompat';
+import { enqueueAdd, enqueueUpdate, enqueueDelete } from '../utils/offlineQueue';
 import { Feather } from '@expo/vector-icons';
 import AnimatedIconButton from '../components/AnimatedIconButton';
 import { TaskStackNavigationProp } from '../types/navigation';
@@ -133,8 +134,10 @@ const HomeScreen = () => {
             const profileData = docSnapshot.data() as UserProfile;
             if (profileData.pairId) {
                 const pairDoc = await getDoc(doc(db, 'pairs', profileData.pairId));
-                if (pairDoc.exists()) {
-                    const partnerId = pairDoc.data().members.find((id: string) => id !== currentUser.uid);
+            if (pairDoc.exists()) {
+                const pairData = pairDoc.data() as any;
+                const members: string[] = Array.isArray(pairData?.members) ? pairData.members : [];
+                const partnerId = members.find((id: string) => id !== currentUser.uid);
                     if (partnerId) {
                         const partnerDoc = await getDoc(doc(db, 'users', partnerId));
                         profileData.partnerNickname = partnerDoc.data()?.nickname || "Nieznany Partner";
@@ -277,10 +280,10 @@ const HomeScreen = () => {
         if (!currentUser) return;
         try {
             if (taskType === 'shared' && !userProfile?.pairId) {
-                showToast('Musisz być w parze, aby dodawać wspólne zadania.', 'info');
+                showToast('Musisz być w parze, \naby dodawać wspólne zadania.', 'info');
                 return;
             }
-            await addDoc(collection(db, 'tasks'), {
+            const payload = {
                 ...taskData,
                 completed: false,
                 status: 'active',
@@ -289,7 +292,10 @@ const HomeScreen = () => {
                 isShared: taskType === 'shared',
                 pairId: taskType === 'shared' ? (userProfile?.pairId ?? null) : null,
                 createdAt: Timestamp.now(),
-             });
+             };
+            // spróbuj online, a w razie błędu dodaj do kolejki
+            try { await addDoc(collection(db, 'tasks'), payload); }
+            catch { await enqueueAdd('tasks', payload); }
             showToast("Zadanie dodane!", 'success');
         } catch (error) {
             console.error("Błąd dodawania zadania: ", error);
@@ -300,12 +306,12 @@ const HomeScreen = () => {
     const handleQuickAdd = async () => {
         if (!currentUser) return;
         if (!quickTaskText.trim()) return;
-        if (taskType === 'shared' && !userProfile?.pairId) { showToast('Musisz być w parze, aby dodawać wspólne zadania.', 'info'); return; }
+        if (taskType === 'shared' && !userProfile?.pairId) { showToast('Musisz być w parze, \naby dodawać wspólne zadania.', 'info'); return; }
         try {
             const defaultCategoryId = activeCategory === 'all'
                 ? (categories.find(c => c.name === 'Inne')?.id || 'default')
                 : activeCategory;
-            await addDoc(collection(db, 'tasks'), {
+            const payload = {
                 text: quickTaskText.trim(),
                 description: '',
                 category: defaultCategoryId,
@@ -319,7 +325,9 @@ const HomeScreen = () => {
                 isShared: taskType === 'shared',
                 pairId: taskType === 'shared' ? (userProfile?.pairId ?? null) : null,
                 createdAt: Timestamp.now(),
-            });
+            };
+            try { await addDoc(collection(db, 'tasks'), payload); }
+            catch { await enqueueAdd('tasks', payload); }
             setQuickTaskText('');
             showToast('Dodano!', 'success');
         } catch (e) {
@@ -332,10 +340,10 @@ const HomeScreen = () => {
         if (!currentUser) return;
         try {
             if (taskType === 'shared' && !userProfile?.pairId) {
-                showToast('Musisz być w parze, aby dodawać wspólne zadania.', 'info');
+                showToast('Musisz być w parze, \naby dodawać wspólne zadania.', 'info');
                 return;
             }
-            const newDocRef = await addDoc(collection(db, 'tasks'), {
+            const payload = {
                 text: template.name,
                 description: '',
                 category: template.category,
@@ -349,11 +357,14 @@ const HomeScreen = () => {
                 isShared: taskType === 'shared',
                 pairId: taskType === 'shared' ? (userProfile?.pairId ?? null) : null,
                 createdAt: Timestamp.now(),
-            });
+            };
+            let newId: string | null = null;
+            try { const ref = await addDoc(collection(db, 'tasks'), payload); newId = ref.id; }
+            catch { await enqueueAdd('tasks', payload); }
 
             setTemplatesModalVisible(false);
             showToast("Zadanie z szablonu dodane!", 'success');
-            navigation.navigate('TaskDetail', { taskId: newDocRef.id });
+            if (newId) navigation.navigate('TaskDetail', { taskId: newId });
         } catch (error) {
             console.error("Błąd dodawania zadania z szablonu: ", error);
         }
@@ -368,15 +379,18 @@ const HomeScreen = () => {
             const taskRef = doc(db, 'tasks', task.id);
             const userRef = doc(db, 'users', currentUser.uid);
             const isCompleting = !task.completed;
-            await updateDoc(taskRef, {
+            const updatePayload = {
                 completed: isCompleting,
                 completedAt: isCompleting ? Timestamp.now() : null,
                 completedBy: isCompleting ? userProfile.nickname : null,
-            });
-            await updateDoc(userRef, {
-                points: increment(isCompleting ? 10 : -10),
-                completedTasksCount: increment(isCompleting ? 1 : -1)
-            });
+            };
+            try { await updateDoc(taskRef, updatePayload); }
+            catch { await enqueueUpdate(`tasks/${task.id}`, updatePayload); }
+            const userUpdate = isCompleting
+              ? { __inc: { points: 10, completedTasksCount: 1 } }
+              : { __inc: { points: -10, completedTasksCount: -1 } };
+            try { await updateDoc(userRef, { points: increment(isCompleting ? 10 : -10), completedTasksCount: increment(isCompleting ? 1 : -1) }); }
+            catch { await enqueueUpdate(`users/${currentUser.uid}`, userUpdate as any); }
             // Subtelny feedback dotykowy
             try { await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); } catch { try { Vibration.vibrate(10); } catch {} }
             showToast(isCompleting ? "Zadanie ukończone!" : "Cofnięto ukończenie zadania.", 'success');
@@ -611,7 +625,7 @@ const HomeScreen = () => {
                 <TouchableOpacity
                     style={styles.templateFab}
                     onPress={() => {
-                        if (taskType === 'shared' && !userProfile?.pairId) { showToast('Musisz być w parze, aby korzystać ze wspólnych szablonów.', 'info'); return; }
+                        if (taskType === 'shared' && !userProfile?.pairId) { showToast('Musisz być w parze, \naby korzystać ze wspólnych szablonów.', 'info'); return; }
                         setTemplatesModalVisible(true);
                     }}
                 >
@@ -620,7 +634,7 @@ const HomeScreen = () => {
                  <TouchableOpacity
                     style={styles.fab}
                     onPress={() => {
-                        if (taskType === 'shared' && !userProfile?.pairId) { showToast('Musisz być w parze, aby dodawać wspólne zadania.', 'info'); return; }
+                        if (taskType === 'shared' && !userProfile?.pairId) { showToast('Musisz być w parze,\naby dodawać wspólne zadania.', 'info'); return; }
                         setAddTaskModalVisible(true);
                     }}
                 >
@@ -667,10 +681,12 @@ const HomeScreen = () => {
                         const task = confirmModalTask!;
                         try {
                             if (task.completed) {
-                                await updateDoc(doc(db, 'tasks', task.id), { status: 'archived' });
+                                try { await updateDoc(doc(db, 'tasks', task.id), { status: 'archived' }); }
+                                catch { await enqueueUpdate(`tasks/${task.id}`, { status: 'archived' }); }
                                 showToast('Zadanie zarchiwizowane.', 'success');
                             } else {
-                                await deleteDoc(doc(db, 'tasks', task.id));
+                                try { await deleteDoc(doc(db, 'tasks', task.id)); }
+                                catch { await enqueueDelete(`tasks/${task.id}`); }
                                 showToast('Zadanie usunięte.', 'success');
                             }
                         } catch (e) {

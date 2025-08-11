@@ -1,6 +1,6 @@
 import React from 'react';
 import { View, Text, StyleSheet, TextInput, TouchableOpacity, ScrollView, Platform } from 'react-native';
-import { Timestamp } from 'firebase/firestore';
+import type { Timestamp as FirestoreTimestamp } from '../utils/firestoreCompat';
 import DateTimePicker, { DateTimePickerEvent } from '@react-native-community/datetimepicker';
 import Slider from '@react-native-community/slider';
 import PrioritySelector from './PrioritySelector';
@@ -16,7 +16,7 @@ export interface TaskFormData {
     category: string;
     basePriority: number;
     difficulty: number;
-    deadline: Timestamp | null;
+    deadline: FirestoreTimestamp | null;
 }
 
 interface TaskFormProps {

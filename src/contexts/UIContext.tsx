@@ -1,4 +1,5 @@
-import React, { createContext, useContext, useEffect, useMemo, useState } from 'react';
+import React, { createContext, useContext, useEffect, useMemo, useRef, useState } from 'react';
+import * as Network from 'expo-network';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 type Density = 'standard' | 'compact';
@@ -6,6 +7,8 @@ type Density = 'standard' | 'compact';
 interface UISettings {
   density: Density;
   setDensity: (d: Density) => void;
+  isOffline: boolean;
+  pendingOpsCount: number;
 }
 
 const STORAGE_KEY = 'dailyflow_ui_density';
@@ -14,6 +17,8 @@ const UIContext = createContext<UISettings | undefined>(undefined);
 
 export const UIProvider: React.FC<React.PropsWithChildren<{}>> = ({ children }) => {
   const [density, setDensityState] = useState<Density>('standard');
+  const [isOffline, setIsOffline] = useState<boolean>(false);
+  const [pendingOpsCount, setPendingOpsCount] = useState<number>(0);
 
   useEffect(() => {
     (async () => {
@@ -22,6 +27,28 @@ export const UIProvider: React.FC<React.PropsWithChildren<{}>> = ({ children }) 
         if (stored === 'standard' || stored === 'compact') setDensityState(stored);
       } catch {}
     })();
+    // initial network status
+    const prevOfflineRef = { current: isOffline } as { current: boolean };
+    (async () => {
+      try { const state = await Network.getNetworkStateAsync(); setIsOffline(!(state.isConnected && state.isInternetReachable)); } catch {}
+    })();
+    // poll network status lightly; better would be event if available
+    const t = setInterval(async () => {
+      try { const state = await Network.getNetworkStateAsync(); setIsOffline(!(state.isConnected && state.isInternetReachable)); } catch {}
+      // when going back online, try to process outbox immediately
+      try {
+        const state = await Network.getNetworkStateAsync();
+        const online = !!(state.isConnected && state.isInternetReachable);
+        if (online && prevOfflineRef.current) {
+          prevOfflineRef.current = false;
+          const mod = await import('../utils/offlineQueue');
+          try { await mod.processOutbox(); } catch {}
+        } else if (!online) {
+          prevOfflineRef.current = true;
+        }
+      } catch {}
+    }, 5000);
+    return () => clearInterval(t);
   }, []);
 
   const setDensity = async (d: Density) => {
@@ -29,7 +56,24 @@ export const UIProvider: React.FC<React.PropsWithChildren<{}>> = ({ children }) 
     try { await AsyncStorage.setItem(STORAGE_KEY, d); } catch {}
   };
 
-  const value = useMemo(() => ({ density, setDensity }), [density]);
+  useEffect(() => {
+    // read outbox size for current user periodically
+    const readCount = async () => {
+      try {
+        const { getAuth } = await import('@react-native-firebase/auth');
+        const uid = getAuth().currentUser?.uid; if (!uid) { setPendingOpsCount(0); return; }
+        const key = `dailyflow_outbox_${uid}`;
+        const raw = await AsyncStorage.getItem(key);
+        const arr = raw ? JSON.parse(raw) : [];
+        setPendingOpsCount(Array.isArray(arr) ? arr.length : 0);
+      } catch { setPendingOpsCount(0); }
+    };
+    const t = setInterval(readCount, 4000);
+    readCount();
+    return () => clearInterval(t);
+  }, []);
+
+  const value = useMemo(() => ({ density, setDensity, isOffline, pendingOpsCount }), [density, isOffline, pendingOpsCount]);
   return <UIContext.Provider value={value}>{children}</UIContext.Provider>;
 };
 

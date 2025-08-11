@@ -4,7 +4,8 @@ import ActionModal from '../components/ActionModal';
 import { useRoute, RouteProp } from '@react-navigation/native';
 import auth, { getAuth } from '@react-native-firebase/auth'; // ZMIANA
 import { db } from '../../firebaseConfig'; // <--- TEN IMPORT ZOSTAJE
-import { collection, query, where, onSnapshot, addDoc, deleteDoc, doc, updateDoc } from 'firebase/firestore';
+import { collection, query, where, onSnapshot, addDoc, deleteDoc, doc, updateDoc } from '../utils/firestoreCompat';
+import { enqueueAdd, enqueueUpdate, enqueueDelete } from '../utils/offlineQueue';
 import Slider from '@react-native-community/slider';
 import { Feather } from '@expo/vector-icons';
 import { TaskStackParamList } from '../types/navigation';
@@ -94,20 +95,24 @@ const ChoreTemplatesScreen = () => {
         try {
             if (editingTemplate) {
                 const templateRef = doc(db, 'choreTemplates', editingTemplate.id);
-                await updateDoc(templateRef, {
+                const payload = {
                     name: newTemplateName.trim(),
                     difficulty: newTemplateDifficulty,
                     category: selectedCategory,
-                });
+                };
+                try { await updateDoc(templateRef, payload); }
+                catch { await enqueueUpdate(`choreTemplates/${editingTemplate.id}`, payload); }
                 showToast("Szablon zaktualizowany!", 'success');
                 setEditingTemplate(null);
             } else {
-                await addDoc(collection(db, 'choreTemplates'), {
+                const payload = {
                     name: newTemplateName.trim(),
                     difficulty: newTemplateDifficulty,
                     category: selectedCategory,
                     userId: currentUser.uid,
-                });
+                };
+                try { await addDoc(collection(db, 'choreTemplates'), payload); }
+                catch { await enqueueAdd('choreTemplates', payload); }
                 showToast("Szablon dodany!", 'success');
             }
             setNewTemplateName('');
@@ -250,7 +255,7 @@ const ChoreTemplatesScreen = () => {
                 onRequestClose={() => setConfirmDeleteTemplate(null)}
                 actions={[
                     { text: 'Anuluj', variant: 'secondary', onPress: () => setConfirmDeleteTemplate(null) },
-                    { text: 'Usuń', onPress: async () => { if (!confirmDeleteTemplate) return; setIsSubmitting(true); try { await deleteDoc(doc(db, 'choreTemplates', confirmDeleteTemplate.id)); showToast('Szablon usunięty!', 'success'); } catch (e:any) { showToast('Błąd podczas usuwania szablonu.', 'error'); } finally { setIsSubmitting(false); setConfirmDeleteTemplate(null); } } },
+                     { text: 'Usuń', onPress: async () => { if (!confirmDeleteTemplate) return; setIsSubmitting(true); try { await deleteDoc(doc(db, 'choreTemplates', confirmDeleteTemplate.id)); showToast('Szablon usunięty!', 'success'); } catch (e:any) { try { await enqueueDelete(`choreTemplates/${confirmDeleteTemplate.id}`); showToast('Szablon zostanie usunięty po powrocie online.', 'info'); } catch {} } finally { setIsSubmitting(false); setConfirmDeleteTemplate(null); } } },
                 ]}
             />
         </View>

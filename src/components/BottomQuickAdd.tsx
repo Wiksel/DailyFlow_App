@@ -30,9 +30,10 @@ const BottomQuickAdd: React.FC<BottomQuickAddProps> = ({ value, onChangeText, pl
         editable={!disabled}
         onSubmitEditing={onSubmit}
         returnKeyType="done"
+        testID="quick-add-input"
       />
       <Animated.View style={animatedStyle}>
-        <TouchableOpacity onPressIn={() => { if (!disabled) scale.value = withSpring(0.96, { damping: 18 }); }} onPressOut={() => { scale.value = withSpring(1, { damping: 18 }); }} onPress={onSubmit} disabled={disabled} style={[styles.addButton, { backgroundColor: disabled ? theme.colors.placeholder : theme.colors.primary }]} accessibilityLabel="Dodaj">
+        <TouchableOpacity testID="quick-add-button" onPressIn={() => { if (!disabled) scale.value = withSpring(0.96, { damping: 18 }); }} onPressOut={() => { scale.value = withSpring(1, { damping: 18 }); }} onPress={onSubmit} disabled={disabled} style={[styles.addButton, { backgroundColor: disabled ? theme.colors.placeholder : theme.colors.primary }]} accessibilityLabel="Dodaj">
           <Feather name="plus" size={22} color={'#fff'} />
         </TouchableOpacity>
       </Animated.View>

@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Platform, ActivityIndicator, Alert, FlatList, TextInput } from 'react-native';
 import { useRoute, useNavigation } from '@react-navigation/native';
-import { doc, getDoc, updateDoc, Timestamp, collection, query, where, getDocs, addDoc, onSnapshot, orderBy } from 'firebase/firestore'; // ZMIANA: Dodano 'getDoc' i 'where'
+import { doc, getDoc, updateDoc, Timestamp, collection, query, where, getDocs, addDoc, onSnapshot, orderBy } from '../utils/firestoreCompat';
 import auth, { getAuth } from '@react-native-firebase/auth';
 import { db } from '../../firebaseConfig';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
@@ -115,7 +115,11 @@ const TaskDetailScreen = () => {
         if (!task) return;
         setIsSavingTask(true);
         try {
-            await updateDoc(doc(db, 'tasks', taskId), { ...task });
+            try {
+                await updateDoc(doc(db, 'tasks', taskId), { ...task });
+            } catch {
+                try { const { enqueueUpdate } = await import('../utils/offlineQueue'); await enqueueUpdate(`tasks/${taskId}`, { ...task }); } catch {}
+            }
             showToast("Zadanie zaktualizowane.", 'success');
             navigation.goBack();
         } catch (error) {
@@ -145,7 +149,7 @@ const TaskDetailScreen = () => {
                 category: task.category,
                 userId: currentUser.uid,
             });
-            showToast(`Zadanie "${task.text}" zostało zapisane jako nowy szablon.`, 'success');
+            showToast(`Zadanie "${task.text}" zostało zapisane \njako nowy szablon.`, 'success');
             navigation.navigate('ChoreTemplates', { templateId: newTemplateRef.id });
         } catch (error: any) {
             console.error("Błąd zapisu szablonu: ", error);
@@ -162,7 +166,13 @@ const TaskDetailScreen = () => {
     const onDateChange = (event: DateTimePickerEvent, selectedDate?: Date) => {
         setShowDatePicker(Platform.OS === 'ios');
         if (event.type === 'set' && selectedDate) {
-            handleDataChange('deadline', Timestamp.fromDate(selectedDate));
+            const today = new Date();
+            today.setHours(0,0,0,0);
+            const picked = new Date(selectedDate);
+            picked.setHours(0,0,0,0);
+            // prosta walidacja: nie pozwalaj na daty w przeszłości bez potwierdzenia; ustaw dzisiaj jeśli przeszłość
+            const finalDate = picked.getTime() < today.getTime() ? today : picked;
+            handleDataChange('deadline', Timestamp.fromDate(finalDate));
         }
     };
 
@@ -253,7 +263,7 @@ const styles = StyleSheet.create({
         left: 0,
         right: 0,
         bottom: 0,
-        backgroundColor: 'white',
+        backgroundColor: 'transparent',
         borderTopWidth: 1,
         borderColor: Colors.border,
         paddingHorizontal: Spacing.medium,

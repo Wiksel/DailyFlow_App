@@ -2,6 +2,7 @@
 import React from 'react';
 import { View, TouchableOpacity, StyleSheet, Text } from 'react-native'; // Dodano Text do podglądu priorytetu
 import { Colors, Spacing, Typography } from '../styles/AppStyles';
+import { useTheme } from '../contexts/ThemeContext';
 
 interface PrioritySelectorProps {
     value: number;
@@ -10,7 +11,8 @@ interface PrioritySelectorProps {
 
 const PrioritySelector = ({ value, onSelect }: PrioritySelectorProps) => {
     const priorities = [1, 2, 3, 4, 5];
-    const colors = [Colors.success, Colors.success, Colors.warning, Colors.danger, Colors.danger];
+    const theme = useTheme();
+    const colors = [theme.colors.success, theme.colors.success, theme.colors.warning, theme.colors.danger, theme.colors.danger];
 
     return (
         <View style={styles.priorityContainer}>
@@ -21,7 +23,7 @@ const PrioritySelector = ({ value, onSelect }: PrioritySelectorProps) => {
                             styles.priorityBar,
                             {
                                 height: 10 + p * 5,
-                                backgroundColor: p <= value ? colors[p - 1] : Colors.border
+                                backgroundColor: p <= value ? colors[p - 1] : theme.colors.border
                             }
                         ]} />
                         {/* JEŚLI CHCESZ WYŚWIETLAĆ NUMER PRIORYTETU, MUSI BYĆ TAK: */}

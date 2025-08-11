@@ -154,15 +154,16 @@ const PhonePasswordResetModal = ({ visible, onClose, onSuccess }: PhonePasswordR
         new Promise<never>((_, reject) => setTimeout(() => reject(new Error('timeout')), 20000)),
       ]);
       setConfirmation(confirmationResult);
-      // @ts-ignore
-      verificationIdRef.current = (confirmationResult as any).verificationId || null;
+      verificationIdRef.current = (
+        confirmationResult as FirebaseAuthTypes.ConfirmationResult & { verificationId?: string }
+      ).verificationId ?? null;
       setStep('enter-code');
       showCustomToast('Kod weryfikacyjny został wysłany!', 'success');
       resendUntilRef.current = Date.now() + 30_000;
       setResendSeconds(30);
     } catch (error: any) {
       if (error?.code === 'auth/too-many-requests') {
-        showCustomToast('Zbyt wiele prób. Spróbuj ponownie później.', 'error');
+        showCustomToast('Zbyt wiele prób. \nSpróbuj ponownie później.', 'error');
       } else if (error?.code === 'auth/invalid-phone-number') {
         showCustomToast('Nieprawidłowy format numeru telefonu.', 'error');
       } else if (error?.message === 'timeout') {
@@ -180,19 +181,24 @@ const PhonePasswordResetModal = ({ visible, onClose, onSuccess }: PhonePasswordR
     const fullPhoneNumber = `+${country.callingCode[0]}${phoneNumber}`;
     setIsResending(true);
     try {
+      try { await getAuth().signOut(); } catch {}
+      await new Promise(r => setTimeout(r, 300));
       const confirmationResult = await Promise.race([
         auth().signInWithPhoneNumber(fullPhoneNumber),
         new Promise<never>((_, reject) => setTimeout(() => reject(new Error('timeout')), 20000)),
       ]);
       setConfirmation(confirmationResult);
-      // @ts-ignore
-      verificationIdRef.current = (confirmationResult as any).verificationId || null;
+      verificationIdRef.current = (
+        confirmationResult as FirebaseAuthTypes.ConfirmationResult & { verificationId?: string }
+      ).verificationId ?? null;
       showCustomToast('Kod weryfikacyjny został wysłany!', 'success');
       resendUntilRef.current = Date.now() + 30_000;
       setResendSeconds(30);
     } catch (e: any) {
       if (e?.message === 'timeout') {
         showCustomToast('Przekroczono czas wysyłki SMS. Spróbuj ponownie.', 'error');
+      } else if (e?.code === 'auth/too-many-requests') {
+        showCustomToast('Zbyt wiele prób. \nOdczekaj chwilę i spróbuj ponownie.', 'error');
       } else {
         showCustomToast('Nie udało się wysłać kodu. Spróbuj ponownie.', 'error');
       }
@@ -305,8 +311,9 @@ const PhonePasswordResetModal = ({ visible, onClose, onSuccess }: PhonePasswordR
             <Text style={styles.modalTitle}>Wpisz kod weryfikacyjny</Text>
             <Text style={styles.modalSubtitle}>{`Wysłaliśmy 6-cyfrowy kod\nna numer +${country.callingCode[0]} ${formattedPhoneNumber}.`}</Text>
             <TextInput 
-              style={[GlobalStyles.input, { textAlign: 'center', letterSpacing: 8 }]} 
+              style={[GlobalStyles.input, { textAlign: 'center', letterSpacing: 8, color: '#fff', backgroundColor: 'transparent', borderColor: '#333' }]} 
               placeholder="000000" 
+              placeholderTextColor={Colors.placeholder}
               keyboardType="number-pad" 
               value={code} 
               onChangeText={setCode} 
@@ -358,12 +365,12 @@ const PhonePasswordResetModal = ({ visible, onClose, onSuccess }: PhonePasswordR
 
   return (
     <Modal visible={visible} transparent={true} animationType="fade" onRequestClose={handleClose}>
-      <View style={styles.modalContainer}>
+      <View style={[styles.modalContainer, { backgroundColor: 'rgba(0,0,0,0.75)' }]}>
         {/* Wyłącz globalny overlay na czas wyświetlania modala */}
         <ToastOverlaySuppressor />
-        <View style={styles.modalContent}>
+        <View style={[styles.modalContent, { backgroundColor: '#111', borderColor: '#222', borderWidth: 1 }]}>
           <TouchableOpacity style={styles.closeButton} onPress={handleClose}>
-            <Text style={styles.closeButtonText}>Anuluj</Text>
+            <Text style={[styles.closeButtonText, { color: '#bbb' }]}>Anuluj</Text>
           </TouchableOpacity>
           {renderStep()}
         </View>
@@ -384,15 +391,15 @@ const getToastStyle = (type: 'success' | 'error' | 'info') => {
 };
 
 const styles = StyleSheet.create({
-  modalContainer: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: 'rgba(0,0,0,0.5)' },
-  modalContent: { width: '90%', backgroundColor: 'white', borderRadius: 20, padding: Spacing.large, paddingTop: Spacing.xxLarge, elevation: 5, alignItems: 'center' },
-  modalTitle: { ...Typography.h2, textAlign: 'center', marginBottom: Spacing.small },
-  modalSubtitle: { ...Typography.body, color: Colors.textSecondary, textAlign: 'center', marginBottom: Spacing.large },
+  modalContainer: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: 'rgba(0,0,0,0.75)' },
+  modalContent: { width: '90%', backgroundColor: '#111', borderRadius: 20, padding: Spacing.large, paddingTop: Spacing.xxLarge, elevation: 5, alignItems: 'center', borderWidth: 1, borderColor: '#222' },
+  modalTitle: { ...Typography.h2, textAlign: 'center', marginBottom: Spacing.small, color: '#fff' },
+  modalSubtitle: { ...Typography.body, color: '#bbb', textAlign: 'center', marginBottom: Spacing.large },
   phoneInputContainer: { flexDirection: 'row', alignItems: 'center', borderWidth: 1, borderColor: Colors.border, borderRadius: 8, marginBottom: Spacing.medium, width: '100%' },
   countryPickerButton: { paddingVertical: Spacing.small, paddingHorizontal: Spacing.small, marginRight: Spacing.xSmall, },
-  phoneInput: { ...GlobalStyles.input, flex: 1, borderWidth: 0, backgroundColor: 'transparent', paddingLeft: Spacing.small, },
+  phoneInput: { ...GlobalStyles.input, flex: 1, borderWidth: 0, backgroundColor: 'transparent', paddingLeft: Spacing.small, color: '#fff' },
   closeButton: { position: 'absolute', top: Spacing.small, right: Spacing.medium, padding: Spacing.small },
-  closeButtonText: { color: Colors.textSecondary, fontSize: 16 },
+  closeButtonText: { color: '#bbb', fontSize: 16 },
   inputError: { borderColor: Colors.danger, },
   errorText: { color: Colors.danger, alignSelf: 'flex-start', width: '100%', marginLeft: Spacing.small, marginTop: Spacing.xSmall, marginBottom: Spacing.small, },
   buttonTextHidden: { opacity: 0, },

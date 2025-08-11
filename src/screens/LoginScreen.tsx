@@ -11,10 +11,10 @@ import ActionModal from '../components/ActionModal';
 import LinkAccountsModal from '../components/LinkAccountsModal';
 import PhoneAuthModal from '../components/PhoneAuthModal';
 import ForgotPasswordModal from '../components/ForgotPasswordModal';
-import { createNewUserInFirestore, findUserEmailByIdentifier } from '../utils/authUtils';
+import { createNewUserInFirestore, findUserEmailByIdentifier, popSuggestedLoginIdentifier, setSuggestedLoginIdentifier, upsertAuthProvidersForUser } from '../utils/authUtils';
 import { AuthStackParamList } from '../types/navigation';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import { doc, getDoc } from 'firebase/firestore';
+import { doc, getDoc, collection, query, where, getDocs, limit } from '../utils/firestoreCompat';
 import { db } from '../../firebaseConfig';
 import PasswordInput from '../components/PasswordInput';
 import Animated, { useSharedValue, useAnimatedStyle, withSpring, withTiming, interpolateColor, interpolate, useAnimatedReaction } from 'react-native-reanimated';
@@ -139,6 +139,11 @@ const LoginScreen = () => {
     const [linkEmail, setLinkEmail] = useState('');
     const [pendingGoogleCredential, setPendingGoogleCredential] = useState<any>(null);
     const [phoneModalVisible, setPhoneModalVisible] = useState(false);
+    const [loginSuggestionVisible, setLoginSuggestionVisible] = useState(false);
+    const [loginSuggestionEmail, setLoginSuggestionEmail] = useState<string>('');
+    const [loginSuggestionHasPassword, setLoginSuggestionHasPassword] = useState(false);
+    const [loginSuggestionHasGoogle, setLoginSuggestionHasGoogle] = useState(false);
+    const [loginSuggestionHasPhone, setLoginSuggestionHasPhone] = useState(false);
     const [forgotPasswordModalVisible, setForgotPasswordModalVisible] = useState(false);
     
     const progress = useSharedValue(0);
@@ -183,15 +188,50 @@ const LoginScreen = () => {
         setPasswordError('');
         return true;
     };
+    const openLoginSuggestion = async (email: string, methods: string[] | null) => {
+        const normalizedEmail = (email || '').trim().toLowerCase();
+        setLoginSuggestionEmail(normalizedEmail);
+        let resolvedMethods: string[] = Array.isArray(methods) ? methods : [];
+        if (!methods) {
+            try { resolvedMethods = await auth().fetchSignInMethodsForEmail(normalizedEmail); } catch { resolvedMethods = []; }
+            // Dodatkowy fallback: jeśli aktualny użytkownik Google w urządzeniu ma ten sam e‑mail, zaznacz Google
+            try {
+                const current = await GoogleSignin.getCurrentUser();
+                if (current?.user?.email?.toLowerCase() === normalizedEmail && !resolvedMethods.includes('google.com')) {
+                    resolvedMethods.push('google.com');
+                }
+            } catch {}
+        }
+        let hasPassword = !!resolvedMethods?.includes('password');
+        let hasGoogle = !!resolvedMethods?.includes('google.com');
+        let hasPhone = false;
+        try {
+            let snap = await getDocs(query(collection(db, 'users'), where('emailLower', '==', normalizedEmail), limit(1)) as any);
+            if (!snap || snap.docs.length === 0) {
+                snap = await getDocs(query(collection(db, 'users'), where('email', '==', normalizedEmail), limit(1)) as any);
+            }
+            const data = snap.docs[0]?.data() as any;
+            hasPhone = !!data?.phoneNumber;
+            if (data?.authProviders) {
+                hasGoogle = hasGoogle || !!data.authProviders.google;
+                hasPassword = hasPassword || !!data.authProviders.password;
+            }
+        } catch {}
+        setLoginSuggestionHasPassword(hasPassword);
+        setLoginSuggestionHasGoogle(hasGoogle);
+        setLoginSuggestionHasPhone(hasPhone);
+        setLoginSuggestionVisible(true);
+    };
+
     const handleAuthError = (error: any) => {
-        console.log("Błąd autoryzacji przechwycony:", error.message);
         const code = error.code || '';
         if (code === 'auth/invalid-credential' || code === 'auth/wrong-password') {
             showToast('Nieprawidłowe dane logowania.\nSprawdź identyfikator i hasło.', 'error');
         } else if (code === 'auth/too-many-requests') {
             showToast('Dostęp tymczasowo zablokowany. \nSpróbuj ponownie później.', 'info');
         } else if (code === 'auth/email-already-in-use') {
-            showToast('Ten adres e-mail jest już używany.', 'error');
+            const email = registerData.email || identifier;
+            openLoginSuggestion(email, null).catch(() => {});
         } else if (code === 'auth/weak-password') {
             showToast('Hasło jest zbyt słabe. Użyj min. 6 znaków, w tym cyfry i litery.', 'error');
         } else if (code === 'auth/invalid-email') {
@@ -211,13 +251,8 @@ const LoginScreen = () => {
         } 
         setIsLoading(true); 
         try { 
-            const userEmail = await findUserEmailByIdentifier(identifier); 
-            if (!userEmail) { 
-                showToast('Nie znaleziono użytkownika.', 'error'); 
-                setIsLoading(false); 
-                return; 
-            } 
-            const userCredentials = await signInWithEmailAndPassword(getAuth(), userEmail, loginPassword); 
+            const resolvedIdentifier = await findUserEmailByIdentifier(identifier); 
+            const userCredentials = await signInWithEmailAndPassword(getAuth(), resolvedIdentifier || identifier, loginPassword); 
             await userCredentials.user.reload(); 
             const freshUser = getAuth().currentUser; 
             const hasGoogleProvider = !!freshUser?.providerData?.some(p => p.providerId === 'google.com');
@@ -239,12 +274,31 @@ const LoginScreen = () => {
         if (!isEmailValid || !isPasswordValid) return;
         setIsLoading(true);
         try {
+            // Jeśli email ma już metody logowania — nie twórz konta, pokieruj użytkownika
+            try {
+                const methods = await auth().fetchSignInMethodsForEmail(email);
+                if (methods && methods.length > 0) {
+                    await openLoginSuggestion(email, methods);
+                    setIsLoading(false);
+                    return;
+                }
+            } catch {}
             const userCredentials = await createUserWithEmailAndPassword(getAuth(), email, password);
             await createNewUserInFirestore(userCredentials.user, nickname);
             await userCredentials.user.sendEmailVerification();
             setEmailVerificationUser(userCredentials.user);
             setEmailVerificationDialogVisible(true);
+            try { await setSuggestedLoginIdentifier(email); } catch {}
         } catch (error: any) {
+            const code = String(error?.code || '');
+            if (code === 'auth/email-already-in-use') {
+                try {
+                    const email = registerData.email;
+                    const methods = email ? await auth().fetchSignInMethodsForEmail(email) : [];
+                    await openLoginSuggestion(email, methods);
+                    return;
+                } catch {}
+            }
             handleAuthError(error);
         } finally {
             setIsLoading(false);
@@ -254,8 +308,9 @@ const LoginScreen = () => {
         setIsLoading(true);
         try {
             await GoogleSignin.hasPlayServices({ showPlayServicesUpdateDialog: true });
-            await GoogleSignin.signIn();
-            const idToken = (await GoogleSignin.getTokens())?.idToken;
+            const signInResp: any = await GoogleSignin.signIn();
+            let idToken = signInResp?.data?.idToken;
+            if (!idToken) idToken = (await GoogleSignin.getTokens())?.idToken;
             if (!idToken) throw new Error('Brak tokena Google');
             const googleCredential = GoogleAuthProvider.credential(idToken);
 
@@ -277,17 +332,25 @@ const LoginScreen = () => {
 
             const userCredential = await signInWithCredential(getAuth(), googleCredential);
             const user = userCredential.user;
+            try { await upsertAuthProvidersForUser(user); } catch {}
             const userDoc = await getDoc(doc(db, 'users', user.uid));
             if (!userDoc.exists()) {
                 navigation.navigate('Nickname');
             }
         } catch (error: any) {
-            if ((error.code === '12501') || (error.code === 'SIGN_IN_CANCELLED')) {
+            const code = String(error?.code || '')
+            if (code === '12501' || code === 'SIGN_IN_CANCELLED') {
                 showToast('Logowanie anulowane.', 'info');
-            } else if (error.code === 'auth/account-exists-with-different-credential') {
+            } else if (code === 'auth/account-exists-with-different-credential') {
                 setLinkEmail(error?.email || linkEmail);
                 setPendingGoogleCredential(error?.credential || pendingGoogleCredential);
                 setLinkModalVisible(true);
+            } else if (code === '12500' || code === 'sign_in_failed') {
+                showToast('Logowanie Google nie powiodło się. Spróbuj ponownie.', 'error');
+            } else if (code === '10' || code === 'DEVELOPER_ERROR') {
+                showToast('Błąd konfiguracji Google (SHA/klient). Zaktualizuj google-services.json i przebuduj.', 'error');
+            } else if (code === 'NETWORK_ERROR') {
+                showToast('Brak połączenia z siecią. Spróbuj ponownie.', 'error');
             } else {
                 showToast('Wystąpił błąd podczas logowania przez Google.', 'error');
             }
@@ -298,6 +361,10 @@ const LoginScreen = () => {
     const isRegisterFormValid = registerData.nickname.trim().length > 0 && isEmailValidCheck(registerData.email) && isPasswordValidCheck(registerData.password);
 
     useEffect(() => {
+        (async () => {
+            const suggested = await popSuggestedLoginIdentifier();
+            if (suggested) setIdentifier(suggested);
+        })();
         const keyboardDidShowListener = Keyboard.addListener('keyboardDidShow', () => { keyboardProgress.value = withTiming(1, { duration: 250 }); });
         const keyboardDidHideListener = Keyboard.addListener('keyboardDidHide', () => { keyboardProgress.value = withTiming(0, { duration: 250 }); });
         return () => {
@@ -373,6 +440,12 @@ const LoginScreen = () => {
             translateX: interpolate(progress.value, [0, 1], [FORM_CONTAINER_WIDTH * swipeDirection.value, 0])
         }]
     }));
+
+    const loginSuggestionDetails = [
+        loginSuggestionHasPassword ? '• Logowanie hasłem' : null,
+        loginSuggestionHasGoogle ? '• Logowanie Google' : null,
+        loginSuggestionHasPhone ? '• Logowanie telefonem' : null,
+    ].filter(Boolean).join('\n');
 
     return (
         <View style={[styles.container, { backgroundColor: theme.colors.background }]}>
@@ -462,6 +535,18 @@ const LoginScreen = () => {
                         handleAuthError(e);
                     }
                 }}
+            />
+            <ActionModal
+                visible={loginSuggestionVisible}
+                title={'Konto już istnieje'}
+                message={`Dla adresu ${loginSuggestionEmail} znaleziono:\n${loginSuggestionDetails || '— brak dopasowanych metod'}`}
+                actions={[
+                    ...(loginSuggestionHasPassword ? [{ text: 'Zaloguj hasłem', onPress: () => { setIdentifier(loginSuggestionEmail); swipeDirection.value = -1; targetProgress.value = 0; setLoginSuggestionVisible(false); } }] as any : []),
+                    ...(loginSuggestionHasGoogle ? [{ text: 'Zaloguj Google', onPress: async () => { setLoginSuggestionVisible(false); try { await onGoogleButtonPress(); } catch {} } }] as any : []),
+                    ...(loginSuggestionHasPhone ? [{ text: 'Zaloguj telefonem', onPress: () => { setLoginSuggestionVisible(false); setPhoneModalVisible(true); } }] as any : []),
+                    { text: 'Anuluj', onPress: () => setLoginSuggestionVisible(false), variant: 'secondary' },
+                ]}
+                onRequestClose={() => setLoginSuggestionVisible(false)}
             />
         </View>
     );

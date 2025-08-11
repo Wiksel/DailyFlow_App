@@ -21,6 +21,7 @@ export type TaskStackParamList = {
   RecurringSeries: undefined;
   Notifications: undefined;
   DisplaySettings: undefined;
+  Outbox: undefined;
 };
 
 export type BudgetStackParamList = {

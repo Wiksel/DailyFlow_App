@@ -1,7 +1,8 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { View, Text, StyleSheet, FlatList, TextInput, TouchableOpacity, ActivityIndicator } from 'react-native';
 import { getAuth } from '@react-native-firebase/auth';
-import { collection, query, where, onSnapshot, addDoc, doc, updateDoc, deleteDoc, Timestamp } from 'firebase/firestore';
+import { collection, query, where, onSnapshot, addDoc, doc, updateDoc, deleteDoc, Timestamp } from '../utils/firestoreCompat';
+import { enqueueAdd, enqueueDelete } from '../utils/offlineQueue';
 import { db } from '../../firebaseConfig';
 import { Colors, GlobalStyles, Spacing, Typography } from '../styles/AppStyles';
 import Animated, { FadeInUp, Layout } from 'react-native-reanimated';
@@ -64,14 +65,16 @@ const RecurringSeriesScreen = () => {
       // basic validation
       if (!payload.name.trim()) { showToast('Nazwa jest wymagana.', 'error'); return; }
       if (!category) { showToast('Wybierz kategorię.', 'error'); return; }
-      await addDoc(collection(db, 'recurringSeries'), payload as any);
+      try { await addDoc(collection(db, 'recurringSeries'), payload as any); }
+      catch { await enqueueAdd('recurringSeries', payload as any); }
       setName(''); setDesc(''); setInterval('1');
       showToast('Dodano serię cykliczną.', 'success');
     } catch (e: any) { showToast('Nie udało się dodać serii.', 'error'); }
   };
 
   const handleDelete = async (id: string) => {
-    try { await deleteDoc(doc(db, 'recurringSeries', id)); showToast('Usunięto serię.', 'success'); } catch { showToast('Błąd usuwania.', 'error'); }
+    try { await deleteDoc(doc(db, 'recurringSeries', id)); showToast('Usunięto serię.', 'success'); }
+    catch { try { await enqueueDelete(`recurringSeries/${id}`); showToast('Seria zostanie usunięta po powrocie online.', 'info'); } catch { showToast('Błąd usuwania.', 'error'); } }
   };
 
   if (loading) return (
@@ -147,7 +150,7 @@ const styles = StyleSheet.create({
   label: { ...Typography.body, fontWeight: '600', marginTop: Spacing.small },
   chipsRow: { flexDirection: 'row', flexWrap: 'wrap', marginTop: Spacing.xSmall },
   chip: { paddingHorizontal: Spacing.medium, paddingVertical: Spacing.xSmall, borderRadius: 16, marginRight: Spacing.small, marginTop: Spacing.xSmall },
-  row: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', padding: Spacing.large, borderBottomWidth: 1, borderColor: Colors.border, backgroundColor: 'white' },
+  row: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', padding: Spacing.large, borderBottomWidth: 1, borderColor: Colors.border, backgroundColor: 'transparent' },
   rowTitle: { ...Typography.body, fontWeight: '700' },
   rowSubtitle: { ...Typography.small, color: Colors.textSecondary },
 });

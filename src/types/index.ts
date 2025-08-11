@@ -1,4 +1,4 @@
-import { Timestamp } from "firebase/firestore";
+import type { Timestamp as FirestoreTimestamp } from "../utils/firestoreCompat";
 
 // Użytkownicy i Pary
 export interface UserProfile {
@@ -41,14 +41,14 @@ export interface Task {
     basePriority: number;
     priority: number;
     difficulty: number;
-    deadline: Timestamp | null;
-    createdAt: Timestamp;
+    deadline: FirestoreTimestamp | null;
+    createdAt: FirestoreTimestamp;
     category: string;
     completedBy?: string;
-    completedAt?: Timestamp;
+    completedAt?: FirestoreTimestamp;
     // Recurrence linkage (optional)
     seriesId?: string;
-    occurrenceDate?: Timestamp;
+    occurrenceDate?: FirestoreTimestamp;
 }
 
 export interface Comment {
@@ -56,7 +56,7 @@ export interface Comment {
     text: string;
     authorId: string;
     authorNickname: string;
-    createdAt: Timestamp;
+    createdAt: FirestoreTimestamp;
 }
 
 export interface ChoreTemplate {
@@ -86,7 +86,7 @@ export interface Expense {
     budgetId: string;
     addedBy: string;
     addedByName: string;
-    date: Timestamp;
+    date: FirestoreTimestamp;
 }
 
 // Cykliczne serie zadań
@@ -106,8 +106,8 @@ export interface RecurringSeries {
     interval: number; // co ile jednostek
     byWeekday?: number; // 0..6 (niedziela..sobota)
     byMonthDay?: number; // 1..31
-    startDate: Timestamp; // pierwszy dzień ważności serii
-    endDate?: Timestamp | null;
+    startDate: FirestoreTimestamp; // pierwszy dzień ważności serii
+    endDate?: FirestoreTimestamp | null;
     isShared: boolean;
     skips?: string[]; // ISO date yyyy-mm-dd dla pominiętych instancji
 }

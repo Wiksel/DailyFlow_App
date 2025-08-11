@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, FlatList, TouchableOpacity, Modal, TextInput, ActivityIndicator } from 'react-native';
 import { useRoute } from '@react-navigation/native';
-import { doc, onSnapshot, collection, addDoc, query, orderBy, getDoc, writeBatch, increment, where, Timestamp } from 'firebase/firestore';
+import { doc, onSnapshot, collection, addDoc, query, orderBy, getDoc, writeBatch, increment, where, Timestamp, updateDoc } from '../utils/firestoreCompat';
+import { enqueueAdd, enqueueUpdate } from '../utils/offlineQueue';
 import auth, { getAuth } from '@react-native-firebase/auth';
 import { db } from '../../firebaseConfig';
 import { Feather } from '@expo/vector-icons';
@@ -80,22 +81,23 @@ const BudgetDetailScreen = () => {
             const userDoc = await getDoc(userDocRef);
             const userNickname = userDoc.data()?.nickname || currentUser.email!.split('@')[0];
 
-            const batch = writeBatch(db);
-
-            const newExpenseRef = doc(collection(db, 'expenses'));
-            batch.set(newExpenseRef, {
+            // Spróbuj zapisać bezpośrednio, a w razie braku sieci — kolejka
+            const expensePayload = {
                 name: newExpenseName.trim(),
                 amount: amount,
                 budgetId: budgetId,
                 addedBy: currentUser.uid,
                 addedByName: userNickname,
                 date: Timestamp.now(),
-            });
-
-            const budgetRef = doc(db, 'budgets', budgetId);
-            batch.update(budgetRef, { currentAmount: increment(amount) });
-
-            await batch.commit();
+            };
+            try {
+                await addDoc(collection(db, 'expenses'), expensePayload);
+                const budgetRef = doc(db, 'budgets', budgetId);
+                await updateDoc(budgetRef, { currentAmount: increment(amount) });
+            } catch {
+                await enqueueAdd('expenses', expensePayload);
+                await enqueueUpdate(`budgets/${budgetId}`, { __inc: { currentAmount: amount } } as any);
+            }
 
             showToast("Wydatek dodany pomyślnie!", 'success');
             setModalVisible(false);
@@ -207,7 +209,7 @@ const BudgetDetailScreen = () => {
 const styles = StyleSheet.create({
     centered: { flex: 1, justifyContent: 'center', alignItems: 'center' },
     summaryContainer: {
-        backgroundColor: 'white',
+        backgroundColor: 'transparent',
         padding: Spacing.large,
         borderBottomWidth: 1,
         borderColor: Colors.border,
@@ -233,7 +235,7 @@ const styles = StyleSheet.create({
         justifyContent: 'space-between',
         alignItems: 'center',
         padding: Spacing.large,
-        backgroundColor: 'white',
+        backgroundColor: 'transparent',
         borderBottomWidth: 1,
         borderColor: Colors.border,
     },
@@ -260,7 +262,7 @@ const styles = StyleSheet.create({
     modalContainer: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: 'rgba(0,0,0,0.5)' },
     modalContent: {
         width: '90%',
-        backgroundColor: 'white',
+        backgroundColor: 'transparent',
         borderRadius: 20,
         padding: Spacing.large,
         alignItems: 'center',

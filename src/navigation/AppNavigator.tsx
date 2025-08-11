@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { View, ActivityIndicator } from 'react-native';
+import { View, ActivityIndicator, AppState } from 'react-native';
 import { NavigationContainer, DefaultTheme, DarkTheme, Theme as NavTheme } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
@@ -7,7 +7,7 @@ import { Feather } from '@expo/vector-icons';
 import type { FirebaseAuthTypes } from '@react-native-firebase/auth';
 import { getAuth, onAuthStateChanged } from '@react-native-firebase/auth';
 import { GoogleSignin } from '@react-native-google-signin/google-signin';
-import { doc, getDoc } from 'firebase/firestore';
+import { doc, getDoc } from '../utils/firestoreCompat';
 import { db } from '../../firebaseConfig';
 import { RootTabParamList, TaskStackParamList, BudgetStackParamList, AuthStackParamList } from '../types/navigation';
 import { isPasswordResetInProgress } from '../utils/authUtils';
@@ -28,6 +28,7 @@ import NotificationsScreen from '../screens/NotificationsScreen';
 import DisplaySettingsScreen from '../screens/DisplaySettingsScreen';
 import AccountSettingsScreen from '../screens/AccountSettingsScreen';
 import CategoriesScreen from '../screens/CategoriesScreen';
+import OutboxScreen from '../screens/OutboxScreen';
 import ArchiveScreen from '../screens/ArchiveScreen';
 import { GlobalStyles } from '../styles/AppStyles';
 import { useTheme } from '../contexts/ThemeContext';
@@ -53,6 +54,7 @@ const BudgetsStackNavigator = createNativeStackNavigator<BudgetStackParamList>()
         <TasksStackNavigator.Screen name="RecurringSeries" component={RecurringSeriesScreen} options={{ headerShown: false }} />
         <TasksStackNavigator.Screen name="Notifications" component={NotificationsScreen} options={{ headerShown: false }} />
         <TasksStackNavigator.Screen name="DisplaySettings" component={DisplaySettingsScreen} options={{ headerShown: false }} />
+        <TasksStackNavigator.Screen name="Outbox" component={OutboxScreen} options={{ headerShown: false }} />
         <TasksStackNavigator.Screen name="AccountSettings" component={AccountSettingsScreen} options={{ headerShown: false }} />
         <TasksStackNavigator.Screen name="Categories" component={CategoriesScreen} options={{ headerShown: false }} />
     </TasksStackNavigator.Navigator>
@@ -107,6 +109,8 @@ const AppNavigator = () => {
     const webClientId = (Constants?.expoConfig?.extra as any)?.googleWebClientId;
     if (webClientId) {
       GoogleSignin.configure({ webClientId });
+    } else {
+      try { console.warn('[GoogleSignin] Brak googleWebClientId w app config. Logowanie Google może nie działać.'); } catch {}
     }
 
     const subscriber = onAuthStateChanged(getAuth(), async (user) => {
@@ -127,7 +131,8 @@ const AppNavigator = () => {
     });
     (async () => { try { await ensureDailyMorningReminderScheduled(); } catch {} })();
     const outboxTimer = setInterval(() => { processOutbox().catch(() => {}); }, 15000);
-    return () => { try { sub?.remove?.(); } catch {}; clearInterval(outboxTimer); subscriber(); };
+    const appStateSub = AppState.addEventListener('change', (state) => { if (state === 'active') { processOutbox().catch(() => {}); } });
+    return () => { try { sub?.remove?.(); } catch {}; try { appStateSub.remove(); } catch {}; clearInterval(outboxTimer); subscriber(); };
   }, []);
 
   if (initializing) {

@@ -1,4 +1,4 @@
-import { Timestamp, addDoc, collection, query, where, getDocs } from 'firebase/firestore';
+import { Timestamp, addDoc, collection, query, where, getDocs } from './firestoreCompat';
 import { db } from '../../firebaseConfig';
 import { RecurringSeries, Task } from '../types';
 

@@ -8,7 +8,8 @@ import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import auth, { getAuth } from '@react-native-firebase/auth';
 import { db } from '../../firebaseConfig';
-import { collection, query, where, onSnapshot, addDoc, doc, getDoc } from 'firebase/firestore';
+import { collection, query, where, onSnapshot, addDoc, doc, getDoc } from '../utils/firestoreCompat';
+import { enqueueAdd } from '../utils/offlineQueue';
 import { Feather } from '@expo/vector-icons';
 import { BudgetStackParamList } from '../types/navigation';
 import { useToast } from '../contexts/ToastContext';
@@ -107,7 +108,7 @@ const BudgetsScreen = () => {
                 }
             }
 
-            await addDoc(collection(db, 'budgets'), {
+            const payload = {
                 name: newBudgetName.trim(),
                 targetAmount: targetAmount,
                 currentAmount: 0,
@@ -115,7 +116,9 @@ const BudgetsScreen = () => {
                 ownerId: currentUser.uid,
                 pairId: isShared ? pairId : null,
                 members: actualMembers
-            });
+            };
+            try { await addDoc(collection(db, 'budgets'), payload); }
+            catch { await enqueueAdd('budgets', payload); }
 
             showToast("Budżet dodany pomyślnie!", 'success');
             setModalVisible(false);
@@ -277,7 +280,7 @@ const styles = StyleSheet.create({
         paddingTop: Spacing.xxLarge,
         paddingBottom: Spacing.large,
         paddingHorizontal: Spacing.large,
-        backgroundColor: 'white',
+        backgroundColor: 'transparent',
         flexDirection: 'row',
         justifyContent: 'space-between',
         alignItems: 'center',
@@ -289,7 +292,7 @@ const styles = StyleSheet.create({
         fontWeight: Typography.bold.fontWeight,
     },
     budgetItem: {
-        backgroundColor: 'white',
+        backgroundColor: 'transparent',
         padding: Spacing.large,
         marginVertical: Spacing.small,
         marginHorizontal: Spacing.medium,
@@ -316,7 +319,7 @@ const styles = StyleSheet.create({
         justifyContent: 'space-between',
         alignItems: 'center',
         padding: Spacing.large,
-        backgroundColor: 'white',
+        backgroundColor: 'transparent',
         borderBottomWidth: 1,
         borderColor: Colors.border,
     },
@@ -342,7 +345,7 @@ const styles = StyleSheet.create({
     modalContainer: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: 'rgba(0,0,0,0.5)' },
     modalContent: {
         width: '90%',
-        backgroundColor: 'white',
+        backgroundColor: 'transparent',
         borderRadius: 20,
         padding: Spacing.large,
         alignItems: 'center',

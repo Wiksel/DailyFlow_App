@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Platform, Modal, ScrollView } from 'react-native';
-import { Timestamp } from 'firebase/firestore';
+import { Timestamp } from '../utils/firestoreCompat';
 import { useToast } from '../contexts/ToastContext';
 import { DateTimePickerEvent } from '@react-native-community/datetimepicker';
 import { useCategories } from '../contexts/CategoryContext';

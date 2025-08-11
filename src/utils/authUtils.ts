@@ -1,5 +1,6 @@
 import { db } from '../../firebaseConfig';
-import { doc, setDoc, collection, writeBatch, query, where, getDocs, limit, getDoc } from "firebase/firestore";
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { doc, setDoc, collection, writeBatch, query, where, getDocs, limit, getDoc } from "./firestoreCompat";
 import type { FirebaseAuthTypes } from '@react-native-firebase/auth';
 import { DEFAULT_CATEGORIES } from '../constants/categories';
 
@@ -21,11 +22,21 @@ export const createNewUserInFirestore = async (user: FirebaseAuthTypes.User, dis
         
         if (user.email && user.email !== userData.email) {
             updateData.email = user.email;
+            updateData.emailLower = user.email.toLowerCase();
         }
+        // Aktualizuj flagi providerów
+        try {
+            const providers = (user.providerData || []).map(p => p?.providerId);
+            updateData.authProviders = {
+                password: providers.includes('password'),
+                google: providers.includes('google.com'),
+                phone: !!user.phoneNumber,
+            };
+        } catch {}
         
         // Zaktualizuj tylko jeśli są zmiany
         if (Object.keys(updateData).length > 0) {
-            await setDoc(userRef, updateData, { merge: true });
+            await setDoc(userRef as any, updateData, { merge: true });
         }
         return;
     }
@@ -34,12 +45,18 @@ export const createNewUserInFirestore = async (user: FirebaseAuthTypes.User, dis
     const batch = writeBatch(db);
     
     batch.set(userRef, {
-        email: user.email || `${user.phoneNumber}@dailyflow.app`,
+        // Dla kont telefonicznych nie ustawiamy e‑maila; dla kont e‑mail zapisujemy email + emailLower
+        ...(user.email ? { email: user.email, emailLower: (user.email || '').toLowerCase() } : {}),
         phoneNumber: user.phoneNumber,
         photoURL: user.photoURL || null,
         points: 0,
         nickname: finalNickname,
         completedTasksCount: 0,
+        authProviders: {
+            password: (user.providerData || []).some(p => p?.providerId === 'password'),
+            google: (user.providerData || []).some(p => p?.providerId === 'google.com'),
+            phone: !!user.phoneNumber,
+        },
         prioritySettings: {
             criticalThreshold: 1, urgentThreshold: 3, soonThreshold: 7,
             distantThreshold: 14, criticalBoost: 4, urgentBoost: 3,
@@ -53,6 +70,31 @@ export const createNewUserInFirestore = async (user: FirebaseAuthTypes.User, dis
     });
 
     await batch.commit();
+};
+
+export const upsertAuthProvidersForUser = async (user: FirebaseAuthTypes.User) => {
+    try {
+        const userRef = doc(db, 'users', user.uid);
+        const snap = await getDoc(userRef);
+        const providers = (user.providerData || []).map(p => p?.providerId);
+        const update: any = {
+            authProviders: {
+                password: providers.includes('password'),
+                google: providers.includes('google.com'),
+                phone: !!user.phoneNumber,
+            },
+        };
+        if (user.email) {
+            update.email = user.email;
+            update.emailLower = user.email.toLowerCase();
+        } else {
+            // Jeśli konto telefoniczne – upewnij się, że nie zostawiamy poprzedniego emaila
+            update.email = null as any;
+            update.emailLower = null as any;
+        }
+        if (user.phoneNumber) update.phoneNumber = user.phoneNumber;
+        await setDoc(userRef as any, update, { merge: true });
+    } catch {}
 };
 
 export const findUserEmailByIdentifier = async (identifier: string): Promise<string | null> => {
@@ -96,11 +138,22 @@ export const findUserEmailByIdentifier = async (identifier: string): Promise<str
         const phoneSnapshot = await getDocs(phoneQuery);
         
         if (!phoneSnapshot.empty) {
-            const userData = phoneSnapshot.docs[0].data();
-            if (userData.email) {
-                return userData.email;
-            }
+            const userData: any = phoneSnapshot.docs[0].data();
+            // Jeśli konto posiada e‑mail → użyj go. W przeciwnym razie użyj wzorca "dummy email" na bazie dokładnie zapisanego numeru.
+            if (userData.email) return userData.email as string;
+            const storedPhone: string = userData.phoneNumber || format;
+            const canonical = storedPhone.startsWith('+') ? storedPhone : `+${storedPhone}`;
+            return `${canonical}@dailyflow.app`;
         }
+    }
+    // Nie znaleziono w bazie, ale jeżeli identyfikator wygląda na telefon, spróbuj z domyślnym wzorcem (np. +48...)
+    if (/^\d{9}$/.test(numericOnly)) {
+        const canonical = `+48${numericOnly}`;
+        return `${canonical}@dailyflow.app`;
+    }
+    if (/^\d{11,15}$/.test(numericOnly)) {
+        const canonical = `+${numericOnly}`;
+        return `${canonical}@dailyflow.app`;
     }
     
     return null;
@@ -180,4 +233,17 @@ export const setPasswordResetInProgress = (inProgress: boolean) => {
 };
 
 export const isPasswordResetInProgress = () => passwordResetInProgress;
+
+// Suggested login identifier persistence (to prefill login after flows)
+const SUGGESTED_LOGIN_KEY = 'dailyflow_suggested_login_identifier';
+export const setSuggestedLoginIdentifier = async (identifier: string) => {
+  try { await AsyncStorage.setItem(SUGGESTED_LOGIN_KEY, identifier); } catch {}
+};
+export const popSuggestedLoginIdentifier = async (): Promise<string | null> => {
+  try {
+    const v = await AsyncStorage.getItem(SUGGESTED_LOGIN_KEY);
+    await AsyncStorage.removeItem(SUGGESTED_LOGIN_KEY);
+    return v;
+  } catch { return null; }
+};
 

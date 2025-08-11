@@ -3,6 +3,7 @@ import { View, Text, StyleSheet, TouchableOpacity, Image } from 'react-native';
 import Animated, { useSharedValue, useAnimatedStyle, withSpring } from 'react-native-reanimated';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useTheme } from '../contexts/ThemeContext';
+import { useUI } from '../contexts/UIContext';
 import { Spacing, Typography } from '../styles/AppStyles';
 import { Feather } from '@expo/vector-icons';
 
@@ -16,6 +17,7 @@ interface AppHeaderProps {
 
 const AppHeader: React.FC<AppHeaderProps> = ({ title, rightActions = [], avatarUrl, onAvatarPress, leftAction }) => {
   const theme = useTheme();
+  const { isOffline, pendingOpsCount } = useUI();
   const gradientByAccentLight: Record<string, [string, string]> = {
     blue: ['#64b3f4', '#c2e59c'],
     purple: ['#a18cd1', '#fbc2eb'],
@@ -54,14 +56,19 @@ const AppHeader: React.FC<AppHeaderProps> = ({ title, rightActions = [], avatarU
               </TouchableOpacity>
             </Animated.View>
           ) : null}
-          <Text style={[styles.title, { color: 'white' }]} accessibilityRole="header">{title}</Text>
+          <Text style={[styles.title, { color: 'white' }]} accessibilityRole="header" numberOfLines={1} ellipsizeMode="tail">{title}</Text>
         </View>
         <View style={styles.actionsRow}>
+          {isOffline && (
+            <View style={{ paddingHorizontal: 10, paddingVertical: 4, borderRadius: 12, backgroundColor: '#00000040', marginRight: Spacing.small }} accessibilityLabel="Tryb offline">
+              <Text style={{ color: 'white', fontWeight: '700', fontSize: 12 }}>Offline{pendingOpsCount>0?` · ${pendingOpsCount}`:''}</Text>
+            </View>
+          )}
           {rightActions.map((action, idx) => (
             <AnimatedPress key={`${action.icon}-${idx}`} icon={action.icon} color={'#ffffff'} onPress={action.onPress} accessibilityLabel={action.accessibilityLabel} style={{ marginLeft: Spacing.small }} />
           ))}
           <Animated.View style={avatarAnim.style}>
-            <TouchableOpacity onPressIn={avatarAnim.onPressIn} onPressOut={avatarAnim.onPressOut} onPress={onAvatarPress} accessibilityLabel="Profil" style={{ marginLeft: Spacing.small }}>
+            <TouchableOpacity testID="avatar-button" onPressIn={avatarAnim.onPressIn} onPressOut={avatarAnim.onPressOut} onPress={onAvatarPress} accessibilityLabel="Profil" style={{ marginLeft: Spacing.small }}>
               {avatarUrl ? (
                 <Image source={{ uri: avatarUrl }} style={styles.avatar} />
               ) : (

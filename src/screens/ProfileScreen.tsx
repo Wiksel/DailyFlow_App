@@ -3,7 +3,7 @@ import { View, Text, StyleSheet, TouchableOpacity, TextInput, Alert, ActivityInd
 import { useNavigation } from '@react-navigation/native';
 import auth, { getAuth } from '@react-native-firebase/auth';
 import { db } from '../../firebaseConfig';
-import { doc, getDoc, onSnapshot, collection, query, where, getDocs, writeBatch, updateDoc, deleteDoc, addDoc } from 'firebase/firestore';
+import { doc, getDoc, onSnapshot, collection, query, where, getDocs, writeBatch, updateDoc, deleteDoc, addDoc } from '../utils/firestoreCompat';
 import { TaskStackNavigationProp } from '../types/navigation';
 import { UserProfile, Pair } from '../types';
 import { useToast } from '../contexts/ToastContext';
@@ -73,10 +73,12 @@ const ProfileScreen = () => {
         if (!currentUser) return;
         const pairDoc = await getDoc(doc(db, 'pairs', pairId));
         if (!pairDoc.exists()) return;
-        const partnerId = pairDoc.data().members.find((id: string) => id !== currentUser.uid);
+        const pairData = pairDoc.data() as any;
+        const members: string[] = Array.isArray(pairData?.members) ? pairData.members : [];
+        const partnerId = members.find((id: string) => id !== currentUser.uid);
         if (partnerId) {
             const partnerDoc = await getDoc(doc(db, 'users', partnerId));
-            if (partnerDoc.exists()) setPartnerEmail(partnerDoc.data().email);
+            if (partnerDoc.exists()) setPartnerEmail((partnerDoc.data() as any)?.email ?? null);
         }
     };
 
@@ -106,7 +108,7 @@ const ProfileScreen = () => {
             const q = query(usersRef, where("email", "==", inviteEmail.trim().toLowerCase()));
             const querySnapshot = await getDocs(q);
             if (querySnapshot.empty) {
-                showToast("Nie znaleziono użytkownika o podanym adresie e-mail.", 'error');
+                showToast("Nie znaleziono użytkownika \no podanym adresie e-mail.", 'error');
                 setIsPairActionLoading(false);
                 return;
             }
@@ -167,7 +169,8 @@ const ProfileScreen = () => {
             const pairRef = doc(db, 'pairs', userProfile.pairId);
             const pairDoc = await getDoc(pairRef);
             if(pairDoc.exists()) {
-                const members = pairDoc.data().members;
+                const pairData2 = pairDoc.data() as any;
+                const members = Array.isArray(pairData2?.members) ? pairData2.members : undefined;
                  if (members) {
                     for (const uid of members) {
                         batch.update(doc(db, 'users', uid), { pairId: null });
@@ -302,6 +305,7 @@ const ProfileScreen = () => {
                 <ActionButton title="Ustawienia priorytetów" onPress={() => navigation.navigate('Settings')} style={[styles.manageButton, styles.purpleButton]} />
                 <ActionButton title="Ustawienia konta" onPress={() => navigation.navigate('AccountSettings')} style={[styles.manageButton, styles.purpleButton]} />
                 <ActionButton title="Ustawienia wyświetlania" onPress={() => navigation.navigate('DisplaySettings')} style={[styles.manageButton, styles.purpleButton]} />
+                <ActionButton title="Kolejka offline" onPress={() => navigation.navigate('Outbox')} style={[styles.manageButton, styles.purpleButton]} />
                 <View style={{ height: 1, backgroundColor: theme.colors.border, marginTop: Spacing.medium }} />
             </Animated.View>
 

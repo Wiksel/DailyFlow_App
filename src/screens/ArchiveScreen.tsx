@@ -8,7 +8,8 @@ import ActionModal from '../components/ActionModal';
 import { useToast } from '../contexts/ToastContext';
 import auth, { getAuth } from '@react-native-firebase/auth';
 import { db } from '../../firebaseConfig'; // <--- TEN IMPORT ZOSTAJE
-import { collection, query, where, onSnapshot, orderBy, doc, updateDoc, deleteDoc, getDoc, addDoc } from 'firebase/firestore';
+import { collection, query, where, onSnapshot, orderBy, doc, updateDoc, deleteDoc, getDoc, addDoc, Timestamp } from '../utils/firestoreCompat';
+import { enqueueAdd, enqueueUpdate, enqueueDelete } from '../utils/offlineQueue';
 import { Task, Category, UserProfile, Pair } from '../types';
 import { useCategories } from '../contexts/CategoryContext';
 import { Feather } from '@expo/vector-icons';
@@ -66,7 +67,8 @@ const ArchiveScreen = () => {
             if (profileData?.pairId) {
                 const pairDoc = await getDoc(doc(db, 'pairs', profileData.pairId));
                 if (pairDoc.exists()) {
-                    const pairMembers = pairDoc.data().members as string[];
+                    const pairData = pairDoc.data() as any;
+                    const pairMembers: string[] = Array.isArray(pairData?.members) ? pairData.members : [];
                     const nicknames: { id: string; nickname: string }[] = [];
                     for (const memberId of pairMembers) {
                         const memberDoc = await getDoc(doc(db, 'users', memberId));
@@ -254,12 +256,9 @@ const ArchiveScreen = () => {
     }, [rawArchivedTasks, searchQuery, filterCompletedFromDate, filterCompletedToDate, activeCategoryArchive, archivedTaskType, selectedPartnerId, partnerNicknames, userProfile, currentUser]);
 
     const handleRestoreTask = async (taskId: string) => {
-        await updateDoc(doc(db, 'tasks', taskId), {
-            status: 'active',
-            completed: false,
-            completedAt: null,
-            completedBy: null,
-        });
+        const payload = { status: 'active', completed: false, completedAt: null, completedBy: null };
+        try { await updateDoc(doc(db, 'tasks', taskId), payload); }
+        catch { await enqueueUpdate(`tasks/${taskId}`, payload); }
     };
 
     const handlePermanentDelete = (taskId: string) => setConfirmDeleteTaskId(taskId);
@@ -347,7 +346,7 @@ const ArchiveScreen = () => {
                             const filePath = `${dir}archive_export_${Date.now()}.csv`;
                             await FileSystem.writeAsStringAsync(filePath, csv, { encoding: FileSystem.EncodingType.UTF8 });
                             // W Android/Expo można użyć shareSheet – ale brak expo-sharing, więc podamy ścieżkę i log
-                            console.log('CSV saved at:', filePath);
+                            try { console.debug('CSV saved at:', filePath); } catch {}
                             showToast('Wyeksportowano CSV. Plik zapisany w: ' + filePath, 'success');
                         } catch (e) {
                             console.error('Export CSV failed', e);
@@ -376,25 +375,24 @@ const ArchiveScreen = () => {
                                 if (!text) continue;
                                 const catName = (r['category'] || '').trim();
                                 const category = categories.find(c => c.name === catName)?.id || activeCategoryArchive !== 'all' ? activeCategoryArchive as string : (categories[0]?.id || 'default');
-                                try {
-                                    await addDoc(collection(db, 'tasks'), {
-                                    text,
-                                    description: r['description'] || '',
-                                    category,
-                                    basePriority: Number(r['basePriority'] || 3),
-                                    difficulty: Number(r['difficulty'] || 2),
-                                    deadline: r['deadline'] ? new Date(r['deadline']) : null,
-                                    completed: true,
-                                    status: 'archived',
-                                    userId: currentUser?.uid,
-                                    creatorNickname: userProfile?.nickname || 'Użytkownik',
-                                    isShared: false,
-                                    pairId: null,
-                                    createdAt: new Date(),
-                                    completedAt: new Date(),
-                                    });
-                                    imported++;
-                                } catch {}
+                                    const payload = {
+                                      text,
+                                      description: r['description'] || '',
+                                      category,
+                                      basePriority: Number(r['basePriority'] || 3),
+                                      difficulty: Number(r['difficulty'] || 2),
+                                      deadline: r['deadline'] ? new Date(r['deadline']) : null,
+                                      completed: true,
+                                      status: 'archived',
+                                      userId: currentUser?.uid,
+                                      creatorNickname: userProfile?.nickname || 'Użytkownik',
+                                      isShared: false,
+                                      pairId: null,
+                                      createdAt: Timestamp.now(),
+                                      completedAt: Timestamp.now(),
+                                    };
+                                    try { await addDoc(collection(db, 'tasks'), payload); imported++; }
+                                    catch { await enqueueAdd('tasks', payload); imported++; }
                             }
                             showToast(`Zaimportowano ${imported} pozycji.`, 'success');
                         } catch (e) {
@@ -474,6 +472,7 @@ const ArchiveScreen = () => {
                 placeholder="Szukaj po nazwie lub opisie..."
                 value={searchQuery}
                 onChangeText={setSearchQuery}
+              inputStyle={{}}
             />
 
             <FilterPresets
@@ -542,7 +541,7 @@ const ArchiveScreen = () => {
                 onRequestClose={() => setConfirmDeleteTaskId(null)}
                 actions={[
                     { text: 'Anuluj', variant: 'secondary', onPress: () => setConfirmDeleteTaskId(null) },
-                    { text: 'Usuń', onPress: async () => { if (!confirmDeleteTaskId) return; await deleteDoc(doc(db, 'tasks', confirmDeleteTaskId)); setConfirmDeleteTaskId(null); showToast('Zadanie usunięte.', 'success'); } },
+                     { text: 'Usuń', onPress: async () => { if (!confirmDeleteTaskId) return; try { await deleteDoc(doc(db, 'tasks', confirmDeleteTaskId)); } catch { await enqueueDelete(`tasks/${confirmDeleteTaskId}`); } setConfirmDeleteTaskId(null); showToast('Zadanie usunięte.', 'success'); } },
                 ]}
             />
         </View>
@@ -551,7 +550,7 @@ const ArchiveScreen = () => {
 
 const styles = StyleSheet.create({
     exportBar: {
-        backgroundColor: 'white',
+        backgroundColor: 'transparent',
         paddingHorizontal: Spacing.medium,
         paddingTop: Spacing.small,
         paddingBottom: Spacing.small,
@@ -565,7 +564,7 @@ const styles = StyleSheet.create({
         flex: 1,
     },
     taskContainer: {
-        backgroundColor: 'white',
+        backgroundColor: 'transparent',
         padding: Spacing.medium,
         borderBottomWidth: 1,
         borderColor: Colors.border,
@@ -636,7 +635,7 @@ const styles = StyleSheet.create({
         flexDirection: 'row',
         justifyContent: 'space-around',
         paddingVertical: Spacing.small,
-        backgroundColor: 'white',
+        backgroundColor: 'transparent',
         borderBottomWidth: 1,
         borderColor: Colors.border,
     },
@@ -657,7 +656,7 @@ const styles = StyleSheet.create({
         fontSize: Typography.body.fontSize,
     },
     partnerFilterContainer: {
-        backgroundColor: 'white',
+        backgroundColor: 'transparent',
         paddingHorizontal: Spacing.medium,
         paddingTop: Spacing.small,
         paddingBottom: Spacing.xSmall, // 5

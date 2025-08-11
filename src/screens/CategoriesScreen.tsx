@@ -5,7 +5,8 @@ import { View, Text, StyleSheet, FlatList, TextInput, TouchableOpacity, Activity
 import Animated, { FadeInUp, Layout } from 'react-native-reanimated';
 import auth, { getAuth } from '@react-native-firebase/auth'; // ZMIANA
 import { db } from '../../firebaseConfig'; // <--- TEN IMPORT ZOSTAJE
-import { collection, addDoc, deleteDoc, doc, updateDoc, query, where, getDocs, writeBatch } from 'firebase/firestore';
+import { collection, addDoc, deleteDoc, doc, updateDoc, query, where, getDocs, writeBatch } from '../utils/firestoreCompat';
+import { enqueueAdd, enqueueUpdate, enqueueDelete } from '../utils/offlineQueue';
 import { Feather } from '@expo/vector-icons';
 import AnimatedIconButton from '../components/AnimatedIconButton';
 import { useCategories } from '../contexts/CategoryContext';
@@ -46,18 +47,22 @@ const CategoriesScreen = () => {
         try {
             if (editingCategory) {
                 const categoryRef = doc(db, 'categories', editingCategory.id);
-                await updateDoc(categoryRef, {
+                const payload = {
                     name: newCategoryName.trim(),
                     color: selectedColor,
-                });
+                };
+                try { await updateDoc(categoryRef, payload); }
+                catch { await enqueueUpdate(`categories/${editingCategory.id}`, payload); }
                 showToast("Kategoria zaktualizowana!", 'success');
                 setEditingCategory(null);
             } else {
-                await addDoc(collection(db, 'categories'), {
+                const payload = {
                     name: newCategoryName.trim(),
                     color: selectedColor,
                     userId: currentUser.uid,
-                });
+                };
+                try { await addDoc(collection(db, 'categories'), payload); }
+                catch { await enqueueAdd('categories', payload); }
                 showToast("Kategoria dodana!", 'success');
             }
             setNewCategoryName('');
@@ -163,7 +168,7 @@ const CategoriesScreen = () => {
                     onRequestClose={() => setConfirmDeleteCategory(null)}
                     actions={[
                         { text: 'Anuluj', variant: 'secondary', onPress: () => setConfirmDeleteCategory(null) },
-                        { text: 'Usuń', onPress: async () => {
+                         { text: 'Usuń', onPress: async () => {
                             if (!confirmDeleteCategory) return;
                             setIsSubmitting(true);
                             try {
@@ -185,8 +190,10 @@ const CategoriesScreen = () => {
                                 batch.delete(doc(db, 'categories', confirmDeleteCategory.id));
                                 await batch.commit();
                                 showToast('Kategoria i powiązane zadania zaktualizowane!', 'success');
-                            } catch (error: any) {
-                                showToast('Błąd podczas usuwania kategorii.', 'error');
+                             } catch (error: any) {
+                                 // fallback do kolejki dla samego usunięcia kategorii (aktualizacja zadań offline pomijamy)
+                                 try { await enqueueDelete(`categories/${confirmDeleteCategory.id}`); showToast('Kategoria zostanie usunięta po powrocie online.', 'info'); }
+                                 catch { showToast('Błąd podczas usuwania kategorii.', 'error'); }
                             } finally {
                                 setIsSubmitting(false);
                                 setConfirmDeleteCategory(null);
@@ -204,7 +211,7 @@ const styles = StyleSheet.create({
     // Usunięto 'container' stąd, bo jest w GlobalStyles.container
     addSection: {
         padding: Spacing.large,
-        backgroundColor: 'white',
+        backgroundColor: 'transparent',
         borderBottomWidth: 1,
         borderColor: Colors.border,
     },
@@ -268,7 +275,7 @@ const styles = StyleSheet.create({
         flexDirection: 'row',
         alignItems: 'center',
         padding: Spacing.large,
-        backgroundColor: 'white',
+        backgroundColor: 'transparent',
         borderBottomWidth: 1,
         borderColor: Colors.border,
     },

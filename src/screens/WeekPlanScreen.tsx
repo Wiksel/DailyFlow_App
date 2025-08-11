@@ -2,10 +2,10 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { View, Text, StyleSheet, FlatList, ActivityIndicator } from 'react-native';
 import Animated, { useSharedValue, useAnimatedStyle, withTiming, runOnJS } from 'react-native-reanimated';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
-import { updateDoc, doc as fsDoc } from 'firebase/firestore';
+import { updateDoc, doc as fsDoc, Timestamp } from '../utils/firestoreCompat';
 import { useTheme } from '../contexts/ThemeContext';
 import { useToast } from '../contexts/ToastContext';
-import { doc, onSnapshot, collection, query, where, getDocs } from 'firebase/firestore';
+import { doc, onSnapshot, collection, query, where, getDocs } from '../utils/firestoreCompat';
 import { getAuth } from '@react-native-firebase/auth';
 import { db } from '../../firebaseConfig';
 import { Colors, GlobalStyles, Spacing, Typography } from '../styles/AppStyles';
@@ -173,7 +173,7 @@ const DraggableTaskRow = ({ task, dayKey, onMoved, onNotify }: { task: Task; day
         now.setDate(now.getDate() + deltaDays);
         now.setHours(12, 0, 0, 0);
         try {
-          await updateDoc(fsDoc(db, 'tasks', task.id), { deadline: now });
+          await updateDoc(fsDoc(db, 'tasks', task.id), { deadline: Timestamp.fromDate(now) });
           runOnJS(onMoved)({ taskId: task.id, from: dayKey, to: targetDay, prevDeadline: task.deadline?.toDate() ?? null });
           runOnJS(onNotify)('Przeniesiono zadanie. Cofnij?');
         } catch {}
@@ -202,7 +202,7 @@ const DraggableTaskRow = ({ task, dayKey, onMoved, onNotify }: { task: Task; day
 
 const styles = StyleSheet.create({
   header: {
-    backgroundColor: 'white',
+    backgroundColor: 'transparent',
     paddingTop: Spacing.xxLarge,
     paddingBottom: Spacing.medium,
     paddingHorizontal: Spacing.large,
@@ -213,7 +213,7 @@ const styles = StyleSheet.create({
     ...Typography.h1,
   },
   dayCard: {
-    backgroundColor: 'white',
+    backgroundColor: 'transparent',
     marginHorizontal: Spacing.medium,
     marginTop: Spacing.medium,
     borderRadius: 10,

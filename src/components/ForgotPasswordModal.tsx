@@ -73,15 +73,15 @@ const ForgotPasswordModal = ({ visible, onClose }: ForgotPasswordModalProps) => 
   return (
     <>
       <Modal visible={visible} transparent={true} animationType="fade" onRequestClose={handleClose}>
-         <View style={styles.modalContainer}>
+         <View style={[styles.modalContainer, { backgroundColor: 'rgba(0,0,0,0.75)' }] }>
            {/* Wyłącz globalny overlay na czas wyświetlania modala */}
            <ToastOverlaySuppressor />
-           <View style={styles.modalContent}>
+            <View style={[styles.modalContent, { backgroundColor: '#111', borderColor: '#222', borderWidth: 1 }] }>
              
-             <Text style={styles.modalTitle}>Zresetuj hasło</Text>
-              <Text style={styles.modalSubtitle}>Podaj swój e‑mail lub telefon, a wyślemy link do ustawienia hasła.</Text>
-             <TextInput
-               style={GlobalStyles.input}
+              <Text style={[styles.modalTitle, { color: '#fff' }]}>Zresetuj hasło</Text>
+               <Text style={[styles.modalSubtitle, { color: '#bbb' }]}>Podaj swój e‑mail lub telefon, a wyślemy link do ustawienia hasła.</Text>
+              <TextInput
+               style={[GlobalStyles.input, { color: '#fff', backgroundColor: 'transparent', borderColor: '#333' }]}
                 placeholder="E‑mail lub telefon (9 cyfr)"
                value={identifier}
                onChangeText={setIdentifier}
@@ -111,8 +111,8 @@ const ForgotPasswordModal = ({ visible, onClose }: ForgotPasswordModalProps) => 
                <Text style={GlobalStyles.buttonText}>Resetuj przez telefon</Text>
              </TouchableOpacity>
              
-             <TouchableOpacity style={styles.cancelButton} onPress={handleClose}>
-               <Text style={styles.cancelButtonText}>Anuluj</Text>
+              <TouchableOpacity style={styles.cancelButton} onPress={handleClose}>
+               <Text style={[styles.cancelButtonText, { color: '#bbb' }]}>Anuluj</Text>
              </TouchableOpacity>
            </View>
            {/* Lokalny ToastOverlay – wyżej, ale w granicach ekranu */}

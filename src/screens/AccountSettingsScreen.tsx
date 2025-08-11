@@ -1,11 +1,12 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, ActivityIndicator, Alert, TextInput } from 'react-native';
 import auth, { getAuth, GoogleAuthProvider, EmailAuthProvider } from '@react-native-firebase/auth';
-import { collection, deleteDoc, doc, getDoc, getDocs, query, updateDoc, where, writeBatch, deleteField } from 'firebase/firestore';
+import { collection, deleteDoc, doc, getDoc, getDocs, query, updateDoc, where, writeBatch, deleteField } from '../utils/firestoreCompat';
 import { db } from '../../firebaseConfig';
 import { useToast } from '../contexts/ToastContext';
 import ActionModal from '../components/ActionModal';
 import { Colors, GlobalStyles, Spacing, Typography } from '../styles/AppStyles';
+import { useUI } from '../contexts/UIContext';
 import { useTheme } from '../contexts/ThemeContext';
 import PasswordInput from '../components/PasswordInput';
 
@@ -38,6 +39,7 @@ const AccountSettingsScreen = () => {
   const [preferences, setPreferences] = useState<{ theme?: 'system' | 'light' | 'dark'; language?: 'pl' | 'en' }>({});
   const [pendingEmail, setPendingEmail] = useState<string | null>(null);
   const [isResendingPending, setIsResendingPending] = useState(false);
+  const { pendingOpsCount, isOffline } = useUI();
 
   useEffect(() => {
     let isMounted = true;
@@ -131,6 +133,7 @@ const AccountSettingsScreen = () => {
       if (!idToken) throw new Error('Brak tokena Google');
       const googleCredential = GoogleAuthProvider.credential(idToken);
       await user.linkWithCredential(googleCredential);
+      try { const { upsertAuthProvidersForUser } = await import('../utils/authUtils'); await upsertAuthProvidersForUser(getAuth().currentUser!); } catch {}
       showToast('Konto Google zostało połączone.', 'success');
       await user.reload();
       setProviders((getAuth().currentUser?.providerData || []).map(p => p.providerId));
@@ -156,6 +159,7 @@ const AccountSettingsScreen = () => {
     setIsBusy(true);
     try {
       await user.unlink(providerId);
+      try { const { upsertAuthProvidersForUser } = await import('../utils/authUtils'); await upsertAuthProvidersForUser(getAuth().currentUser!); } catch {}
       showToast('Metoda logowania została odłączona.', 'success');
       await user.reload();
       setProviders((getAuth().currentUser?.providerData || []).map(p => p.providerId));
@@ -610,6 +614,21 @@ const AccountSettingsScreen = () => {
             </TouchableOpacity>
           ))}
         </View>
+      </View>
+
+      <View style={[GlobalStyles.section, { backgroundColor: theme.colors.card, borderColor: theme.colors.border }]}>
+        <Text style={[styles.sectionTitle, { color: theme.colors.textPrimary }]}>Status offline</Text>
+        <Text style={[styles.label, { color: theme.colors.textPrimary }]}>Tryb: {isOffline ? 'Offline' : 'Online'}</Text>
+        <Text style={[styles.label, { color: theme.colors.textPrimary }]}>Kolejka oczekujących operacji: {pendingOpsCount}</Text>
+        <TouchableOpacity style={[GlobalStyles.button, { marginTop: Spacing.small }]} onPress={async () => { try { const mod = await import('../utils/offlineQueue'); await mod.processOutbox(); showToast('Wymuszono przetwarzanie kolejki.', 'success'); } catch { showToast('Nie udało się przetworzyć kolejki.', 'error'); } }}>
+          <Text style={GlobalStyles.buttonText}>Przetwórz kolejkę teraz</Text>
+        </TouchableOpacity>
+        <TouchableOpacity style={[GlobalStyles.button, styles.secondary, { marginTop: Spacing.small }]} onPress={async () => { try { const mod = await import('../utils/offlineQueue'); const list = await mod.listOutbox(); const msg = list.length ? list.map((o:any)=>`${o.action} ${o.collectionPath||o.docPath}`).slice(0,10).join('\n') : 'Kolejka jest pusta.'; showToast(msg, 'info'); } catch { showToast('Nie udało się odczytać kolejki.', 'error'); } }}>
+          <Text style={GlobalStyles.buttonText}>Podgląd 10 ostatnich</Text>
+        </TouchableOpacity>
+        <TouchableOpacity style={[GlobalStyles.button, styles.danger, { marginTop: Spacing.small }]} onPress={async () => { try { const mod = await import('../utils/offlineQueue'); await mod.clearOutbox(); showToast('Wyczyszczono kolejkę.', 'success'); } catch { showToast('Nie udało się wyczyścić kolejki.', 'error'); } }}>
+          <Text style={GlobalStyles.buttonText}>Wyczyść kolejkę</Text>
+        </TouchableOpacity>
       </View>
 
       <View style={[GlobalStyles.section, { backgroundColor: theme.colors.card, borderColor: theme.colors.border }]}>
