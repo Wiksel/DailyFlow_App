@@ -2,8 +2,9 @@
 import React, { useState } from 'react';
 // Dodano import ScrollView
 import { View, Text, StyleSheet, FlatList, TextInput, TouchableOpacity, ActivityIndicator, ScrollView } from 'react-native';
+import LabeledInput from '../components/LabeledInput';
 import Animated, { FadeInUp, Layout } from 'react-native-reanimated';
-import auth, { getAuth } from '@react-native-firebase/auth'; // ZMIANA
+import { getAuth } from '@react-native-firebase/auth'; // ZMIANA
 import { db } from '../../firebaseConfig'; // <--- TEN IMPORT ZOSTAJE
 import { collection, addDoc, deleteDoc, doc, updateDoc, query, where, getDocs, writeBatch } from '../utils/firestoreCompat';
 import { enqueueAdd, enqueueUpdate, enqueueDelete } from '../utils/offlineQueue';
@@ -114,16 +115,10 @@ const CategoriesScreen = () => {
             <AppHeader title="Kategorie" />
             <View style={[styles.addSection, { backgroundColor: theme.colors.card, borderColor: theme.colors.border, borderRadius: 12, marginHorizontal: Spacing.medium }] }>
                 <Text style={styles.sectionTitle}>{editingCategory ? 'Edytuj kategorię' : 'Dodaj nową kategorię'}</Text>
-                <TextInput
-                    style={[
-                        styles.input,
-                        { backgroundColor: theme.colors.inputBackground, borderColor: theme.colors.border, color: theme.colors.textPrimary },
-                        isCompact && { paddingVertical: Spacing.xSmall, fontSize: densityScale(Typography.body.fontSize, true) }
-                    ]}
-                    placeholder="Nazwa kategorii"
+                <LabeledInput
+                    label="Nazwa kategorii"
                     value={newCategoryName}
                     onChangeText={setNewCategoryName}
-                    placeholderTextColor={theme.colors.placeholder}
                     editable={!isSubmitting}
                 />
                 <Text style={[styles.label, { color: theme.colors.textPrimary }]}>Wybierz kolor</Text>

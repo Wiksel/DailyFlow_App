@@ -25,10 +25,10 @@ const AppHeader: React.FC<AppHeaderProps> = ({ title, rightActions = [], avatarU
     orange: ['#f6d365', '#fda085'],
   };
   const gradientByAccentDark: Record<string, [string, string]> = {
-    blue: ['#141e30', '#243b55'],
+    blue: ['#0f2027', '#203a43'],
     purple: ['#41295a', '#2F0743'],
-    mint: ['#004e92', '#000428'],
-    orange: ['#8E2DE2', '#4A00E0'],
+    mint: ['#0f2027', '#2c5364'],
+    orange: ['#1f1c2c', '#928DAB'],
   };
   const gradientColors = (theme.colorScheme === 'dark' ? gradientByAccentDark : gradientByAccentLight)[theme.accent];
 

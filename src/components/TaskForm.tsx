@@ -7,6 +7,7 @@ import PrioritySelector from './PrioritySelector';
 import { useCategories } from '../contexts/CategoryContext';
 import { Feather } from '@expo/vector-icons'; // <-- Dodaj ten import
 import { Colors, Spacing, Typography, GlobalStyles, isColorLight } from '../styles/AppStyles'; // <-- Dodaj ten import
+import LabeledInput from './LabeledInput';
 import { useTheme } from '../contexts/ThemeContext';
 
 // Definiujemy typ danych, którymi będzie zarządzał formularz
@@ -33,24 +34,21 @@ const TaskForm = ({ taskData, onDataChange, showDatePicker, onDatePickerChange, 
 
     return (
         <ScrollView style={styles.formContainer} keyboardShouldPersistTaps="handled">
-            <Text style={[styles.label, { color: theme.colors.textSecondary }]}>Nazwa zadania</Text>
-            <TextInput
-                style={[styles.input, { backgroundColor: theme.colors.inputBackground, borderColor: theme.colors.border, color: theme.colors.textPrimary }]}
+            <LabeledInput
+                label="Nazwa zadania"
                 value={taskData.text}
                 onChangeText={(text) => onDataChange('text', text)}
-                placeholderTextColor={theme.colors.placeholder}
                 placeholder="Nazwa"
-            />
+              />
 
-            <Text style={[styles.label, { color: theme.colors.textSecondary }]}>Opis (opcjonalnie)</Text>
-            <TextInput
-                style={[styles.input, styles.multilineInput, { backgroundColor: theme.colors.inputBackground, borderColor: theme.colors.border, color: theme.colors.textPrimary }]}
+            <LabeledInput
+                label="Opis (opcjonalnie)"
                 value={taskData.description}
                 onChangeText={(text) => onDataChange('description', text)}
-                multiline
-                placeholderTextColor={theme.colors.placeholder}
                 placeholder="Opis"
-            />
+                multiline
+                inputStyle={styles.multilineInput}
+              />
 
             <Text style={[styles.label, { color: theme.colors.textSecondary }]}>Kategoria</Text>
             <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.categoryContainer}>

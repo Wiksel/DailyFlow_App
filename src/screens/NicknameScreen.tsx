@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { View, Text, StyleSheet, TextInput, TouchableOpacity, ActivityIndicator, KeyboardAvoidingView, Platform, ScrollView, Image } from 'react-native';
+import LabeledInput from '../components/LabeledInput';
 import { getAuth } from '@react-native-firebase/auth';
 import { useToast } from '../contexts/ToastContext';
 import { createNewUserInFirestore } from '../utils/authUtils';
@@ -38,13 +39,7 @@ const NicknameScreen = ({ onProfileCreated }: NicknameScreenProps) => {
             <Image source={require('../../assets/icon.png')} style={styles.logo} />
             <Text style={[styles.modalTitle, { color: theme.colors.textPrimary }]}>Witaj w DailyFlow!</Text>
             <Text style={[styles.modalSubtitle, { color: theme.colors.textSecondary }]}>Wybierz swój nick, który będzie widoczny w aplikacji.</Text>
-            <TextInput
-                style={[GlobalStyles.input, { textAlign: 'center', backgroundColor: theme.colors.inputBackground, borderColor: theme.colors.border, color: theme.colors.textPrimary }]}
-                placeholder="Twój Nick"
-                value={nickname}
-                onChangeText={setNickname}
-                editable={!isLoading}
-            />
+            <LabeledInput label="Nick" placeholder="Twój Nick" value={nickname} onChangeText={setNickname} editable={!isLoading} />
             <TouchableOpacity
                 style={[GlobalStyles.button, { marginTop: Spacing.medium, width: '100%', backgroundColor: theme.colors.primary }]}
                 onPress={async () => { try { const m = await import('expo-haptics'); await m.impactAsync(m.ImpactFeedbackStyle.Medium); } catch {}; handleFinish(); }}

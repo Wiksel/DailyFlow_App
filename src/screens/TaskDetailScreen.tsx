@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Platform, ActivityIndicator, Alert, FlatList, TextInput } from 'react-native';
 import { useRoute, useNavigation } from '@react-navigation/native';
 import { doc, getDoc, updateDoc, Timestamp, collection, query, where, getDocs, addDoc, onSnapshot, orderBy } from '../utils/firestoreCompat';
-import auth, { getAuth } from '@react-native-firebase/auth';
+import { getAuth } from '@react-native-firebase/auth';
 import { db } from '../../firebaseConfig';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { DateTimePickerEvent } from '@react-native-community/datetimepicker';
@@ -13,6 +13,7 @@ import { Feather } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import { useToast } from '../contexts/ToastContext';
 import { Colors, Spacing, Typography, GlobalStyles } from '../styles/AppStyles';
+import FormActionBar from '../components/FormActionBar';
 import AppHeader from '../components/AppHeader';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTheme } from '../contexts/ThemeContext';
@@ -234,14 +235,11 @@ const TaskDetailScreen = () => {
                 </View>
             </ScrollView>
 
-            <View style={[styles.actionBar, { backgroundColor: theme.colors.card, borderColor: theme.colors.border, paddingBottom: insets.bottom + Spacing.xSmall }]}> 
-                <TouchableOpacity style={[styles.saveButton, { backgroundColor: theme.colors.success }]} onPress={async () => { try { await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium); } catch {}; await handleUpdate(); }} disabled={isSavingTask}>
-                    {isSavingTask ? <ActivityIndicator color="white" /> : <Text style={styles.buttonText}>Zapisz zmiany</Text>}
-                </TouchableOpacity>
-                <TouchableOpacity style={[styles.templateButton, { backgroundColor: theme.colors.info }]} onPress={async () => { try { await Haptics.selectionAsync(); } catch {}; await handleSaveAsTemplate(); }} disabled={isSavingTemplate}>
-                    {isSavingTemplate ? <ActivityIndicator color="white" /> : <Text style={styles.buttonText}>Zapisz jako szablon</Text>}
-                </TouchableOpacity>
-            </View>
+            <FormActionBar
+              containerStyle={{ paddingBottom: insets.bottom + Spacing.xSmall }}
+              primary={{ title: 'Zapisz zmiany', onPress: async () => { try { await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium); } catch {}; await handleUpdate(); }, loading: isSavingTask, backgroundColor: theme.colors.success }}
+              secondary={{ title: 'Zapisz jako szablon', onPress: async () => { try { await Haptics.selectionAsync(); } catch {}; await handleSaveAsTemplate(); }, loading: isSavingTemplate, backgroundColor: theme.colors.info }}
+            />
         </View>
     );
 };
@@ -258,37 +256,7 @@ const styles = StyleSheet.create({
     actionsContainer: {
         paddingVertical: Spacing.large
     },
-    actionBar: {
-        position: 'absolute',
-        left: 0,
-        right: 0,
-        bottom: 0,
-        backgroundColor: 'transparent',
-        borderTopWidth: 1,
-        borderColor: Colors.border,
-        paddingHorizontal: Spacing.medium,
-        paddingTop: Spacing.small,
-        // cień
-        shadowColor: Colors.shadow,
-        shadowOffset: { width: 0, height: -2 },
-        shadowOpacity: 0.12,
-        shadowRadius: 4,
-        elevation: 10,
-    },
-    saveButton: {
-        ...GlobalStyles.button,
-        backgroundColor: Colors.success,
-    },
-    buttonText: {
-        color: 'white',
-        fontSize: Typography.h3.fontSize,
-        fontWeight: Typography.bold.fontWeight
-    },
-    templateButton: {
-        ...GlobalStyles.button,
-        backgroundColor: Colors.info,
-        marginTop: Spacing.small
-    },
+    // przeniesione do FormActionBar
     commentsSection: {
         marginTop: Spacing.large,
         paddingTop: Spacing.large,

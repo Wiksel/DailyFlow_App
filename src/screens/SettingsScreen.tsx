@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, ActivityIndicator } from 'react-native';
 import Animated, { FadeInUp, Layout } from 'react-native-reanimated';
-import auth, { getAuth } from '@react-native-firebase/auth'; // ZMIANA
+import { getAuth } from '@react-native-firebase/auth'; // ZMIANA
 import { db } from '../../firebaseConfig';
 import { doc, onSnapshot, updateDoc } from '../utils/firestoreCompat';
 import Slider from '@react-native-community/slider';

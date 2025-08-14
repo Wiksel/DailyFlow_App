@@ -6,6 +6,7 @@ import { DateTimePickerEvent } from '@react-native-community/datetimepicker';
 import { useCategories } from '../contexts/CategoryContext';
 import TaskForm, { TaskFormData } from '../components/TaskForm';
 import AppHeader from '../components/AppHeader';
+import ActionModal from '../components/ActionModal';
 import { useTheme } from '../contexts/ThemeContext';
 
 interface AddTaskModalProps {
@@ -72,24 +73,25 @@ const AddTaskModal = ({ visible, onClose, onAddTask, initialCategory }: AddTaskM
     };
 
     return (
-        <Modal visible={visible} animationType="slide" onRequestClose={onClose}>
-            <View style={[styles.container, { backgroundColor: theme.colors.background }]}> 
-                <AppHeader title="Nowe zadanie" leftAction={{ icon: 'x', onPress: onClose, accessibilityLabel: 'Zamknij' }} />
-
-                <View style={[styles.form, { backgroundColor: theme.colors.card }]}> 
-                    <TaskForm 
-                        taskData={taskData}
-                        onDataChange={handleDataChange}
-                        showDatePicker={showDatePicker}
-                        onShowDatePicker={() => setShowDatePicker(true)}
-                        onDatePickerChange={onDateChange}
-                    />
-                    <TouchableOpacity style={[styles.saveButton, { backgroundColor: theme.colors.success }]} onPress={handleSave}>
-                        <Text style={styles.saveButtonText}>Dodaj zadanie</Text>
-                    </TouchableOpacity>
-                </View>
+        <ActionModal
+            visible={visible}
+            title="Nowe zadanie"
+            onRequestClose={() => { resetForm(); onClose(); }}
+            actions={[
+                { text: 'Anuluj', variant: 'secondary', onPress: () => { resetForm(); onClose(); } },
+                { text: 'Dodaj zadanie', variant: 'primary', onPress: handleSave },
+            ]}
+        >
+            <View style={[styles.form, { backgroundColor: 'transparent', paddingHorizontal: 0, paddingBottom: 0 }]}> 
+                <TaskForm 
+                    taskData={taskData}
+                    onDataChange={handleDataChange}
+                    showDatePicker={showDatePicker}
+                    onShowDatePicker={() => setShowDatePicker(true)}
+                    onDatePickerChange={onDateChange}
+                />
             </View>
-        </Modal>
+        </ActionModal>
     );
 };
 

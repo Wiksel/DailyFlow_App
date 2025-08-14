@@ -4,6 +4,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Feather } from '@expo/vector-icons';
 import { useTheme } from '../contexts/ThemeContext';
 import { Spacing, Typography } from '../styles/AppStyles';
+import ActionModal from './ActionModal';
 
 interface FilterPreset<T = any> {
   id: string;
@@ -94,28 +95,23 @@ const FilterPresets = <T extends Record<string, unknown>>({
         ))}
       </ScrollView>
 
-      <Modal visible={isModalVisible} transparent onRequestClose={() => setIsModalVisible(false)}>
-        <View style={styles.modalOverlay}>
-          <View style={[styles.modalCard, { backgroundColor: theme.colors.card }]}> 
-            <Text style={[styles.modalTitle, { color: theme.colors.textPrimary }]}>Nazwa presetu</Text>
-            <TextInput
-              style={[styles.input, { backgroundColor: theme.colors.inputBackground, color: theme.colors.textPrimary, borderColor: theme.colors.border }]}
-              placeholder="np. 'Pilne w pracy'"
-              placeholderTextColor={theme.colors.placeholder}
-              value={presetName}
-              onChangeText={setPresetName}
-            />
-            <View style={styles.modalButtonsRow}>
-              <TouchableOpacity onPress={() => setIsModalVisible(false)} style={[styles.modalBtn, { backgroundColor: theme.colors.inputBackground }]}>
-                <Text style={{ color: theme.colors.textPrimary }}>Anuluj</Text>
-              </TouchableOpacity>
-              <TouchableOpacity onPress={handleSavePreset} style={[styles.modalBtn, { backgroundColor: theme.colors.primary }]}>
-                <Text style={{ color: 'white' }}>Zapisz</Text>
-              </TouchableOpacity>
-            </View>
-          </View>
-        </View>
-      </Modal>
+      <ActionModal
+        visible={isModalVisible}
+        title="Nazwa presetu"
+        onRequestClose={() => setIsModalVisible(false)}
+        actions={[
+          { text: 'Anuluj', onPress: () => setIsModalVisible(false), variant: 'secondary' },
+          { text: 'Zapisz', onPress: handleSavePreset, variant: 'primary' },
+        ]}
+      >
+        <TextInput
+          style={[styles.input, { backgroundColor: theme.colors.inputBackground, color: theme.colors.textPrimary, borderColor: theme.colors.border }]}
+          placeholder="np. 'Pilne w pracy'"
+          placeholderTextColor={theme.colors.placeholder}
+          value={presetName}
+          onChangeText={setPresetName}
+        />
+      </ActionModal>
     </View>
   );
 };

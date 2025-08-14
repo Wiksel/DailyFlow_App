@@ -2,6 +2,8 @@
 
 import React, { useState } from 'react';
 import { View, Text, Modal, StyleSheet, TextInput, TouchableOpacity, ActivityIndicator } from 'react-native';
+import LabeledInput from './LabeledInput';
+import ActionModal from './ActionModal';
 import type { FirebaseAuthTypes } from '@react-native-firebase/auth';
 import { useToast } from '../contexts/ToastContext';
 import { createNewUserInFirestore } from '../utils/authUtils';
@@ -36,36 +38,19 @@ const NicknameModal = ({ visible, onClose, user }: NicknameModalProps) => {
   };
 
   return (
-    <Modal visible={visible} transparent={true} animationType="slide" onRequestClose={onClose}>
-      <View style={styles.modalContainer}>
-        <View style={styles.modalContent}>
-          <Text style={styles.modalTitle}>Witaj w DailyFlow!</Text>
-          <Text style={styles.modalSubtitle}>Wybierz swój nick, który będzie widoczny w aplikacji dla Twoich znajomych i partnera.</Text>
-          <TextInput
-            style={GlobalStyles.input}
-            placeholder="Twój Nick"
-            value={nickname}
-            onChangeText={setNickname}
-            editable={!isLoading}
-          />
-          <TouchableOpacity
-            style={[GlobalStyles.button, { marginTop: Spacing.medium }]}
-            onPress={handleFinish}
-            disabled={isLoading}
-          >
-            {isLoading ? <ActivityIndicator color="white" /> : <Text style={GlobalStyles.buttonText}>Zaczynajmy!</Text>}
-          </TouchableOpacity>
-        </View>
-      </View>
-    </Modal>
+    <ActionModal
+      visible={visible}
+      title="Witaj w DailyFlow!"
+      message="Wybierz swój nick, który będzie widoczny w aplikacji dla Twoich znajomych i partnera."
+      onRequestClose={onClose}
+      actions={[{ text: 'Zaczynajmy!', onPress: handleFinish, variant: 'primary' }]}
+    >
+      <LabeledInput label="Nick" placeholder="Twój Nick" value={nickname} onChangeText={setNickname} editable={!isLoading} />
+      {isLoading && <ActivityIndicator color="white" style={{ marginTop: Spacing.small }} />}
+    </ActionModal>
   );
 };
 
-const styles = StyleSheet.create({
-    modalContainer: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: 'rgba(0,0,0,0.5)' },
-    modalContent: { width: '90%', backgroundColor: 'white', borderRadius: 20, padding: Spacing.large, elevation: 5, alignItems: 'center' },
-    modalTitle: { ...Typography.h2, textAlign: 'center', marginBottom: Spacing.small },
-    modalSubtitle: { ...Typography.body, color: Colors.textSecondary, textAlign: 'center', marginBottom: Spacing.large },
-});
+const styles = StyleSheet.create({});
 
 export default NicknameModal;

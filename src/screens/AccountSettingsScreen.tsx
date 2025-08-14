@@ -1,11 +1,14 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, ActivityIndicator, Alert, TextInput } from 'react-native';
-import auth, { getAuth, GoogleAuthProvider, EmailAuthProvider } from '@react-native-firebase/auth';
+import LabeledInput from '../components/LabeledInput';
+import { getAuth, GoogleAuthProvider, EmailAuthProvider } from '@react-native-firebase/auth';
 import { collection, deleteDoc, doc, getDoc, getDocs, query, updateDoc, where, writeBatch, deleteField } from '../utils/firestoreCompat';
 import { db } from '../../firebaseConfig';
 import { useToast } from '../contexts/ToastContext';
 import ActionModal from '../components/ActionModal';
 import { Colors, GlobalStyles, Spacing, Typography } from '../styles/AppStyles';
+import { mapFirebaseAuthErrorToMessage } from '../utils/authUtils';
+import { isStrongPassword } from '../utils/validation';
 import { useUI } from '../contexts/UIContext';
 import { useTheme } from '../contexts/ThemeContext';
 import PasswordInput from '../components/PasswordInput';
@@ -137,14 +140,18 @@ const AccountSettingsScreen = () => {
       showToast('Konto Google zostało połączone.', 'success');
       await user.reload();
       setProviders((getAuth().currentUser?.providerData || []).map(p => p.providerId));
-    } catch (e: any) {
-      if (e?.code === 'auth/credential-already-in-use') {
-        showToast('To konto Google jest już używane.', 'error');
-      } else if (e?.code === '12501' || e?.message?.includes('Sign in action cancelled')) {
-        showToast('Anulowano logowanie Google.', 'info');
-      } else {
-        showToast('Nie udało się połączyć konta Google.', 'error');
-      }
+      } catch (e: any) {
+        const code = String(e?.code || '');
+        if (code === 'auth/credential-already-in-use') {
+          showToast('To konto Google jest już używane.', 'error');
+        } else if (code === '12501' || e?.message?.includes('Sign in action cancelled')) {
+          showToast('Anulowano logowanie Google.', 'info');
+        } else if (code === 'DEVELOPER_ERROR' || code === '10' || code === '12500' || code === 'sign_in_failed') {
+          showToast('Logowanie Google nie powiodło się. Sprawdź konfigurację i spróbuj ponownie.', 'error');
+        } else {
+          const { message, level } = mapFirebaseAuthErrorToMessage(code);
+          showToast(message, level);
+        }
     } finally {
       setIsBusy(false);
     }
@@ -163,8 +170,9 @@ const AccountSettingsScreen = () => {
       showToast('Metoda logowania została odłączona.', 'success');
       await user.reload();
       setProviders((getAuth().currentUser?.providerData || []).map(p => p.providerId));
-    } catch (e) {
-      showToast('Nie udało się odłączyć metody logowania.', 'error');
+    } catch (e: any) {
+      const { message, level } = mapFirebaseAuthErrorToMessage(String(e?.code || ''));
+      showToast(message, level);
     } finally {
       setIsBusy(false);
     }
@@ -247,7 +255,7 @@ const AccountSettingsScreen = () => {
     }
     setIsBusy(true);
     try {
-      await auth().sendPasswordResetEmail(user.email);
+      try { const { sendPasswordResetEmail, getAuth } = await import('@react-native-firebase/auth'); await sendPasswordResetEmail(getAuth(), user.email); } catch (e) { throw e; }
       showToast('Wysłano wiadomość z linkiem do zmiany hasła.', 'success');
     } catch (e) {
       showToast('Nie udało się wysłać wiadomości resetującej.', 'error');
@@ -319,7 +327,7 @@ const AccountSettingsScreen = () => {
           { text: 'Anuluj', onPress: () => setChangePasswordVisible(false), variant: 'primary' },
           { text: 'Zapisz', onPress: async () => {
               if (!user) return;
-              if (!/^(?=.*[A-Za-z])(?=.*\d).{6,}$/.test(newPassword)) { showToast('Hasło jest za słabe.', 'error'); return; }
+              if (!isStrongPassword(newPassword)) { showToast('Hasło jest za słabe.', 'error'); return; }
               setIsBusy(true);
               try {
                 if (!currentPassword || !user.email) { showToast('Podaj obecne hasło.', 'error'); setIsBusy(false); return; }
@@ -330,9 +338,8 @@ const AccountSettingsScreen = () => {
                 setCurrentPassword('');
                 setNewPassword('');
               } catch (e: any) {
-                if (e?.code === 'auth/wrong-password' || e?.code === 'auth/invalid-credential') showToast('Nieprawidłowe obecne hasło.', 'error');
-                else if (e?.code === 'auth/requires-recent-login') showToast('Wymagane ponowne zalogowanie.', 'error');
-                else showToast('Nie udało się zmienić hasła.', 'error');
+                const { message, level } = mapFirebaseAuthErrorToMessage(String(e?.code || ''));
+                showToast(message, level);
               } finally {
                 setIsBusy(false);
               }
@@ -346,13 +353,7 @@ const AccountSettingsScreen = () => {
       </ActionModal>
       <View style={[GlobalStyles.section, { backgroundColor: theme.colors.card, borderColor: theme.colors.border }]}>
         <Text style={[styles.sectionTitle, { color: theme.colors.textPrimary }]}>Zmień Nick</Text>
-        <TextInput
-          style={[GlobalStyles.input, { backgroundColor: theme.colors.inputBackground, borderColor: theme.colors.border, color: theme.colors.textPrimary }]}
-          placeholder="Wpisz swój nick"
-          value={nickname}
-          onChangeText={setNickname}
-          editable={!isSavingNickname}
-        />
+        <LabeledInput label="Nick" placeholder="Wpisz swój nick" value={nickname} onChangeText={setNickname} editable={!isSavingNickname} />
         <TouchableOpacity style={[GlobalStyles.button, { marginTop: Spacing.small }]} onPress={async () => {
           if (!user || !nickname.trim() || isSavingNickname) return;
           setIsSavingNickname(true);
@@ -385,12 +386,12 @@ const AccountSettingsScreen = () => {
           ) : (
             <View>
               <Text style={[styles.label, { marginTop: 0 }]}>Dodaj e‑mail i hasło</Text>
-              <TextInput style={GlobalStyles.input} placeholder="Adres e‑mail" autoCapitalize="none" value={setPasswordEmail} onChangeText={setSetPasswordEmail} editable={!isLinkingPassword} />
+              <LabeledInput label="Adres e‑mail" placeholder="Adres e‑mail" autoCapitalize="none" value={setPasswordEmail} onChangeText={setSetPasswordEmail} editable={!isLinkingPassword} />
               <PasswordInput value={setPasswordValue} onChangeText={setSetPasswordValue} placeholder="Hasło (min. 6, litera, cyfra)" />
               <TouchableOpacity style={[GlobalStyles.button, { marginTop: Spacing.small }]} disabled={isLinkingPassword} onPress={async () => {
                 if (!user) return;
                 if (!/\S+@\S+\.\S+/.test(setPasswordEmail)) { showToast('Podaj poprawny e‑mail.', 'error'); return; }
-                if (!/^(?=.*[A-Za-z])(?=.*\d).{6,}$/.test(setPasswordValue)) { showToast('Hasło jest za słabe.', 'error'); return; }
+                if (!isStrongPassword(setPasswordValue)) { showToast('Hasło jest za słabe.', 'error'); return; }
                 setIsLinkingPassword(true);
                 try {
                   // Nie aktualizujemy e‑maila bezpośrednio tutaj; linkowanie poświadczeń ustawi e‑mail automatycznie
@@ -438,12 +439,8 @@ const AccountSettingsScreen = () => {
                   await user.reload();
                   setProviders((getAuth().currentUser?.providerData || []).map(p => p.providerId));
                 } catch (e: any) {
-                  if (e?.code === 'auth/email-already-in-use') showToast('Ten e‑mail jest już używany.', 'error');
-                  else if (e?.code === 'auth/invalid-credential') showToast('Nieprawidłowe dane logowania.', 'error');
-                  else if (e?.code === 'auth/operation-not-allowed') showToast('Operacja niedozwolona dla tego konta.', 'error');
-                  else if (e?.code === 'auth/provider-already-linked') showToast('Ta metoda jest już połączona.', 'info');
-                  else if (e?.code === 'auth/requires-recent-login') showToast('Wymagane ponowne zalogowanie.', 'error');
-                  else showToast('Nie udało się dodać e‑maila/hasła.', 'error');
+                  const { message, level } = mapFirebaseAuthErrorToMessage(String(e?.code || ''));
+                  showToast(message, level);
                 } finally {
                   setIsLinkingPassword(false);
                 }
@@ -483,7 +480,7 @@ const AccountSettingsScreen = () => {
 
       <View style={[GlobalStyles.section, { backgroundColor: theme.colors.card, borderColor: theme.colors.border }]}>
         <Text style={[styles.sectionTitle, { color: theme.colors.textPrimary }]}>Zmień e‑mail</Text>
-        <TextInput style={[GlobalStyles.input, { backgroundColor: theme.colors.inputBackground, borderColor: theme.colors.border, color: theme.colors.textPrimary }]} placeholder="Nowy adres e‑mail" autoCapitalize="none" value={newEmail} onChangeText={setNewEmail} editable={!emailChanging} />
+        <LabeledInput label="E‑mail" placeholder="Nowy adres e‑mail" autoCapitalize="none" value={newEmail} onChangeText={setNewEmail} editable={!emailChanging} />
           {pendingEmail && pendingEmail !== user?.email ? (
             <View style={{ marginTop: Spacing.small }}>
               <Text style={[styles.label, { color: theme.colors.textSecondary }]}>Oczekuje na weryfikację: {pendingEmail}</Text>
@@ -520,7 +517,7 @@ const AccountSettingsScreen = () => {
                   await user.updateEmail(newEmail);
                   try { await user.sendEmailVerification(); } catch {}
                 }
-              } catch (err: any) {
+            } catch (err: any) {
                 if (err?.code === 'auth/requires-recent-login') {
                   const hasGoogleProvider = (user.providerData || []).some(p => p.providerId === 'google.com');
                   if (hasGoogleProvider) {
@@ -533,22 +530,25 @@ const AccountSettingsScreen = () => {
                       try { await user.sendEmailVerification(); } catch {}
                     }
                   } else {
+                    const { message, level } = mapFirebaseAuthErrorToMessage(String(err?.code || ''));
+                    showToast(message, level);
                     throw err;
                   }
                 } else {
+                  const { message, level } = mapFirebaseAuthErrorToMessage(String(err?.code || ''));
+                  showToast(message, level);
                   throw err;
                 }
               }
               try { await updateDoc(doc(db, 'users', user.uid), { pendingEmail: newEmail }); setPendingEmail(newEmail); } catch {}
               showToast('Wysłaliśmy link weryfikacyjny. Zmiana e‑maila nastąpi po potwierdzeniu.', 'success');
-          } catch (e: any) {
-              if (e?.code === 'auth/requires-recent-login') {
-                setPasswordPromptVisible(true);
-              } else if (e?.code === 'auth/email-already-in-use') {
-              showToast('Ten e‑mail jest już używany.', 'error');
-            } else {
-              showToast('Nie udało się zmienić e‑maila.', 'error');
-            }
+            } catch (e: any) {
+               if (e?.code === 'auth/requires-recent-login') {
+                 setPasswordPromptVisible(true);
+               } else {
+                 const { message, level } = mapFirebaseAuthErrorToMessage(String(e?.code || ''));
+                 showToast(message, level);
+               }
           } finally {
             setEmailChanging(false);
           }
@@ -577,8 +577,9 @@ const AccountSettingsScreen = () => {
                 showToast('Wysłaliśmy link weryfikacyjny. Zmiana e‑maila nastąpi po potwierdzeniu.', 'success');
                 setPasswordPromptVisible(false);
                 setPasswordForReauth('');
-              } catch {
-                showToast('Nie udało się ponownie uwierzytelnić.', 'error');
+              } catch (e: any) {
+                const { message, level } = mapFirebaseAuthErrorToMessage(String(e?.code || ''));
+                showToast(message, level);
               }
             }
           }

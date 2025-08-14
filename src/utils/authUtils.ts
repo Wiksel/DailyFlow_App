@@ -4,6 +4,33 @@ import { doc, setDoc, collection, writeBatch, query, where, getDocs, limit, getD
 import type { FirebaseAuthTypes } from '@react-native-firebase/auth';
 import { DEFAULT_CATEGORIES } from '../constants/categories';
 
+export function mapFirebaseAuthErrorToMessage(code: string): { message: string; level: 'error' | 'info' } {
+  const c = (code || '').toLowerCase();
+  switch (c) {
+    case 'auth/invalid-credential':
+    case 'auth/wrong-password':
+      return { message: 'Nieprawidłowe dane logowania. Sprawdź identyfikator i hasło.', level: 'error' };
+    case 'auth/too-many-requests':
+      return { message: 'Dostęp tymczasowo zablokowany. Spróbuj ponownie później.', level: 'info' };
+    case 'auth/email-already-in-use':
+      return { message: 'Ten e‑mail jest już używany.', level: 'error' };
+    case 'auth/weak-password':
+      return { message: 'Hasło jest zbyt słabe. Użyj min. 6 znaków, w tym cyfry i litery.', level: 'error' };
+    case 'auth/invalid-email':
+      return { message: 'Podany adres e‑mail jest nieprawidłowy.', level: 'error' };
+    case 'auth/invalid-phone-number':
+      return { message: 'Nieprawidłowy format numeru telefonu.', level: 'error' };
+    case 'auth/invalid-verification-code':
+      return { message: 'Nieprawidłowy kod weryfikacyjny.', level: 'error' };
+    case 'auth/account-exists-with-different-credential':
+      return { message: 'Konto istnieje z innym sposobem logowania.', level: 'info' };
+    case 'auth/requires-recent-login':
+      return { message: 'Operacja wymaga ponownego logowania.', level: 'error' };
+    default:
+      return { message: 'Wystąpił nieoczekiwany błąd. Spróbuj ponownie.', level: 'error' };
+  }
+}
+
 export const createNewUserInFirestore = async (user: FirebaseAuthTypes.User, displayName: string) => {
     const finalNickname = displayName.trim() || user.email?.split('@')[0] || 'Nowy Użytkownik';
     const userRef = doc(db, "users", user.uid);
@@ -245,5 +272,14 @@ export const popSuggestedLoginIdentifier = async (): Promise<string | null> => {
     await AsyncStorage.removeItem(SUGGESTED_LOGIN_KEY);
     return v;
   } catch { return null; }
+};
+
+// Simple onboarding completion flag (first run helper)
+const ONBOARD_FLAG_KEY = 'dailyflow_onboarding_done';
+export const isOnboardingDone = async (): Promise<boolean> => {
+  try { return (await AsyncStorage.getItem(ONBOARD_FLAG_KEY)) === '1'; } catch { return false; }
+};
+export const setOnboardingDone = async (): Promise<void> => {
+  try { await AsyncStorage.setItem(ONBOARD_FLAG_KEY, '1'); } catch {}
 };
 

@@ -13,6 +13,7 @@ const PriorityIndicator = ({ priority }: PriorityIndicatorProps) => {
     // Możesz użyć tej samej palety kolorów co w PrioritySelector lub dostosować
     const colors = [theme.colors.success, theme.colors.success, theme.colors.warning, theme.colors.danger, theme.colors.danger];
 
+    const activeCount = Math.max(1, Math.min(5, Math.round(priority)));
     return (
         <View style={styles.priorityIndicatorContainer}>
             {bars.map(bar => (
@@ -20,8 +21,8 @@ const PriorityIndicator = ({ priority }: PriorityIndicatorProps) => {
                     styles.priorityBar,
                     {
                         height: 6 + bar * 2.5,
-                        // Wizualizacja każdego słupka kolorem odpowiadającym jego 'poziomowi'
-                        backgroundColor: bar <= priority ? colors[bar - 1] : theme.colors.border // <-- Zmiana tutaj
+                        backgroundColor: bar <= activeCount ? colors[bar - 1] : theme.colors.border,
+                        opacity: bar <= activeCount ? 1 : 0.75,
                     }
                 ]} />
             ))}

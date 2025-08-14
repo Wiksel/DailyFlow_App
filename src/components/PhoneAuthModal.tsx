@@ -1,13 +1,16 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { View, Text, Modal, StyleSheet, TextInput, TouchableOpacity, ActivityIndicator, Keyboard, AppState, AppStateStatus } from 'react-native';
+import { View, Text, Modal, StyleSheet, TextInput, TouchableOpacity, ActivityIndicator, Keyboard } from 'react-native';
 import auth, { getAuth, EmailAuthProvider } from '@react-native-firebase/auth';
 import type { FirebaseAuthTypes } from '@react-native-firebase/auth';
-import CountryPicker, { Country } from 'react-native-country-picker-modal';
-import { createNewUserInFirestore, checkIfPhoneExists, debugPhoneNumbers, setSuggestedLoginIdentifier } from '../utils/authUtils';
+import { Country } from 'react-native-country-picker-modal';
+import { createNewUserInFirestore, checkIfPhoneExists, setSuggestedLoginIdentifier, mapFirebaseAuthErrorToMessage } from '../utils/authUtils';
 import { useToast, ToastOverlay, ToastOverlaySuppressor } from '../contexts/ToastContext';
 import { Colors, Spacing, Typography, GlobalStyles } from '../styles/AppStyles';
 import PasswordInput from './PasswordInput';
-import { Feather } from '@expo/vector-icons';
+import PhoneNumberField from './PhoneNumberField';
+import { formatPolishPhone, extractDigits, buildE164 } from '../utils/phone';
+import { isStrongPassword } from '../utils/validation';
+import { useResendTimer } from '../hooks/useResendTimer';
 
 interface PhoneAuthModalProps {
   visible: boolean;
@@ -63,24 +66,14 @@ const PhoneAuthModal = ({ visible, onClose, onRegistered }: PhoneAuthModalProps)
     onClose();
   };
 
-  const formatPhoneNumber = (text: string) => {
-    const cleaned = text.replace(/\D/g, '');
-    let formatted = '';
-    if (cleaned.length > 0) formatted += cleaned.substring(0, 3);
-    if (cleaned.length > 3) formatted += ' ' + cleaned.substring(3, 6);
-    if (cleaned.length > 6) formatted += ' ' + cleaned.substring(6, 9);
-    return formatted;
-  };
-
   const handlePhoneNumberChange = (text: string) => {
-      const cleaned = text.replace(/\D/g, '');
+      const cleaned = extractDigits(text);
       setPhoneNumber(cleaned);
-      setFormattedPhoneNumber(formatPhoneNumber(cleaned));
+      setFormattedPhoneNumber(formatPolishPhone(cleaned));
   };
 
   const validatePassword = (passwordToValidate: string) => {
-    const passwordRegex = /^(?=.*[A-Za-z])(?=.*\d).{6,}$/;
-    if (!passwordToValidate.trim() || !passwordRegex.test(passwordToValidate)) {
+    if (!passwordToValidate.trim() || !isStrongPassword(passwordToValidate)) {
         setPasswordError('Hasło jest za słabe.');
         return false;
     }
@@ -88,40 +81,12 @@ const PhoneAuthModal = ({ visible, onClose, onRegistered }: PhoneAuthModalProps)
     return true;
   };
 
-  const [resendSeconds, setResendSeconds] = useState(0);
-  const resendUntilRef = useRef<number | null>(null);
+  const { remainingSeconds: resendSeconds, start: startResendTimer } = useResendTimer(visible && step === 'enter-code');
   useEffect(() => {
     if (visible && step === 'enter-phone') {
       const t = setTimeout(() => phoneInputRef.current?.focus(), 250);
       return () => clearTimeout(t);
     }
-  }, [visible, step]);
-
-  // Licznik oparty na znaczniku czasu, działa także w tle
-  useEffect(() => {
-    if (!visible || step !== 'enter-code') return;
-    const updateRemaining = () => {
-      const now = Date.now();
-      const until = resendUntilRef.current ?? now;
-      const remaining = Math.max(0, Math.ceil((until - now) / 1000));
-      setResendSeconds(remaining);
-      if (remaining <= 0) {
-        resendUntilRef.current = null;
-      }
-    };
-
-    updateRemaining();
-    const intervalId = setInterval(updateRemaining, 500);
-
-    const handleAppStateChange = (state: AppStateStatus) => {
-      if (state === 'active') updateRemaining();
-    };
-    const appStateSub = AppState.addEventListener('change', handleAppStateChange);
-
-    return () => {
-      clearInterval(intervalId);
-      appStateSub.remove();
-    };
   }, [visible, step]);
 
   const sendVerificationCode = async (isResend: boolean = false) => {
@@ -134,7 +99,7 @@ const PhoneAuthModal = ({ visible, onClose, onRegistered }: PhoneAuthModalProps)
     }
     
     if (isResend) { setIsResending(true); } else { setIsLoading(true); }
-    const fullPhoneNumber = `+${country.callingCode[0]}${phoneNumber}`;
+    const fullPhoneNumber = buildE164(country.callingCode[0], phoneNumber);
     
     try {
       // Sprawdź czy konto już istnieje tylko przy pierwszym wysłaniu
@@ -151,7 +116,7 @@ const PhoneAuthModal = ({ visible, onClose, onRegistered }: PhoneAuthModalProps)
         try {
           const listener: any = (auth() as any).verifyPhoneNumber(fullPhoneNumber);
           const unsubscribe = listener.on('state_changed', (snapshot: any) => {
-            const state = snapshot?.state || snapshot?.state;
+            const state = snapshot?.state;
             if (state === 'sent' || state === (auth as any).PhoneAuthState?.CODE_SENT) {
               const vid = snapshot?.verificationId;
               const token = snapshot?.resendToken ?? snapshot?.token;
@@ -170,17 +135,13 @@ const PhoneAuthModal = ({ visible, onClose, onRegistered }: PhoneAuthModalProps)
       resendTokenRef.current = (typeof resendToken === 'number' ? resendToken : null);
       setStep('enter-code');
       showGlobalToast('Kod weryfikacyjny został wysłany!', 'success');
-      resendUntilRef.current = Date.now() + 30_000;
-      setResendSeconds(30);
+      startResendTimer(30_000);
     } catch (error: any) {
-      if (error?.code === 'auth/too-many-requests') {
-        showGlobalToast('Zbyt wiele prób. \nSpróbuj ponownie później.', 'error');
-      } else if (error?.code === 'auth/invalid-phone-number') {
-        showGlobalToast('Nieprawidłowy format numeru telefonu.', 'error');
-      } else if (error?.message === 'timeout') {
+      if (error?.message === 'timeout') {
         showGlobalToast('Przekroczono czas wysyłki SMS. \nSpróbuj ponownie.', 'error');
       } else {
-        showGlobalToast('Wystąpił nieoczekiwany błąd.', 'error');
+        const { message, level } = mapFirebaseAuthErrorToMessage(String(error?.code || ''));
+        showGlobalToast(message, level);
       }
     } finally {
       if (isResend) { setIsResending(false); } else { setIsLoading(false); }
@@ -189,7 +150,7 @@ const PhoneAuthModal = ({ visible, onClose, onRegistered }: PhoneAuthModalProps)
 
   const resendCode = async () => {
     if (isResending || resendSeconds > 0) return;
-    const fullPhoneNumber = `+${country.callingCode[0]}${phoneNumber}`;
+    const fullPhoneNumber = buildE164(country.callingCode[0], phoneNumber);
     setIsResending(true);
     try {
       const token = resendTokenRef.current ?? undefined;
@@ -197,7 +158,7 @@ const PhoneAuthModal = ({ visible, onClose, onRegistered }: PhoneAuthModalProps)
         try {
           const listener: any = (auth() as any).verifyPhoneNumber(fullPhoneNumber, undefined, token as any);
           const unsubscribe = listener.on('state_changed', (snapshot: any) => {
-            const state = snapshot?.state || snapshot?.state;
+            const state = snapshot?.state;
             if (state === 'sent' || state === (auth as any).PhoneAuthState?.CODE_SENT) {
               const vid = snapshot?.verificationId;
               const tk = snapshot?.resendToken ?? snapshot?.token;
@@ -215,15 +176,13 @@ const PhoneAuthModal = ({ visible, onClose, onRegistered }: PhoneAuthModalProps)
       verificationIdRef.current = verificationId || null;
       resendTokenRef.current = (typeof resendToken === 'number' ? resendToken : resendTokenRef.current);
       showGlobalToast('Kod weryfikacyjny został wysłany!', 'success');
-      resendUntilRef.current = Date.now() + 30_000;
-      setResendSeconds(30);
+      startResendTimer(30_000);
     } catch (e: any) {
       if (e?.message === 'timeout') {
         showGlobalToast('Przekroczono czas wysyłki SMS. Spróbuj ponownie.', 'error');
-      } else if (e?.code === 'auth/too-many-requests') {
-        showGlobalToast('Zbyt wiele prób. \nOdczekaj chwilę i spróbuj ponownie.', 'error');
       } else {
-        showGlobalToast('Nie udało się wysłać kodu. Spróbuj ponownie.', 'error');
+        const { message, level } = mapFirebaseAuthErrorToMessage(String(e?.code || ''));
+        showGlobalToast(message, level);
       }
     } finally {
       setIsResending(false);
@@ -253,7 +212,8 @@ const PhoneAuthModal = ({ visible, onClose, onRegistered }: PhoneAuthModalProps)
       showGlobalToast('Numer zweryfikowany pomyślnie!\nTeraz podaj nick i hasło.', 'success');
       setStep('enter-details');
     } catch (error: any) {
-      showGlobalToast('Nieprawidłowy kod weryfikacyjny.', 'error');
+      const { message, level } = mapFirebaseAuthErrorToMessage(String(error?.code || 'auth/invalid-verification-code'));
+      showGlobalToast(message, level);
     } finally {
       setIsLoading(false);
     }
@@ -308,7 +268,7 @@ const PhoneAuthModal = ({ visible, onClose, onRegistered }: PhoneAuthModalProps)
     }
   };
 
-  const isDetailsFormValid = nickname.trim().length > 0 && /^(?=.*[A-Za-z])(?=.*\d).{6,}$/.test(password);
+  const isDetailsFormValid = nickname.trim().length > 0 && isStrongPassword(password);
   
   const renderStep = () => {
     switch (step) {
@@ -317,27 +277,16 @@ const PhoneAuthModal = ({ visible, onClose, onRegistered }: PhoneAuthModalProps)
           <>
             <Text style={styles.modalTitle}>Zarejestruj się</Text>
             <Text style={styles.modalSubtitle}>Podaj swój numer, aby otrzymać kod weryfikacyjny SMS.</Text>
-            <View style={styles.phoneInputContainer}>
-                <CountryPicker
-                    countryCode={country.cca2}
-                    withFilter withFlag withCallingCode withCallingCodeButton withCountryNameButton={false}
-                    onSelect={(selectedCountry: Country) => setCountry(selectedCountry)}
-                    containerButtonStyle={styles.countryPickerButton}
-                    onOpen={() => setTimeout(() => phoneInputRef.current?.focus(), 0)}
-                />
-              <TextInput 
-                style={styles.phoneInput} 
-                placeholder="000 000 000" 
-                keyboardType="phone-pad" 
-                ref={phoneInputRef}
-                autoFocus={false}
-                value={formattedPhoneNumber}
-                onChangeText={handlePhoneNumberChange}
-                maxLength={11}
-                onSubmitEditing={() => sendVerificationCode()} 
-                blurOnSubmit={true}
-              />
-            </View>
+            <PhoneNumberField
+              country={country}
+              onSelectCountry={(c) => setCountry(c)}
+              inputRef={phoneInputRef}
+              value={formattedPhoneNumber}
+              onChangeText={handlePhoneNumberChange}
+              onSubmitEditing={() => sendVerificationCode()}
+              placeholderTextColor={Colors.placeholder}
+              textColor={'#fff'}
+            />
             <TouchableOpacity style={GlobalStyles.button} onPress={async () => { try { const m = await import('expo-haptics'); await m.selectionAsync(); } catch {}; sendVerificationCode(); }} disabled={isLoading}>
               <Text style={[GlobalStyles.buttonText, isLoading && styles.buttonTextHidden]}>Wyślij kod</Text>
               {isLoading && <ActivityIndicator color="white" style={styles.activityIndicator} />}
@@ -411,23 +360,12 @@ const PhoneAuthModal = ({ visible, onClose, onRegistered }: PhoneAuthModalProps)
   );
 };
 
-const getToastStyle = (type: 'success' | 'error' | 'info') => {
-    switch (type) {
-        case 'success': return { backgroundColor: Colors.success, iconName: 'check-circle' as const };
-        case 'error': return { backgroundColor: Colors.error, iconName: 'alert-triangle' as const };
-        case 'info': return { backgroundColor: Colors.info, iconName: 'info' as const };
-        default: return { backgroundColor: Colors.textSecondary, iconName: 'help-circle' as const };
-    }
-};
-
 const styles = StyleSheet.create({
     modalContainer: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: 'rgba(0,0,0,0.75)' },
     modalContent: { width: '90%', backgroundColor: '#111', borderRadius: 20, padding: Spacing.large, paddingTop: Spacing.xxLarge, elevation: 5, alignItems: 'center', borderWidth: 1, borderColor: '#222' },
     modalTitle: { ...Typography.h2, textAlign: 'center', marginBottom: Spacing.small, color: '#fff' },
     modalSubtitle: { ...Typography.body, color: '#bbb', textAlign: 'center', marginBottom: Spacing.large },
-    phoneInputContainer: { flexDirection: 'row', alignItems: 'center', borderWidth: 1, borderColor: Colors.border, borderRadius: 8, marginBottom: Spacing.medium, width: '100%' },
-    countryPickerButton: { paddingVertical: Spacing.small, paddingHorizontal: Spacing.small, marginRight: Spacing.xSmall, },
-    phoneInput: { ...GlobalStyles.input, flex: 1, borderWidth: 0, backgroundColor: 'transparent', paddingLeft: Spacing.small, color: '#fff' },
+    // przeniesione do PhoneNumberField
     closeButton: { position: 'absolute', top: Spacing.small, right: Spacing.medium, padding: Spacing.small },
     closeButtonText: { color: '#bbb', fontSize: 16 },
     inputError: { borderColor: Colors.danger, },

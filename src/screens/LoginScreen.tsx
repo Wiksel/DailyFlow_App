@@ -1,17 +1,19 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { View, Text, StyleSheet, TextInput, TouchableOpacity, ActivityIndicator, Image, Dimensions, ScrollView, Platform, Keyboard } from 'react-native';
+import LabeledInput from '../components/LabeledInput';
 import { useNavigation } from '@react-navigation/native';
 import auth, { FirebaseAuthTypes, getAuth, signInWithEmailAndPassword, createUserWithEmailAndPassword, GoogleAuthProvider, signInWithCredential } from '@react-native-firebase/auth';
 import { GoogleSignin } from '@react-native-google-signin/google-signin';
 import { useToast } from '../contexts/ToastContext';
 import { Colors, Spacing, Typography, GlobalStyles } from '../styles/AppStyles';
+import { isStrongPassword } from '../utils/validation';
 import { useTheme } from '../contexts/ThemeContext';
 import { Feather } from '@expo/vector-icons';
 import ActionModal from '../components/ActionModal';
 import LinkAccountsModal from '../components/LinkAccountsModal';
 import PhoneAuthModal from '../components/PhoneAuthModal';
 import ForgotPasswordModal from '../components/ForgotPasswordModal';
-import { createNewUserInFirestore, findUserEmailByIdentifier, popSuggestedLoginIdentifier, setSuggestedLoginIdentifier, upsertAuthProvidersForUser } from '../utils/authUtils';
+import { createNewUserInFirestore, findUserEmailByIdentifier, popSuggestedLoginIdentifier, setSuggestedLoginIdentifier, upsertAuthProvidersForUser, mapFirebaseAuthErrorToMessage } from '../utils/authUtils';
 import { AuthStackParamList } from '../types/navigation';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { doc, getDoc, collection, query, where, getDocs, limit } from '../utils/firestoreCompat';
@@ -29,7 +31,7 @@ const SPRING_CONFIG = { damping: 20, stiffness: 150, mass: 1 };
 // Komponenty formularzy (bez zmian)
 const LoginForm = React.memo(({ identifier, setIdentifier, loginPassword, setLoginPassword, isLoading, handleLogin, setForgotPasswordModalVisible, onGoogleButtonPress, theme }: any) => (
     <View style={styles.formInnerContainer}>
-        <TextInput style={[GlobalStyles.input, { backgroundColor: theme.colors.inputBackground, borderColor: theme.colors.border, color: theme.colors.textPrimary }]} placeholder="E-mail lub telefon (9 cyfr)" value={identifier} onChangeText={setIdentifier} autoCapitalize="none" editable={!isLoading} placeholderTextColor={theme.colors.placeholder} />
+        <LabeledInput label="Identyfikator" placeholder="E-mail lub telefon (9 cyfr)" value={identifier} onChangeText={setIdentifier} autoCapitalize="none" editable={!isLoading} />
         <PasswordInput
             placeholder="Hasło"
             value={loginPassword}
@@ -60,19 +62,18 @@ const LoginForm = React.memo(({ identifier, setIdentifier, loginPassword, setLog
 const RegisterForm = React.memo(({ registerData, handleRegisterDataChange, emailError, passwordError, validateEmail, validatePassword, isLoading, isRegisterFormValid, handleRegister, onGoogleButtonPress, setPhoneModalVisible, theme }: any) => (
     <View style={styles.formInnerContainer}>
         <View style={styles.inputWrapper}>
-            <TextInput style={[GlobalStyles.input, { backgroundColor: theme.colors.inputBackground, borderColor: theme.colors.border, color: theme.colors.textPrimary }]} placeholder="Twój Nick" value={registerData.nickname} onChangeText={(val: string) => handleRegisterDataChange('nickname', val)} editable={!isLoading} placeholderTextColor={theme.colors.placeholder} />
+            <LabeledInput label="Nick" placeholder="Twój Nick" value={registerData.nickname} onChangeText={(val: string) => handleRegisterDataChange('nickname', val)} editable={!isLoading} />
         </View>
         <View style={styles.inputWrapper}>
-            <TextInput
-                style={[GlobalStyles.input, { backgroundColor: theme.colors.inputBackground, borderColor: theme.colors.border, color: theme.colors.textPrimary }, emailError ? styles.inputError : {}]}
-                placeholder="Adres e-mail"
+            <LabeledInput
+                label="Adres e-mail"
                 value={registerData.email}
                 onChangeText={(val: string) => handleRegisterDataChange('email', val)}
                 keyboardType="email-address"
                 autoCapitalize="none"
                 editable={!isLoading}
-                placeholderTextColor={theme.colors.placeholder}
                 onBlur={() => validateEmail(registerData.email)}
+                containerStyle={emailError ? styles.inputError : undefined}
             />
             {!!emailError && <Text style={styles.errorText}>{emailError}</Text>}
         </View>
@@ -157,7 +158,7 @@ const LoginScreen = () => {
     const HEADER_MARGIN_BOTTOM = Spacing.xLarge;
 
     const isEmailValidCheck = (email: string) => /\S+@\S+\.\S+/.test(email);
-    const isPasswordValidCheck = (password: string) => /^(?=.*[A-Za-z])(?=.*\d).{6,}$/.test(password);
+    const isPasswordValidCheck = (password: string) => isStrongPassword(password);
 
     const handleRegisterDataChange = (name: keyof typeof registerData, value: string) => {
         setRegisterData((prevState) => ({ ...prevState, [name]: value }));
@@ -224,23 +225,14 @@ const LoginScreen = () => {
     };
 
     const handleAuthError = (error: any) => {
-        const code = error.code || '';
-        if (code === 'auth/invalid-credential' || code === 'auth/wrong-password') {
-            showToast('Nieprawidłowe dane logowania.\nSprawdź identyfikator i hasło.', 'error');
-        } else if (code === 'auth/too-many-requests') {
-            showToast('Dostęp tymczasowo zablokowany. \nSpróbuj ponownie później.', 'info');
-        } else if (code === 'auth/email-already-in-use') {
+        const code = String(error?.code || '');
+        if (code === 'auth/email-already-in-use') {
             const email = registerData.email || identifier;
             openLoginSuggestion(email, null).catch(() => {});
-        } else if (code === 'auth/weak-password') {
-            showToast('Hasło jest zbyt słabe. Użyj min. 6 znaków, w tym cyfry i litery.', 'error');
-        } else if (code === 'auth/invalid-email') {
-            showToast('Podany adres e-mail jest nieprawidłowy.', 'error');
-        } else if (code === 'auth/account-exists-with-different-credential') {
-            showToast('Konto istnieje z innym sposobem logowania.', 'info');
-        } else {
-            showToast('Wystąpił nieoczekiwany błąd. Spróbuj ponownie.', 'error');
+            return;
         }
+        const { message, level } = mapFirebaseAuthErrorToMessage(code);
+        showToast(message, level);
     };
     const handleResendVerification = async (user: FirebaseAuthTypes.User) => { try { await user.sendEmailVerification(); showToast('Nowy link weryfikacyjny został wysłany. Sprawdź skrzynkę (także spam).', 'success'); } catch (error: any) { handleAuthError(error); } };
     const handleLogin = async () => { 
@@ -308,9 +300,12 @@ const LoginScreen = () => {
         setIsLoading(true);
         try {
             await GoogleSignin.hasPlayServices({ showPlayServicesUpdateDialog: true });
-            const signInResp: any = await GoogleSignin.signIn();
-            let idToken = signInResp?.data?.idToken;
-            if (!idToken) idToken = (await GoogleSignin.getTokens())?.idToken;
+            // spróbuj użyć istniejącego tokenu zanim pokażesz dialog
+            let idToken = (await GoogleSignin.getTokens())?.idToken;
+            if (!idToken) {
+                const signInResp: any = await GoogleSignin.signIn();
+                idToken = signInResp?.data?.idToken || (await GoogleSignin.getTokens())?.idToken;
+            }
             if (!idToken) throw new Error('Brak tokena Google');
             const googleCredential = GoogleAuthProvider.credential(idToken);
 
@@ -345,9 +340,9 @@ const LoginScreen = () => {
                 setLinkEmail(error?.email || linkEmail);
                 setPendingGoogleCredential(error?.credential || pendingGoogleCredential);
                 setLinkModalVisible(true);
-            } else if (code === '12500' || code === 'sign_in_failed') {
+            } else if (code === '12500' || code === 'sign_in_failed' || code === 'DEVELOPER_ERROR') {
                 showToast('Logowanie Google nie powiodło się. Spróbuj ponownie.', 'error');
-            } else if (code === '10' || code === 'DEVELOPER_ERROR') {
+            } else if (code === '10') {
                 showToast('Błąd konfiguracji Google (SHA/klient). Zaktualizuj google-services.json i przebuduj.', 'error');
             } else if (code === 'NETWORK_ERROR') {
                 showToast('Brak połączenia z siecią. Spróbuj ponownie.', 'error');

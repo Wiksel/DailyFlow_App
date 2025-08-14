@@ -39,9 +39,9 @@ const DisplaySettingsScreen = () => {
         <Text style={[styles.label, { color: theme.colors.textPrimary, marginTop: Spacing.medium }]}>Język</Text>
         <View style={styles.row}>
           {['pl','en'].map(lng => (
-            <View key={lng} style={[styles.chip, { backgroundColor: theme.colors.inputBackground }]}> 
+            <TouchableOpacity key={lng} style={[styles.chip, { backgroundColor: theme.colors.inputBackground }]} onPress={async () => { try { const h = await import('expo-haptics'); await h.selectionAsync(); } catch {} }}>
               <Text style={[styles.chipText, { color: theme.colors.textPrimary }]}>{lng === 'pl' ? 'Polski' : 'English'}</Text>
-            </View>
+            </TouchableOpacity>
           ))}
         </View>
         <Text style={[styles.label, { color: theme.colors.textPrimary, marginTop: Spacing.medium }]}>Gęstość interfejsu</Text>
@@ -55,6 +55,24 @@ const DisplaySettingsScreen = () => {
           ))}
         </View>
       </View>
+
+      <View style={[GlobalStyles.section, { backgroundColor: theme.colors.card, marginTop: Spacing.medium }]}> 
+        <Text style={[styles.title, { color: theme.colors.textPrimary }]}>Podgląd</Text>
+        <View style={[styles.previewCard, { borderColor: theme.colors.border, backgroundColor: theme.colors.inputBackground }]}> 
+          <Text style={[styles.previewTitle, { color: theme.colors.textPrimary }]}>Nagłówek</Text>
+          <View style={styles.previewRow}>
+            <View style={[styles.previewBadge, { backgroundColor: theme.colors.primary }]} />
+            <Text style={{ color: theme.colors.textSecondary }}>Element listy (tekst przykładowy)</Text>
+          </View>
+          <View style={styles.previewRow}>
+            <View style={[styles.previewBadge, { backgroundColor: theme.colors.primary }]} />
+            <Text style={{ color: theme.colors.textSecondary }}>Element listy (tekst przykładowy)</Text>
+          </View>
+          <View style={[styles.previewButton, { backgroundColor: theme.colors.primary }]}>
+            <Text style={{ color: 'white', fontWeight: '700' }}>Przycisk</Text>
+          </View>
+        </View>
+      </View>
     </View>
   );
 };
@@ -65,6 +83,11 @@ const styles = StyleSheet.create({
   row: { flexDirection: 'row', marginTop: Spacing.small },
   chip: { paddingHorizontal: Spacing.medium, paddingVertical: Spacing.xSmall, borderRadius: 16, marginRight: Spacing.small },
   chipText: { ...Typography.body },
+  previewCard: { borderWidth: 1, borderRadius: 12, padding: Spacing.medium },
+  previewTitle: { ...Typography.h3, marginBottom: Spacing.small },
+  previewRow: { flexDirection: 'row', alignItems: 'center', gap: Spacing.small, marginBottom: Spacing.small },
+  previewBadge: { width: 10, height: 10, borderRadius: 5 },
+  previewButton: { marginTop: Spacing.medium, alignSelf: 'flex-start', paddingHorizontal: Spacing.medium, paddingVertical: Spacing.xSmall, borderRadius: 8 },
 });
 
 export default DisplaySettingsScreen;

@@ -1,8 +1,9 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { View, Text, StyleSheet, FlatList, TextInput, TouchableOpacity, ActivityIndicator, ScrollView } from 'react-native';
+import LabeledInput from '../components/LabeledInput';
 import ActionModal from '../components/ActionModal';
 import { useRoute, RouteProp } from '@react-navigation/native';
-import auth, { getAuth } from '@react-native-firebase/auth'; // ZMIANA
+import { getAuth } from '@react-native-firebase/auth'; // ZMIANA
 import { db } from '../../firebaseConfig'; // <--- TEN IMPORT ZOSTAJE
 import { collection, query, where, onSnapshot, addDoc, deleteDoc, doc, updateDoc } from '../utils/firestoreCompat';
 import { enqueueAdd, enqueueUpdate, enqueueDelete } from '../utils/offlineQueue';
@@ -174,14 +175,7 @@ const ChoreTemplatesScreen = () => {
             <AppHeader title="Szablony" />
             <Animated.View entering={FadeInUp} layout={Layout.springify()} style={[GlobalStyles.section, { backgroundColor: theme.colors.card, borderColor: theme.colors.border }]}>
                 <Text style={[styles.sectionTitle, { color: theme.colors.textPrimary }]}>{editingTemplate ? 'Edytuj szablon' : 'Dodaj nowy szablon'}</Text>
-                <TextInput
-                    style={[GlobalStyles.input, { backgroundColor: theme.colors.inputBackground, borderColor: theme.colors.border, color: theme.colors.textPrimary }]}
-                    placeholder="Np. Zmywanie naczyń"
-                    value={newTemplateName}
-                    onChangeText={setNewTemplateName}
-                    placeholderTextColor={theme.colors.placeholder}
-                    editable={!isSubmitting}
-                />
+                <LabeledInput label="Nazwa szablonu" placeholder="Np. Zmywanie naczyń" value={newTemplateName} onChangeText={setNewTemplateName} editable={!isSubmitting} />
                 <Text style={styles.label}>Kategoria</Text>
                 <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.categoryContainer}>
                     {categories.map(cat => (

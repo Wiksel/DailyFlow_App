@@ -17,18 +17,26 @@ interface ActionModalProps {
   actions: ActionButtonConfig[];
   onRequestClose?: () => void;
   children?: ReactNode;
+  placement?: 'center' | 'bottom';
 }
 
-const ActionModal = ({ visible, title, message, actions, onRequestClose, children }: ActionModalProps) => {
+const ActionModal = ({ visible, title, message, actions, onRequestClose, children, placement = 'center' }: ActionModalProps) => {
   const theme = useTheme();
   return (
     <Modal visible={visible} transparent animationType="none" onRequestClose={onRequestClose}>
       <Animated.View style={styles.backdrop} entering={FadeIn.duration(120)} exiting={FadeOut.duration(120)}>
-        <Animated.View layout={Layout.springify()} style={[styles.card, { backgroundColor: theme.colors.card }]}>
+        <Animated.View
+          layout={Layout.springify()}
+          style={[
+            styles.card,
+            placement === 'bottom' && styles.cardBottom,
+            { backgroundColor: theme.colors.card },
+          ]}
+        >
           <Text style={[styles.title, { color: theme.colors.textPrimary }]}>{title}</Text>
           {message ? <Text style={[styles.message, { color: theme.colors.textSecondary }]}>{message}</Text> : null}
           {children}
-          <View style={styles.actionsContainer}>
+          <View style={[styles.actionsContainer, placement === 'bottom' && { justifyContent: 'flex-end' }]}>
             {actions.map((action, idx) => (
               <TouchableOpacity
                 key={`${action.text}-${idx}`}
@@ -64,6 +72,14 @@ const styles = StyleSheet.create({
     borderRadius: 16,
     padding: Spacing.large,
     elevation: 6,
+  },
+  cardBottom: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    bottom: 0,
+    borderBottomLeftRadius: 0,
+    borderBottomRightRadius: 0,
   },
   title: {
     ...Typography.h2,

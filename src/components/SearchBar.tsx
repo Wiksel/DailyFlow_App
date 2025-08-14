@@ -1,8 +1,9 @@
 // src/components/SearchBar.tsx
-import React from 'react';
+import React, { useMemo } from 'react';
 import { View, TextInput, StyleSheet, ViewStyle, TextStyle, TouchableOpacity } from 'react-native';
 import { Feather } from '@expo/vector-icons';
 import { Colors, Spacing, Typography, GlobalStyles } from '../styles/AppStyles';
+import { useDebounce } from '../hooks/useDebounce';
 import { useTheme } from '../contexts/ThemeContext';
 
 interface SearchBarProps {
@@ -11,21 +12,24 @@ interface SearchBarProps {
     placeholder?: string;
     style?: ViewStyle;
     inputStyle?: TextStyle;
+    debounceMs?: number;
 }
 
-const SearchBar = ({ value, onChangeText, placeholder, style, inputStyle }: SearchBarProps) => {
+const SearchBar = ({ value, onChangeText, placeholder, style, inputStyle, debounceMs = 0 }: SearchBarProps) => {
   const theme = useTheme();
   const showClear = !!value?.length;
+  const debouncedValue = useDebounce(value, debounceMs);
+  const effectivePlaceholder = useMemo(() => placeholder, [placeholder]);
   return (
     <View style={[styles.searchContainer, { backgroundColor: theme.colors.card, borderColor: theme.colors.border }, style]}>
       <Feather name="search" size={20} color={theme.colors.placeholder} style={styles.searchIcon} />
       <TextInput
         style={[GlobalStyles.input, styles.searchInput, { backgroundColor: theme.colors.inputBackground, color: theme.colors.textPrimary, borderColor: theme.colors.border }, inputStyle]}
-        placeholder={placeholder}
-        value={value}
+        placeholder={effectivePlaceholder}
+        value={debouncedValue === value ? value : debouncedValue}
         onChangeText={onChangeText}
         placeholderTextColor={theme.colors.placeholder}
-        accessibilityLabel={placeholder}
+        accessibilityLabel={effectivePlaceholder}
         clearButtonMode="while-editing"
         returnKeyType="search"
         autoCorrect={false}

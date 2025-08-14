@@ -1,12 +1,12 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, FlatList, ActivityIndicator, Modal, TextInput, Image, Vibration } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, FlatList, ActivityIndicator, Modal, TextInput, Image, Vibration, ScrollView } from 'react-native';
 import * as Haptics from 'expo-haptics';
 import { scheduleTaskNotifications } from '../utils/notifications';
 import Animated, { FadeInUp, FadeOutUp, Layout } from 'react-native-reanimated';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Swipeable } from 'react-native-gesture-handler';
 import { useNavigation } from '@react-navigation/native';
-import auth, { getAuth } from '@react-native-firebase/auth';
+import { getAuth } from '@react-native-firebase/auth';
 import { db } from '../../firebaseConfig';
 import { collection, addDoc, query, where, onSnapshot, doc, updateDoc, deleteDoc, increment, Timestamp, getDoc } from '../utils/firestoreCompat';
 import { enqueueAdd, enqueueUpdate, enqueueDelete } from '../utils/offlineQueue';
@@ -53,6 +53,8 @@ const HomeScreen = () => {
     const [templatesModalVisible, setTemplatesModalVisible] = useState(false);
     const [searchQuery, setSearchQuery] = useState('');
     const [addTaskModalVisible, setAddTaskModalVisible] = useState(false);
+    const [refreshing, setRefreshing] = useState(false);
+    const [focusMode, setFocusMode] = useState(false);
     const [quickTaskText, setQuickTaskText] = useState('');
     const [filterFromDate, setFilterFromDate] = useState<Date | null>(null);
     const [filterToDate, setFilterToDate] = useState<Date | null>(null);
@@ -238,7 +240,8 @@ const HomeScreen = () => {
             }
             return true;
         });
-        return filteredTasks
+        // Stabilizacja: nie tworzyć nowej referencji jeśli treść identyczna
+        const mapped = filteredTasks
           .map(task => {
             let deadlineBoost = 0; let agingBoost = 0;
             if (task.deadline) {
@@ -261,7 +264,9 @@ const HomeScreen = () => {
             const deadlineA = a.deadline?.toMillis() || Infinity; const deadlineB = b.deadline?.toMillis() || Infinity;
             return deadlineA - deadlineB;
            });
-    }, [rawTasks, userProfile, activeCategory, taskType, searchQuery, filterFromDate, filterToDate]);
+        const focused = focusMode ? mapped.filter(t => !t.completed && (t.priority || 0) >= 4) : mapped;
+        return focused;
+    }, [rawTasks, userProfile, activeCategory, taskType, searchQuery, filterFromDate, filterToDate, focusMode]);
 
     const todayTasks = useMemo(() => {
         const start = new Date();
@@ -447,7 +452,7 @@ const HomeScreen = () => {
                 overshootLeft={false}
                 overshootRight={false}
             >
-                <TouchableOpacity onPress={() => navigation.navigate('TaskDetail', { taskId: item.id })} style={GlobalStyles.rowPress}>
+                <TouchableOpacity onLongPress={() => setConfirmModalTask(item)} delayLongPress={350} onPress={() => navigation.navigate('TaskDetail', { taskId: item.id })} style={GlobalStyles.rowPress}>
                     {/* Wrapper z animacją layoutu, bez zmian opacity */}
                     <Animated.View layout={Layout.springify()}>
                         {/* Wewnętrzny widok z animacją wejścia/wyjścia; przywrócony styl wiersza jak wcześniej */}
@@ -481,9 +486,27 @@ const HomeScreen = () => {
                                         Dodano: {item.createdAt?.toDate().toLocaleDateString('pl-PL')}
                                     </Text>
                                 )}
-                                {item.deadline && !item.completed && <Text style={[styles.deadlineText, { color: Colors.danger }]}>
-                                    Termin: {item.deadline.toDate().toLocaleDateString('pl-PL')}
-                                </Text>}
+                                {item.deadline && !item.completed && <Text style={[styles.deadlineText, { color: Colors.danger }]}>Termin: {item.deadline.toDate().toLocaleDateString('pl-PL')}</Text>}
+                                {item.deadline && !item.completed && (
+                                  <View style={styles.progressBarContainer}>
+                                    {(() => {
+                                      const now = new Date().getTime();
+                                      const deadline = item.deadline!.toDate().getTime();
+                                      const createdAt = item.createdAt?.toDate()?.getTime();
+                                      const sevenDays = 7 * 24 * 60 * 60 * 1000;
+                                      const start = createdAt ?? (deadline - sevenDays);
+                                      const total = Math.max(1, deadline - start);
+                                      const elapsed = Math.min(total, Math.max(0, now - start));
+                                      const pct = Math.max(0, Math.min(1, elapsed / total));
+                                      const barColor = (pct >= 1 || now > deadline) ? Colors.danger : (pct >= 0.7 ? Colors.warning : theme.colors.primary);
+                                      return (
+                                        <View style={[styles.progressTrack, { backgroundColor: theme.colors.border }]}> 
+                                          <View style={[styles.progressFill, { width: `${pct * 100}%`, backgroundColor: barColor }]} />
+                                        </View>
+                                      );
+                                    })()}
+                                  </View>
+                                )}
                             </View>
                             <View style={styles.rightSection}>
                                 <PriorityIndicator priority={item.priority} />
@@ -495,6 +518,32 @@ const HomeScreen = () => {
                                   accessibilityLabel={item.completed ? 'Archiwizuj' : 'Usuń'}
                                   style={styles.actionButton as any}
                                 />
+                                {/* Quick actions */}
+                                {!item.completed && (
+                                  <View style={{ flexDirection: 'row', gap: 8, marginTop: 6 }}>
+                                    <AnimatedIconButton icon="sun" size={18} color={theme.colors.textSecondary} tooltip="Jutro" onPress={async () => {
+                                      try { await Haptics.selectionAsync(); } catch {}
+                                      const next = new Date(); next.setDate(next.getDate() + 1); next.setHours(0,0,0,0);
+                                      try { await updateDoc(doc(db, 'tasks', item.id), { deadline: Timestamp.fromDate(next) }); }
+                                      catch { await enqueueUpdate(`tasks/${item.id}`, { __set: { deadline: Timestamp.fromDate(next) } } as any); }
+                                      showToast('Przeniesiono na jutro.', 'success');
+                                    }} />
+                                    <AnimatedIconButton icon="calendar" size={18} color={theme.colors.textSecondary} tooltip="+7 dni" onPress={async () => {
+                                      try { await Haptics.selectionAsync(); } catch {}
+                                      const next = new Date(); next.setDate(next.getDate() + 7); next.setHours(0,0,0,0);
+                                      try { await updateDoc(doc(db, 'tasks', item.id), { deadline: Timestamp.fromDate(next) }); }
+                                      catch { await enqueueUpdate(`tasks/${item.id}`, { __set: { deadline: Timestamp.fromDate(next) } } as any); }
+                                      showToast('Przeniesiono o tydzień.', 'success');
+                                    }} />
+                                    <AnimatedIconButton icon="arrow-up" size={18} color={theme.colors.textSecondary} tooltip="Priorytet +1" onPress={async () => {
+                                      try { await Haptics.selectionAsync(); } catch {}
+                                      const nextPriority = Math.min(5, (item.basePriority || 3) + 1);
+                                      try { await updateDoc(doc(db, 'tasks', item.id), { basePriority: nextPriority }); }
+                                      catch { await enqueueUpdate(`tasks/${item.id}`, { __set: { basePriority: nextPriority } } as any); }
+                                      showToast('Priorytet +1.', 'success');
+                                    }} />
+                                  </View>
+                                )}
                             </View>
                         </Animated.View>
                     </Animated.View>
@@ -537,6 +586,7 @@ const HomeScreen = () => {
                 placeholder="Szukaj po nazwie lub opisie..."
                 value={searchQuery}
                 onChangeText={setSearchQuery}
+                debounceMs={200}
             />
 
             <FilterPresets
@@ -559,19 +609,30 @@ const HomeScreen = () => {
                 }}
             />
 
+            <View style={[styles.focusBar, { borderColor: theme.colors.border }]}> 
+                <TouchableOpacity
+                  style={[styles.focusChip, focusMode && { backgroundColor: theme.colors.primary }]}
+                  onPress={async () => { try { await Haptics.selectionAsync(); } catch {}; setFocusMode(prev => !prev); }}
+                  accessibilityLabel="Focus Mode"
+                  activeOpacity={0.9}
+                >
+                  <Feather name="zap" size={14} color={focusMode ? '#fff' : theme.colors.textSecondary} />
+                  <Text style={[styles.focusChipText, { color: focusMode ? '#fff' : theme.colors.textSecondary }]}>Focus Mode</Text>
+                </TouchableOpacity>
+            </View>
+
             {todayTasks.length > 0 && (
                 <LinearGradient
                   colors={theme.colorScheme === 'dark' ? ['#1e3c72', '#2a5298'] : ['#a1c4fd', '#c2e9fb']}
                   start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }}
                   style={[GlobalStyles.card, styles.todaySection, { borderWidth: 0, shadowOpacity: theme.colorScheme==='dark' ? 0.25 : 0.18 }]}
                 >
-                    <Text style={[styles.todayTitle, { color: 'white' }]}>Dzisiaj</Text>
-                    {todayTasks.map(t => (
-                        <TouchableOpacity key={t.id} onPress={async () => { try { await Haptics.selectionAsync(); } catch {}; navigation.navigate('TaskDetail', { taskId: t.id }); }} style={[styles.todayItem, GlobalStyles.rowPress]}>
-                            <Feather name="clock" size={16} color={'#ffffffcc'} style={{ marginRight: 6 }} />
-                            <Text style={[styles.todayText, { color: 'white' }]} numberOfLines={1}>{t.text}</Text>
-                        </TouchableOpacity>
-                    ))}
+                    <Text style={[styles.todayTitle, { color: 'white' }]}>Dzisiaj · {todayTasks.length} {pluralizeTasks(todayTasks.length)}</Text>
+                    <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingVertical: 6 }}>
+                        {todayTasks.map(t => (
+                            <TodayTile key={t.id} text={t.text} onPress={async () => { try { await Haptics.selectionAsync(); } catch {}; navigation.navigate('TaskDetail', { taskId: t.id }); }} />
+                        ))}
+                    </ScrollView>
                 </LinearGradient>
             )}
 
@@ -602,21 +663,24 @@ const HomeScreen = () => {
                         {renderTask(args)}
                       </Animated.View>
                     )}
-                    keyExtractor={item => item.id}
+                    keyExtractor={(item) => item.id}
+                    getItemLayout={(data, index) => ({ length: 78, offset: 78 * index, index })}
                     style={styles.list}
                     initialNumToRender={12}
                     windowSize={10}
                     removeClippedSubviews
                     maxToRenderPerBatch={12}
                     contentContainerStyle={{ paddingBottom: Spacing.xLarge * 2 }}
+                    keyboardDismissMode="on-drag"
+                    refreshing={refreshing}
+                    onRefresh={async () => {
+                      setRefreshing(true);
+                      try { await Haptics.selectionAsync(); } catch {}
+                      try { const mod = await import('../utils/offlineQueue'); await mod.processOutbox(); } catch {}
+                      setTimeout(() => setRefreshing(false), 400);
+                    }}
                     ListEmptyComponent={
-                        <EmptyState
-                            icon={searchQuery || filterFromDate || filterToDate || activeCategory !== 'all' ? "search" : "inbox"}
-                            title={searchQuery || filterFromDate || filterToDate || activeCategory !== 'all' ? "Brak wyników" : "Pusta skrzynka"}
-                            subtitle={searchQuery ? `Nie znaleziono zadań dla frazy "${searchQuery}"` : "Brak zadań w tej kategorii. Czas dodać nowe!"}
-                            actionTitle="Dodaj pierwsze zadanie"
-                            onActionPress={() => setAddTaskModalVisible(true)}
-                        />
+                        <HomeEmptyState onAddTask={() => setAddTaskModalVisible(true)} onOpenTemplates={() => navigation.navigate('ChoreTemplates' as any)} />
                     }
                 />
             )}
@@ -649,31 +713,30 @@ const HomeScreen = () => {
                 initialCategory={activeCategory === 'all' ? (categories.find(c => c.name === 'Inne')?.id || 'default') : activeCategory}
             />
 
-            <Modal visible={templatesModalVisible} transparent={true} animationType="slide" onRequestClose={() => setTemplatesModalVisible(false)}>
-                <View style={styles.modalContainer}>
-                    <View style={styles.modalContent}>
-                        <Text style={styles.modalTitle}>Wybierz z szablonu</Text>
-                        <FlatList
-                            data={filteredTemplates}
-                            keyExtractor={item => item.id}
-                            renderItem={({ item }) => (
-                                 <TouchableOpacity style={styles.templateItem} onPress={() => handleAddTaskFromTemplate(item)}>
-                                    <Text style={styles.templateName}>{item.name}</Text>
-                                 </TouchableOpacity>
-                            )}
-                            ListEmptyComponent={<Text style={styles.emptyListText}>Brak szablonów dla tej kategorii.</Text>}
-                        />
-                        <TouchableOpacity style={styles.closeButton} onPress={() => setTemplatesModalVisible(false)}>
-                            <Text style={styles.closeButtonText}>Anuluj</Text>
-                        </TouchableOpacity>
-                    </View>
-                </View>
-            </Modal>
+            <ActionModal
+              visible={templatesModalVisible}
+              title="Wybierz z szablonu"
+              onRequestClose={() => setTemplatesModalVisible(false)}
+              actions={[{ text: 'Zamknij', onPress: () => setTemplatesModalVisible(false), variant: 'secondary' }]}
+            >
+              <FlatList
+                data={filteredTemplates}
+                keyExtractor={item => item.id}
+                renderItem={({ item }) => (
+                  <TouchableOpacity style={styles.templateItem} onPress={() => handleAddTaskFromTemplate(item)}>
+                    <Text style={styles.templateName}>{item.name}</Text>
+                  </TouchableOpacity>
+                )}
+                ListEmptyComponent={<Text style={styles.emptyListText}>Brak szablonów dla tej kategorii.</Text>}
+                style={{ maxHeight: 280, width: '100%' }}
+              />
+            </ActionModal>
 
             <ActionModal
                 visible={!!confirmModalTask}
                 title={`Potwierdź ${confirmModalTask?.completed ? 'archiwizację' : 'usunięcie'}`}
                 message={`Czy na pewno chcesz ${confirmModalTask?.completed ? 'zarchiwizować' : 'usunąć'} to zadanie?`}
+              placement="bottom"
                 onRequestClose={() => setConfirmModalTask(null)}
                 actions={[
                     { text: 'Anuluj', onPress: () => setConfirmModalTask(null), variant: 'secondary' },
@@ -777,6 +840,12 @@ const styles = StyleSheet.create({
         borderColor: Colors.border,
         borderLeftWidth: 2,
         borderLeftColor: 'transparent',
+        borderRadius: 12,
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 1 },
+        shadowOpacity: 0.08,
+        shadowRadius: 2,
+        elevation: 1,
     },
     taskContainerCompleted: { opacity: 0.6 },
     checkboxTouchable: { padding: Spacing.small },
@@ -826,6 +895,9 @@ const styles = StyleSheet.create({
         marginTop: Spacing.xSmall,
         fontWeight: '600',
     },
+    progressBarContainer: { marginTop: 6, paddingRight: Spacing.small },
+    progressTrack: { height: 6, borderRadius: 3, overflow: 'hidden' },
+    progressFill: { height: 6, borderRadius: 3 },
     rightSection: { alignItems: 'center', justifyContent: 'space-between', alignSelf: 'stretch' },
     actionButton: { marginTop: Spacing.xSmall, padding: Spacing.xSmall },
     emptyListText: { textAlign: 'center', marginTop: Spacing.xLarge, fontSize: Typography.body.fontSize, color: Colors.textSecondary },
@@ -890,6 +962,9 @@ const styles = StyleSheet.create({
         ...Typography.h3,
         marginBottom: Spacing.small,
     },
+    focusBar: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: Spacing.medium, paddingBottom: Spacing.xSmall, borderBottomWidth: 1 },
+    focusChip: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: Spacing.medium, paddingVertical: Spacing.xSmall, borderRadius: 16, backgroundColor: Colors.light, alignSelf: 'flex-start' },
+    focusChipText: { ...Typography.body, fontWeight: '700' },
     todayItem: {
         flexDirection: 'row',
         alignItems: 'center',
@@ -944,3 +1019,54 @@ const styles = StyleSheet.create({
 });
 
 export default HomeScreen;
+
+// Onboarding-aware empty state for Home
+const HomeEmptyState = ({ onAddTask, onOpenTemplates }: { onAddTask: () => void; onOpenTemplates: () => void }) => {
+    const theme = useTheme();
+    const [done, setDone] = React.useState<boolean | null>(null);
+    React.useEffect(() => { (async () => setDone(await (await import('../utils/authUtils')).isOnboardingDone()))(); }, []);
+    if (done === null) return null;
+    if (done) {
+        return (
+            <EmptyState
+                icon="inbox"
+                title="Pusta skrzynka"
+                subtitle="Brak zadań w tej kategorii. Czas dodać nowe!"
+                actions={[
+                    { title: 'Dodaj zadanie', onPress: onAddTask },
+                    { title: 'Szablony', onPress: onOpenTemplates, variant: 'secondary' },
+                ]}
+                illustration={ require('../../assets/icon.png') }
+            />
+        );
+    }
+    return (
+        <EmptyState
+            icon="inbox"
+            title="Zacznijmy!"
+            subtitle="Szybki start: dodaj pierwsze zadanie lub wybierz gotowy szablon."
+            actions={[
+                { title: 'Dodaj zadanie', onPress: async () => { try { const h = await import('expo-haptics'); await h.default.impactAsync(h.default.ImpactFeedbackStyle.Medium); } catch {}; onAddTask(); (await import('../utils/authUtils')).setOnboardingDone(); } },
+                { title: 'Otwórz szablony', onPress: async () => { onOpenTemplates(); (await import('../utils/authUtils')).setOnboardingDone(); }, variant: 'secondary' },
+            ]}
+            illustration={ require('../../assets/icon.png') }
+        />
+    );
+}
+
+// Small pill-like tile for Today's tasks
+const TodayTile = ({ text, onPress }: { text: string; onPress: () => void }) => (
+    <TouchableOpacity onPress={onPress} style={{ backgroundColor: 'rgba(255,255,255,0.2)', paddingHorizontal: 12, paddingVertical: 8, borderRadius: 12, marginRight: 8 }}>
+        <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+            <Feather name="clock" size={16} color={'#ffffffcc'} style={{ marginRight: 6 }} />
+            <Text style={{ color: 'white', fontWeight: '600' }} numberOfLines={1}>{text}</Text>
+        </View>
+    </TouchableOpacity>
+);
+
+function pluralizeTasks(n: number) {
+    // PL: 1 zadanie, 2-4 zadania, 5+ zadań
+    if (n === 1) return 'zadanie';
+    if (n % 10 >= 2 && n % 10 <= 4 && (n % 100 < 10 || n % 100 >= 20)) return 'zadania';
+    return 'zadań';
+}

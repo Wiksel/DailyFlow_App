@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { View, Text, StyleSheet, FlatList, TextInput, TouchableOpacity, ActivityIndicator } from 'react-native';
+import LabeledInput from '../components/LabeledInput';
 import { getAuth } from '@react-native-firebase/auth';
 import { collection, query, where, onSnapshot, addDoc, doc, updateDoc, deleteDoc, Timestamp } from '../utils/firestoreCompat';
 import { enqueueAdd, enqueueDelete } from '../utils/offlineQueue';
@@ -88,8 +89,8 @@ const RecurringSeriesScreen = () => {
       <AppHeader title="Zadania cykliczne" />
       <Animated.View entering={FadeInUp} layout={Layout.springify()} style={[GlobalStyles.section, { backgroundColor: theme.colors.card, borderColor: theme.colors.border }]}> 
         <Text style={[styles.title, { color: theme.colors.textPrimary }]}>Nowa seria</Text>
-        <TextInput style={[GlobalStyles.input, { backgroundColor: theme.colors.inputBackground, borderColor: theme.colors.border, color: theme.colors.textPrimary }]} placeholder="Nazwa" value={name} onChangeText={setName} placeholderTextColor={theme.colors.placeholder} />
-        <TextInput style={[GlobalStyles.input, { marginTop: Spacing.small, backgroundColor: theme.colors.inputBackground, borderColor: theme.colors.border, color: theme.colors.textPrimary }]} placeholder="Opis (opcjonalnie)" value={desc} onChangeText={setDesc} placeholderTextColor={theme.colors.placeholder} />
+        <LabeledInput label="Nazwa" placeholder="Nazwa" value={name} onChangeText={setName} />
+        <LabeledInput label="Opis (opcjonalnie)" placeholder="Opis (opcjonalnie)" value={desc} onChangeText={setDesc} />
         <Text style={styles.label}>Kategoria</Text>
         <View style={styles.chipsRow}>
           {categories.map(c => (
@@ -107,17 +108,17 @@ const RecurringSeriesScreen = () => {
           ))}
         </View>
         <Text style={styles.label}>Co ile (interwał)</Text>
-        <TextInput keyboardType="number-pad" value={interval} onChangeText={setInterval} style={[GlobalStyles.input, { backgroundColor: theme.colors.inputBackground, borderColor: theme.colors.border, color: theme.colors.textPrimary }]} />
+        <LabeledInput keyboardType="number-pad" value={interval} onChangeText={setInterval} />
         {frequency === 'weekly' && (
           <>
             <Text style={styles.label}>Dzień tygodnia (0..6, Nd..Sb)</Text>
-            <TextInput keyboardType="number-pad" value={byWeekday} onChangeText={setByWeekday} style={[GlobalStyles.input, { backgroundColor: theme.colors.inputBackground, borderColor: theme.colors.border, color: theme.colors.textPrimary }]} />
+            <LabeledInput keyboardType="number-pad" value={byWeekday} onChangeText={setByWeekday} />
           </>
         )}
         {frequency === 'monthly' && (
           <>
             <Text style={styles.label}>Dzień miesiąca (1..28)</Text>
-            <TextInput keyboardType="number-pad" value={byMonthDay} onChangeText={setByMonthDay} style={[GlobalStyles.input, { backgroundColor: theme.colors.inputBackground, borderColor: theme.colors.border, color: theme.colors.textPrimary }]} />
+            <LabeledInput keyboardType="number-pad" value={byMonthDay} onChangeText={setByMonthDay} />
           </>
         )}
         <TouchableOpacity style={[GlobalStyles.button, { marginTop: Spacing.medium, backgroundColor: theme.colors.primary }]} onPress={handleAdd}>

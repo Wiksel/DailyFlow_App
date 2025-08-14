@@ -1,9 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, FlatList, TouchableOpacity, Modal, TextInput, ActivityIndicator } from 'react-native';
+import LabeledInput from '../components/LabeledInput';
 import { useRoute } from '@react-navigation/native';
 import { doc, onSnapshot, collection, addDoc, query, orderBy, getDoc, writeBatch, increment, where, Timestamp, updateDoc } from '../utils/firestoreCompat';
 import { enqueueAdd, enqueueUpdate } from '../utils/offlineQueue';
-import auth, { getAuth } from '@react-native-firebase/auth';
+import { getAuth } from '@react-native-firebase/auth';
 import { db } from '../../firebaseConfig';
 import { Feather } from '@expo/vector-icons';
 import { useToast } from '../contexts/ToastContext';
@@ -11,6 +12,7 @@ import { Colors, Spacing, Typography, GlobalStyles } from '../styles/AppStyles';
 import { useTheme } from '../contexts/ThemeContext';
 import Animated, { FadeInUp, Layout } from 'react-native-reanimated';
 import AppHeader from '../components/AppHeader';
+import ActionModal from '../components/ActionModal';
 import type { Budget, Expense } from '../types';
 
 const BudgetDetailScreen = () => {
@@ -162,46 +164,19 @@ const BudgetDetailScreen = () => {
                 <Feather name="plus" size={30} color="white" />
             </TouchableOpacity>
 
-            <Modal visible={modalVisible} animationType="slide" transparent={true} onRequestClose={() => setModalVisible(false)}>
-                <View style={styles.modalContainer}>
-                    <View style={[styles.modalContent, { backgroundColor: theme.colors.card }]}>
-                        <Text style={styles.modalTitle}>Nowy Wydatek</Text>
-                        <TextInput
-                            style={[GlobalStyles.input, { backgroundColor: theme.colors.inputBackground, borderColor: theme.colors.border, color: theme.colors.textPrimary }]}
-                            placeholder="Nazwa (np. Zakupy spożywcze)"
-                            value={newExpenseName}
-                            onChangeText={setNewExpenseName}
-                            placeholderTextColor={theme.colors.placeholder}
-                            editable={!isSubmittingExpense}
-                        />
-                        <TextInput
-                            style={[GlobalStyles.input, { backgroundColor: theme.colors.inputBackground, borderColor: theme.colors.border, color: theme.colors.textPrimary }]}
-                            placeholder="Kwota"
-                            value={newExpenseAmount}
-                            onChangeText={setNewExpenseAmount}
-                            keyboardType="numeric"
-                            placeholderTextColor={theme.colors.placeholder}
-                            editable={!isSubmittingExpense}
-                        />
-                        <View style={styles.modalActions}>
-                            <TouchableOpacity
-                                style={[GlobalStyles.button, styles.buttonClose]}
-                                onPress={() => { setModalVisible(false); setNewExpenseName(''); setNewExpenseAmount(''); }}
-                                disabled={isSubmittingExpense}
-                            >
-                                <Text style={GlobalStyles.buttonText}>Anuluj</Text>
-                            </TouchableOpacity>
-                            <TouchableOpacity
-                                style={[GlobalStyles.button, { backgroundColor: theme.colors.primary }]}
-                                onPress={handleAddExpense}
-                                disabled={isSubmittingExpense}
-                            >
-                                {isSubmittingExpense ? <ActivityIndicator color="white" /> : <Text style={GlobalStyles.buttonText}>Dodaj</Text>}
-                            </TouchableOpacity>
-                        </View>
-                    </View>
-                </View>
-            </Modal>
+            <ActionModal
+              visible={modalVisible}
+              title="Nowy Wydatek"
+              onRequestClose={() => setModalVisible(false)}
+              actions={[
+                { text: 'Anuluj', variant: 'secondary', onPress: () => { setModalVisible(false); setNewExpenseName(''); setNewExpenseAmount(''); } },
+                { text: isSubmittingExpense ? 'Dodawanie…' : 'Dodaj', onPress: handleAddExpense, variant: 'primary' },
+              ]}
+            >
+              <LabeledInput label="Nazwa" placeholder="Nazwa (np. Zakupy spożywcze)" value={newExpenseName} onChangeText={setNewExpenseName} editable={!isSubmittingExpense} />
+              <LabeledInput label="Kwota" placeholder="Kwota" value={newExpenseAmount} onChangeText={setNewExpenseAmount} keyboardType="numeric" editable={!isSubmittingExpense} />
+              {isSubmittingExpense && <ActivityIndicator color="white" style={{ marginTop: Spacing.small }} />}
+            </ActionModal>
         </View>
     );
 };

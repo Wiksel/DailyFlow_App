@@ -33,13 +33,20 @@ interface DeleteOp extends BaseOp {
 export type PendingOp = AddOp | UpdateOp | DeleteOp;
 
 const OUTBOX_KEY = (uid: string) => `dailyflow_outbox_${uid}`;
+let processing = false;
 
 async function readQueue(uid: string): Promise<PendingOp[]> {
   try { const raw = await AsyncStorage.getItem(OUTBOX_KEY(uid)); return raw ? JSON.parse(raw) : []; } catch { return []; }
 }
 
 async function writeQueue(uid: string, ops: PendingOp[]) {
-  try { await AsyncStorage.setItem(OUTBOX_KEY(uid), JSON.stringify(ops)); } catch {}
+  try {
+    const tmpKey = OUTBOX_KEY(uid) + '_tmp';
+    const payload = JSON.stringify(ops);
+    await AsyncStorage.setItem(tmpKey, payload);
+    await AsyncStorage.setItem(OUTBOX_KEY(uid), payload);
+    await AsyncStorage.removeItem(tmpKey);
+  } catch {}
 }
 
 function genId() { return `${Date.now()}_${Math.random().toString(36).slice(2, 8)}`; }
@@ -63,58 +70,64 @@ export async function enqueueDelete(docPath: string) {
 }
 
 export async function processOutbox(maxOps: number = 20) {
+  if (processing) return;
+  processing = true;
   const uid = getAuth().currentUser?.uid; if (!uid) return;
-  let ops = await readQueue(uid);
-  if (ops.length === 0) return;
-  const now = Date.now();
-  const remaining: PendingOp[] = [];
-  // pick only those eligible by backoff window
-  const [eligible, delayed] = ops.reduce<[PendingOp[], PendingOp[]]>((acc, op) => {
-    if (op.nextAttemptAt && op.nextAttemptAt > now) acc[1].push(op); else acc[0].push(op);
-    return acc;
-  }, [[], []]);
-  // keep delayed ops untouched
-  remaining.push(...delayed);
-  for (const op of eligible.slice(0, maxOps)) {
-    try {
-      if (op.action === 'add') {
-        await addDoc(collection(db, op.collectionPath), op.data);
-      } else if (op.action === 'update') {
-        const raw: any = (op as any).data;
-        if (raw && (raw.__inc || raw.__set)) {
-          const payload: any = {};
-          if (raw.__inc) {
-            for (const [k, v] of Object.entries(raw.__inc)) {
-              payload[k] = increment(Number(v));
+  try {
+    let ops = await readQueue(uid);
+    if (ops.length === 0) return;
+    const now = Date.now();
+    const remaining: PendingOp[] = [];
+    // pick only those eligible by backoff window
+    const [eligible, delayed] = ops.reduce<[PendingOp[], PendingOp[]]>((acc, op) => {
+      if (op.nextAttemptAt && op.nextAttemptAt > now) acc[1].push(op); else acc[0].push(op);
+      return acc;
+    }, [[], []]);
+    // keep delayed ops untouched
+    remaining.push(...delayed);
+    for (const op of eligible.slice(0, maxOps)) {
+      try {
+        if (op.action === 'add') {
+          await addDoc(collection(db, op.collectionPath), op.data);
+        } else if (op.action === 'update') {
+          const raw: any = (op as any).data;
+          if (raw && (raw.__inc || raw.__set)) {
+            const payload: any = {};
+            if (raw.__inc) {
+              for (const [k, v] of Object.entries(raw.__inc)) {
+                payload[k] = increment(Number(v));
+              }
             }
+            if (raw.__set) {
+              Object.assign(payload, raw.__set);
+            }
+            await updateDoc(doc(db, (op as any).docPath), payload);
+          } else {
+            await updateDoc(doc(db, (op as any).docPath), (op as any).data);
           }
-          if (raw.__set) {
-            Object.assign(payload, raw.__set);
-          }
-          await updateDoc(doc(db, (op as any).docPath), payload);
-        } else {
-          await updateDoc(doc(db, (op as any).docPath), (op as any).data);
+        } else if (op.action === 'delete') {
+          await deleteDoc(doc(db, op.docPath));
         }
-      } else if (op.action === 'delete') {
-        await deleteDoc(doc(db, op.docPath));
+        // success → drop, no push to remaining
+      } catch (e) {
+        // exponential backoff and keep
+        const retry = (op.retryCount || 0) + 1;
+        const baseMs = 15000; // 15s base
+        const maxMs = 15 * 60 * 1000; // 15 min
+        const delay = Math.min(maxMs, baseMs * Math.pow(2, Math.min(6, retry - 1)));
+        const next: PendingOp = { ...op, retryCount: retry, nextAttemptAt: now + delay } as any;
+        remaining.push(next);
       }
-      // success → drop
-    } catch (e) {
-      // exponential backoff and keep
-      const retry = (op.retryCount || 0) + 1;
-      const baseMs = 15000; // 15s base
-      const maxMs = 15 * 60 * 1000; // 15 min
-      const delay = Math.min(maxMs, baseMs * Math.pow(2, Math.min(6, retry - 1)));
-      const next: PendingOp = { ...op, retryCount: retry, nextAttemptAt: now + delay } as any;
-      remaining.push(next);
     }
+    // append untouched tail
+    // Note: we already split eligible/delayed; also append any leftover eligible beyond maxOps
+    if (eligible.length > maxOps) {
+      remaining.push(...eligible.slice(maxOps));
+    }
+    await writeQueue(uid, remaining);
+  } finally {
+    processing = false;
   }
-  // append untouched tail
-  // Note: we already split eligible/delayed; also append any leftover eligible beyond maxOps
-  if (eligible.length > maxOps) {
-    remaining.push(...eligible.slice(maxOps));
-  }
-  await writeQueue(uid, remaining);
 }
 
 // Utilities for UI

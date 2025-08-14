@@ -1,11 +1,12 @@
 import React, { useState } from 'react';
 import { View, Text, Modal, StyleSheet, TextInput, TouchableOpacity, ActivityIndicator } from 'react-native';
-import auth, { getAuth, sendPasswordResetEmail } from '@react-native-firebase/auth';
+import LabeledInput from './LabeledInput';
+import { getAuth, sendPasswordResetEmail } from '@react-native-firebase/auth';
 import { useToast, ToastOverlay, ToastOverlaySuppressor } from '../contexts/ToastContext';
 import { Colors, Spacing, Typography, GlobalStyles } from '../styles/AppStyles';
-import { findUserEmailByIdentifier } from '../utils/authUtils';
+import { findUserEmailByIdentifier, mapFirebaseAuthErrorToMessage } from '../utils/authUtils';
 import PhonePasswordResetModal from './PhonePasswordResetModal';
-import { Feather } from '@expo/vector-icons';
+// removed unused Feather import
 
 interface ForgotPasswordModalProps {
   visible: boolean;
@@ -16,9 +17,7 @@ const ForgotPasswordModal = ({ visible, onClose }: ForgotPasswordModalProps) => 
   const [identifier, setIdentifier] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [showPhoneReset, setShowPhoneReset] = useState(false);
-  const { showToast } = useToast();
-  
-  const showCustomToast = useToast().showToast;
+  const { showToast: showCustomToast } = useToast();
 
   const handlePasswordReset = async () => {
     if (!identifier.trim()) {
@@ -43,13 +42,9 @@ const ForgotPasswordModal = ({ visible, onClose }: ForgotPasswordModalProps) => 
         onClose();
       }, 3000);
     } catch (error: any) {
-      // Błędy z `findUserEmailByIdentifier` będą tu obsługiwane
-      if (error.code === 'auth/user-not-found') {
-        showCustomToast('Nie znaleziono użytkownika.', 'error');
-      } else {
-        showCustomToast('Wystąpił nieoczekiwany błąd. Spróbuj ponownie.', 'error');
-        console.error("Błąd resetowania hasła:", error);
-      }
+      const { message, level } = mapFirebaseAuthErrorToMessage(String(error?.code || ''));
+      showCustomToast(message, level);
+      try { console.error('Błąd resetowania hasła:', error); } catch {}
     } finally {
       setIsLoading(false);
     }
@@ -61,14 +56,7 @@ const ForgotPasswordModal = ({ visible, onClose }: ForgotPasswordModalProps) => 
     onClose();
   };
 
-  const getToastStyle = (type: 'success' | 'error' | 'info') => {
-    switch (type) {
-        case 'success': return { backgroundColor: Colors.success, iconName: 'check-circle' as const };
-        case 'error': return { backgroundColor: Colors.error, iconName: 'alert-triangle' as const };
-        case 'info': return { backgroundColor: Colors.info, iconName: 'info' as const };
-        default: return { backgroundColor: Colors.textSecondary, iconName: 'help-circle' as const };
-    }
-  };
+  // getToastStyle removed – global ToastOverlay styles handle visuals
 
   return (
     <>
@@ -80,15 +68,15 @@ const ForgotPasswordModal = ({ visible, onClose }: ForgotPasswordModalProps) => 
              
               <Text style={[styles.modalTitle, { color: '#fff' }]}>Zresetuj hasło</Text>
                <Text style={[styles.modalSubtitle, { color: '#bbb' }]}>Podaj swój e‑mail lub telefon, a wyślemy link do ustawienia hasła.</Text>
-              <TextInput
-               style={[GlobalStyles.input, { color: '#fff', backgroundColor: 'transparent', borderColor: '#333' }]}
+              <LabeledInput
+                label="Identyfikator"
                 placeholder="E‑mail lub telefon (9 cyfr)"
-               value={identifier}
-               onChangeText={setIdentifier}
-               autoCapitalize="none"
-               editable={!isLoading}
-               placeholderTextColor={Colors.placeholder}
-             />
+                value={identifier}
+                onChangeText={setIdentifier}
+                autoCapitalize="none"
+                editable={!isLoading}
+                onSubmitEditing={handlePasswordReset}
+              />
               <TouchableOpacity
                style={[GlobalStyles.button, { marginTop: Spacing.medium, width: '100%' }]}
                onPress={async () => { try { const m = await import('expo-haptics'); await m.impactAsync(m.ImpactFeedbackStyle.Medium); } catch {}; handlePasswordReset(); }}
@@ -133,7 +121,7 @@ const ForgotPasswordModal = ({ visible, onClose }: ForgotPasswordModalProps) => 
   );
 };
 
-const styles = StyleSheet.create({
+  const styles = StyleSheet.create({
     modalContainer: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: 'rgba(0,0,0,0.5)' },
     modalContent: { width: '90%', backgroundColor: 'white', borderRadius: 20, padding: Spacing.large, elevation: 5, alignItems: 'center' },
     modalTitle: { ...Typography.h2, textAlign: 'center', marginBottom: Spacing.small },
@@ -143,9 +131,7 @@ const styles = StyleSheet.create({
     dividerContainer: { flexDirection: 'row', alignItems: 'center', width: '100%', marginVertical: 0, marginTop: Spacing.medium, marginBottom: Spacing.small },
     dividerLine: { flex: 1, height: 1, backgroundColor: Colors.border },
     dividerText: { ...Typography.small, color: Colors.textSecondary, marginHorizontal: Spacing.medium },
-    toastContainer: { position: 'absolute', top: -155, left: Spacing.medium, right: Spacing.medium, padding: Spacing.medium, borderRadius: 12, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(0,0,0,0.8)', elevation: 10, zIndex: 9999 },
-    toastIcon: { marginRight: Spacing.medium },
-    toastText: { ...Typography.body, color: 'white', fontWeight: '600', flexShrink: 1 },
+    // lokalne style toast niepotrzebne – korzystamy z ToastOverlay
 });
 
 export default ForgotPasswordModal;

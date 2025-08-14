@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
-import { Modal, View, Text, TouchableOpacity, StyleSheet } from 'react-native';
-import { Colors, Spacing, Typography, GlobalStyles } from '../styles/AppStyles';
+import { Text } from 'react-native';
 import PasswordInput from './PasswordInput';
+import ActionModal from './ActionModal';
 
 interface LinkAccountsModalProps {
   visible: boolean;
@@ -25,37 +25,43 @@ const LinkAccountsModal = ({ visible, email, onCancel, onConfirm }: LinkAccounts
   };
 
   return (
-    <Modal visible={visible} transparent animationType="fade" onRequestClose={onCancel}>
-      <View style={styles.backdrop}>
-        <View style={styles.card}>
-          <Text style={styles.title}>Połączyć konta?</Text>
-          <Text style={styles.message}>
-            Wykryto istniejące konto z adresem {email}. Możemy połączyć je z kontem Google.
-            Aby potwierdzić, wpisz hasło do istniejącego konta.
-          </Text>
-          <PasswordInput value={password} onChangeText={setPassword} placeholder="Hasło do konta" />
-          <View style={styles.actionsRow}>
-            <TouchableOpacity style={[GlobalStyles.button, styles.secondaryButton]} onPress={onCancel}>
-              <Text style={GlobalStyles.buttonText}>Anuluj</Text>
-            </TouchableOpacity>
-            <TouchableOpacity style={[GlobalStyles.button]} onPress={handleConfirm} disabled={isLoading}>
-              <Text style={GlobalStyles.buttonText}>Połącz i zaloguj</Text>
-            </TouchableOpacity>
-          </View>
-        </View>
-      </View>
-    </Modal>
+    <ActionModal
+      visible={visible}
+      title="Połączyć konta?"
+      onRequestClose={onCancel}
+      actions={[
+        { text: 'Anuluj', onPress: onCancel, variant: 'secondary' },
+        { text: 'Połącz i zaloguj', onPress: handleConfirm, variant: 'primary' },
+      ]}
+    >
+      <>
+        <Paragraph email={email} />
+        <PasswordInput value={password} onChangeText={setPassword} placeholder="Hasło do konta" />
+      </>
+    </ActionModal>
   );
 };
 
-const styles = StyleSheet.create({
-  backdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'center', alignItems: 'center', padding: Spacing.large },
-  card: { width: '100%', backgroundColor: 'white', borderRadius: 16, padding: Spacing.large },
-  title: { ...Typography.h2, textAlign: 'center', marginBottom: Spacing.small },
-  message: { ...Typography.body, color: Colors.textSecondary, textAlign: 'center', marginBottom: Spacing.medium },
-  actionsRow: { flexDirection: 'row', justifyContent: 'center', gap: Spacing.medium, marginTop: Spacing.medium },
-  secondaryButton: { backgroundColor: Colors.secondary },
-});
+const Paragraph = ({ email }: { email: string }) => (
+  <>
+    <ParaText>
+      Wykryto istniejące konto z adresem {email}. Możemy połączyć je z kontem Google.
+      Aby potwierdzić, wpisz hasło do istniejącego konta.
+    </ParaText>
+  </>
+);
+
+const ParaText = ({ children }: { children: React.ReactNode }) => {
+  return (
+    // zachowujemy styl paragrafu poprzez GlobalStyles i AppStyles
+    // unikamy duplikacji lokalnego StyleSheet
+    // używamy prostego <Text> z marginesem dolnym
+    // styl zdefiniowany inline dla minimalnej ingerencji
+    // (zachowuje dotychczasowy wygląd)
+    // eslint-disable-next-line react-native/no-inline-styles
+    <Text style={{ marginBottom: 12, textAlign: 'center' }}>{children}</Text>
+  );
+};
 
 export default LinkAccountsModal;
 

@@ -6,7 +6,7 @@ import * as FileSystem from 'expo-file-system';
 import * as DocumentPicker from 'expo-document-picker';
 import ActionModal from '../components/ActionModal';
 import { useToast } from '../contexts/ToastContext';
-import auth, { getAuth } from '@react-native-firebase/auth';
+import { getAuth } from '@react-native-firebase/auth';
 import { db } from '../../firebaseConfig'; // <--- TEN IMPORT ZOSTAJE
 import { collection, query, where, onSnapshot, orderBy, doc, updateDoc, deleteDoc, getDoc, addDoc, Timestamp } from '../utils/firestoreCompat';
 import { enqueueAdd, enqueueUpdate, enqueueDelete } from '../utils/offlineQueue';
@@ -247,11 +247,12 @@ const ArchiveScreen = () => {
             return true;
         });
 
-        return filtered.sort((a, b) => {
+        const sorted = filtered.sort((a, b) => {
             const dateA = a.completedAt?.toMillis() || 0;
             const dateB = b.completedAt?.toMillis() || 0;
             return dateB - dateA;
         });
+        return sorted;
 
     }, [rawArchivedTasks, searchQuery, filterCompletedFromDate, filterCompletedToDate, activeCategoryArchive, archivedTaskType, selectedPartnerId, partnerNicknames, userProfile, currentUser]);
 
@@ -472,6 +473,7 @@ const ArchiveScreen = () => {
                 placeholder="Szukaj po nazwie lub opisie..."
                 value={searchQuery}
                 onChangeText={setSearchQuery}
+                debounceMs={200}
               inputStyle={{}}
             />
 
@@ -527,10 +529,8 @@ const ArchiveScreen = () => {
                         icon={searchQuery || filterCompletedFromDate || filterCompletedToDate || activeCategoryArchive !== 'all' || archivedTaskType !== 'all' || selectedPartnerId !== 'all' ? "search" : "archive"}
                         title={searchQuery || filterCompletedFromDate || filterCompletedToDate || activeCategoryArchive !== 'all' || archivedTaskType !== 'all' || selectedPartnerId !== 'all' ? "Brak wyników" : "Archiwum jest puste"}
                         subtitle={searchQuery ? `Nie znaleziono zarchiwizowanych zadań dla frazy "${searchQuery}"` : "Ukończone zadania, które zarchiwizujesz, pojawią się tutaj."}
-                        actionTitle={processedAndSortedArchivedTasks.length === 0 ? 'Przejdź do zadań' : undefined}
-                        onActionPress={() => {
-                          try { (require('@react-navigation/native') as any).useNavigation?.().navigate('TasksTab' as any); } catch {}
-                        }}
+                        actions={[{ title: 'Przejdź do zadań', onPress: () => { try { (require('@react-navigation/native') as any).useNavigation?.().navigate('TasksTab' as any); } catch {} } }]}
+                        illustration={ require('../../assets/icon.png') }
                     />
                 }
             />

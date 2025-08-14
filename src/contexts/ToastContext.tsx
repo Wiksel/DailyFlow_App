@@ -74,18 +74,8 @@ export const ToastProvider = ({ children }: ToastProviderProps) => {
     };
   }, []);
 
-  const getToastStyle = (type: ToastType) => {
-    switch (type) {
-      case 'success':
-        return { backgroundColor: Colors.success, iconName: 'check-circle' as const };
-      case 'error':
-        return { backgroundColor: Colors.error, iconName: 'alert-triangle' as const };
-      case 'info':
-        return { backgroundColor: Colors.info, iconName: 'info' as const };
-      default:
-        return { backgroundColor: Colors.textSecondary, iconName: 'help-circle' as const };
-    }
-  };
+  // Re-usable style resolver (shared with ToastOverlay below)
+  const getToastStyle = (type: ToastType) => resolveToastStyle(type);
 
   const toastStyle = toast ? getToastStyle(toast.type) : null;
 
@@ -109,20 +99,7 @@ export const ToastOverlay = ({ topOffset }: { topOffset?: number }) => {
 
   if (!toast) return null;
 
-  const getToastStyle = (type: ToastType) => {
-    switch (type) {
-      case 'success':
-        return { backgroundColor: Colors.success, iconName: 'check-circle' as const };
-      case 'error':
-        return { backgroundColor: Colors.error, iconName: 'alert-triangle' as const };
-      case 'info':
-        return { backgroundColor: Colors.info, iconName: 'info' as const };
-      default:
-        return { backgroundColor: Colors.textSecondary, iconName: 'help-circle' as const };
-    }
-  };
-
-  const toastStyle = getToastStyle(toast.type);
+  const toastStyle = resolveToastStyle(toast.type);
 
   return (
     <View pointerEvents="none" style={StyleSheet.absoluteFill}>
@@ -181,3 +158,17 @@ const styles = StyleSheet.create({
     lineHeight: Typography.body.fontSize * 1.4,
   },
 });
+
+// Helper hoisted to file scope so both Provider and Overlay use the exact same mapping
+function resolveToastStyle(type: ToastType) {
+  switch (type) {
+    case 'success':
+      return { backgroundColor: Colors.success, iconName: 'check-circle' as const };
+    case 'error':
+      return { backgroundColor: Colors.error, iconName: 'alert-triangle' as const };
+    case 'info':
+      return { backgroundColor: Colors.info, iconName: 'info' as const };
+    default:
+      return { backgroundColor: Colors.textSecondary, iconName: 'help-circle' as const };
+  }
+}
