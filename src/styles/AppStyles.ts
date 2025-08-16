@@ -111,7 +111,10 @@ export const GlobalStyles = StyleSheet.create({
         fontSize: Typography.body.fontSize,
     },
     disabledButton: { // Styl dla wyłączonego przycisku
-        backgroundColor: Colors.disabled,
+        backgroundColor: '#1a2a3a', // Ciemniejsza mieszanka niebieskiego i czarnego
+    },
+    disabledButtonText: { // Styl dla tekstu wyłączonego przycisku
+        color: '#6c757d', // Szary kolor tekstu
     },
     slider: { // Ten styl jest teraz częścią GlobalStyles
         width: '100%',

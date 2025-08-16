@@ -9,9 +9,10 @@ interface PasswordInputProps extends Omit<TextInputProps, 'style'> {
   onChangeText: (text: string) => void;
   containerStyle?: ViewStyle | ViewStyle[];
   inputStyle?: TextStyle | TextStyle[];
+  testID?: string;
 }
 
-const PasswordInput = ({ value, onChangeText, containerStyle, inputStyle, placeholder = "Hasło", ...props }: PasswordInputProps) => {
+const PasswordInput = ({ value, onChangeText, containerStyle, inputStyle, placeholder = "Hasło", testID, ...props }: PasswordInputProps) => {
   const [isPasswordVisible, setIsPasswordVisible] = useState(false);
   const theme = useTheme();
 
@@ -22,6 +23,7 @@ const PasswordInput = ({ value, onChangeText, containerStyle, inputStyle, placeh
       containerStyle
     ]}>
       <TextInput
+        testID={testID}
         style={[styles.input, { color: theme.colors.textPrimary }, inputStyle]}
         value={value}
         onChangeText={onChangeText}

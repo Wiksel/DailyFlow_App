@@ -4,6 +4,7 @@ import LabeledInput from './LabeledInput';
 import { getAuth, sendPasswordResetEmail } from '@react-native-firebase/auth';
 import { useToast, ToastOverlay, ToastOverlaySuppressor } from '../contexts/ToastContext';
 import { Colors, Spacing, Typography, GlobalStyles } from '../styles/AppStyles';
+import { useTheme } from '../contexts/ThemeContext';
 import { findUserEmailByIdentifier, mapFirebaseAuthErrorToMessage } from '../utils/authUtils';
 import PhonePasswordResetModal from './PhonePasswordResetModal';
 // removed unused Feather import
@@ -18,6 +19,7 @@ const ForgotPasswordModal = ({ visible, onClose }: ForgotPasswordModalProps) => 
   const [isLoading, setIsLoading] = useState(false);
   const [showPhoneReset, setShowPhoneReset] = useState(false);
   const { showToast: showCustomToast } = useToast();
+  const theme = useTheme();
 
   const handlePasswordReset = async () => {
     if (!identifier.trim()) {
@@ -64,10 +66,10 @@ const ForgotPasswordModal = ({ visible, onClose }: ForgotPasswordModalProps) => 
          <View style={[styles.modalContainer, { backgroundColor: 'rgba(0,0,0,0.75)' }] }>
            {/* Wyłącz globalny overlay na czas wyświetlania modala */}
            <ToastOverlaySuppressor />
-            <View style={[styles.modalContent, { backgroundColor: '#111', borderColor: '#222', borderWidth: 1 }] }>
+            <View style={[styles.modalContent, { backgroundColor: theme.colors.card, borderColor: theme.colors.border, borderWidth: 1 }] }>
              
-              <Text style={[styles.modalTitle, { color: '#fff' }]}>Zresetuj hasło</Text>
-               <Text style={[styles.modalSubtitle, { color: '#bbb' }]}>Podaj swój e‑mail lub telefon, a wyślemy link do ustawienia hasła.</Text>
+              <Text style={[styles.modalTitle, { color: theme.colors.textPrimary }]}>Zresetuj hasło</Text>
+               <Text style={[styles.modalSubtitle, { color: theme.colors.textSecondary }]}>Podaj swój e‑mail lub telefon, a wyślemy link do ustawienia hasła.</Text>
               <LabeledInput
                 label="Identyfikator"
                 placeholder="E‑mail lub telefon (9 cyfr)"
@@ -100,7 +102,7 @@ const ForgotPasswordModal = ({ visible, onClose }: ForgotPasswordModalProps) => 
              </TouchableOpacity>
              
               <TouchableOpacity style={styles.cancelButton} onPress={handleClose}>
-               <Text style={[styles.cancelButtonText, { color: '#bbb' }]}>Anuluj</Text>
+               <Text style={[styles.cancelButtonText, { color: theme.colors.textSecondary }]}>Anuluj</Text>
              </TouchableOpacity>
            </View>
            {/* Lokalny ToastOverlay – wyżej, ale w granicach ekranu */}

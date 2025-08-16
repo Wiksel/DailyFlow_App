@@ -5,6 +5,7 @@ import type { FirebaseAuthTypes } from '@react-native-firebase/auth';
 import { Country } from 'react-native-country-picker-modal';
 import { findUserEmailByIdentifier, setPasswordResetInProgress, mapFirebaseAuthErrorToMessage } from '../utils/authUtils';
 import { Colors, Spacing, Typography, GlobalStyles } from '../styles/AppStyles';
+import { useTheme } from '../contexts/ThemeContext';
 import PasswordInput from './PasswordInput';
 import PhoneNumberField from './PhoneNumberField';
 import { useToast, ToastOverlay, ToastOverlaySuppressor } from '../contexts/ToastContext';
@@ -21,6 +22,7 @@ interface PhonePasswordResetModalProps {
 type ResetStep = 'enter-phone' | 'enter-code' | 'enter-new-password';
 
 const PhonePasswordResetModal = ({ visible, onClose, onSuccess }: PhonePasswordResetModalProps) => {
+  const theme = useTheme();
   const [step, setStep] = useState<ResetStep>('enter-phone');
   const [isLoading, setIsLoading] = useState(false);
   const { showToast } = useToast();
@@ -245,8 +247,8 @@ const PhonePasswordResetModal = ({ visible, onClose, onSuccess }: PhonePasswordR
               value={formattedPhoneNumber}
               onChangeText={handlePhoneNumberChange}
               onSubmitEditing={() => sendVerificationCode()}
-              placeholderTextColor={Colors.placeholder}
-              textColor={'#fff'}
+              placeholderTextColor={theme.colors.placeholder}
+              textColor={theme.colors.textPrimary}
             />
             <TouchableOpacity style={GlobalStyles.button} onPress={() => sendVerificationCode()} disabled={isLoading}>
               <Text style={[GlobalStyles.buttonText, isLoading && styles.buttonTextHidden]}>Wyślij kod</Text>
@@ -260,15 +262,16 @@ const PhonePasswordResetModal = ({ visible, onClose, onSuccess }: PhonePasswordR
             <Text style={styles.modalTitle}>Wpisz kod weryfikacyjny</Text>
             <Text style={styles.modalSubtitle}>{`Wysłaliśmy 6-cyfrowy kod\nna numer +${country.callingCode[0]} ${formattedPhoneNumber}.`}</Text>
             <TextInput 
-              style={[GlobalStyles.input, { textAlign: 'center', letterSpacing: 8, color: '#fff', backgroundColor: 'transparent', borderColor: '#333' }]} 
+              style={[GlobalStyles.input, { textAlign: 'center', letterSpacing: 8, color: theme.colors.textPrimary, backgroundColor: theme.colors.inputBackground }]} 
               placeholder="000000" 
-              placeholderTextColor={Colors.placeholder}
+              placeholderTextColor={theme.colors.placeholder}
               keyboardType="number-pad" 
               value={code} 
               onChangeText={setCode} 
               maxLength={6} 
               onSubmitEditing={confirmCode} 
               blurOnSubmit={true} 
+              accessibilityLabel="Kod weryfikacyjny"
             />
             <TouchableOpacity style={[GlobalStyles.button, { marginTop: Spacing.small }]} onPress={confirmCode} disabled={isLoading}>
               <Text style={[GlobalStyles.buttonText, isLoading && styles.buttonTextHidden]}>Zatwierdź</Text>
@@ -295,7 +298,7 @@ const PhonePasswordResetModal = ({ visible, onClose, onSuccess }: PhonePasswordR
                 if(passwordError) validatePassword(val);
               }}
               onBlur={() => validatePassword(newPassword)}
-              containerStyle={passwordError ? styles.inputError : {}}
+              containerStyle={[passwordError ? styles.inputError : {}, { backgroundColor: theme.colors.inputBackground, borderColor: theme.colors.border }]}
               placeholder="Nowe hasło (min. 6, litera, cyfra)"
             />
             {!!passwordError && <Text style={styles.errorText}>{passwordError}</Text>}
@@ -314,12 +317,12 @@ const PhonePasswordResetModal = ({ visible, onClose, onSuccess }: PhonePasswordR
 
   return (
     <Modal visible={visible} transparent={true} animationType="fade" onRequestClose={handleClose}>
-      <View style={[styles.modalContainer, { backgroundColor: 'rgba(0,0,0,0.75)' }]}>
+      <View style={[styles.modalContainer, { backgroundColor: 'rgba(0,0,0,0.75)' }]}> 
         {/* Wyłącz globalny overlay na czas wyświetlania modala */}
         <ToastOverlaySuppressor />
-        <View style={[styles.modalContent, { backgroundColor: '#111', borderColor: '#222', borderWidth: 1 }]}>
+        <View style={[styles.modalContent, { backgroundColor: theme.colors.card, borderColor: theme.colors.border, borderWidth: 1 }]}> 
           <TouchableOpacity style={styles.closeButton} onPress={handleClose}>
-            <Text style={[styles.closeButtonText, { color: '#bbb' }]}>Anuluj</Text>
+            <Text style={[styles.closeButtonText, { color: theme.colors.textSecondary }]}>Anuluj</Text>
           </TouchableOpacity>
           {renderStep()}
         </View>

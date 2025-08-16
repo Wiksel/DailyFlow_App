@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useState, ReactNode, useEffect, useRef } from 'react';
 import { View, Text, StyleSheet, Animated } from 'react-native';
+import Logger from '../utils/logger';
 import { Feather } from '@expo/vector-icons';
 import { Colors, Spacing, Typography } from '../styles/AppStyles';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -63,6 +64,7 @@ export const ToastProvider = ({ children }: ToastProviderProps) => {
         useNativeDriver: true,
       }).start(() => setToast(null));
     }, 2500);
+    try { if (type === 'error') Logger.warn('[Toast:error]', message); } catch {}
   };
 
   // Sprzątanie timera przy odmontowaniu providera

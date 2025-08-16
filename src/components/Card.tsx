@@ -1,26 +1,59 @@
 import React from 'react';
-import { View, ViewStyle, StyleSheet } from 'react-native';
+import { View, ViewStyle, StyleSheet, Pressable } from 'react-native';
 import { useTheme } from '../contexts/ThemeContext';
 import { Spacing, Colors } from '../styles/AppStyles';
 
 interface CardProps {
   style?: ViewStyle | ViewStyle[];
   children?: React.ReactNode;
+  variant?: 'default' | 'elevated' | 'outlined';
+  pressable?: boolean;
+  onPress?: () => void;
+  disabled?: boolean;
+  testID?: string;
 }
 
-const Card: React.FC<CardProps> = ({ style, children }) => {
+const Card: React.FC<CardProps> = ({ 
+  style, 
+  children, 
+  variant = 'default', 
+  pressable = false, 
+  onPress, 
+  disabled = false,
+  testID 
+}) => {
   const theme = useTheme();
   const isDark = theme.colorScheme === 'dark';
   const glassBackground = 'rgba(30,30,30,0.55)';
+  
+  const cardStyle = [
+    styles.card,
+    variant === 'elevated' && styles.elevated,
+    variant === 'outlined' && styles.outlined,
+    isDark
+      ? { backgroundColor: glassBackground, borderColor: theme.colors.border }
+      : { backgroundColor: theme.colors.card, borderColor: theme.colors.border },
+    disabled && styles.disabled,
+    style as any,
+  ];
+
+  if (pressable && onPress) {
+    return (
+      <Pressable
+        testID={testID ? `${testID}-pressable` : 'card-pressable'}
+        onPress={onPress}
+        disabled={disabled}
+        style={cardStyle}
+      >
+        {children}
+      </Pressable>
+    );
+  }
+
   return (
     <View
-      style={[
-        styles.card,
-        isDark
-          ? { backgroundColor: glassBackground, borderColor: theme.colors.border }
-          : { backgroundColor: theme.colors.card, borderColor: theme.colors.border },
-        style as any,
-      ]}
+      testID={testID || 'card'}
+      style={cardStyle}
     >
       {children}
     </View>
@@ -39,6 +72,17 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.15,
     shadowRadius: 4,
     elevation: 4,
+  },
+  elevated: {
+    shadowOpacity: 0.25,
+    elevation: 8,
+  },
+  outlined: {
+    shadowOpacity: 0.05,
+    elevation: 1,
+  },
+  disabled: {
+    opacity: 0.5,
   },
 });
 

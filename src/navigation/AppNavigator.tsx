@@ -33,6 +33,7 @@ import ArchiveScreen from '../screens/ArchiveScreen';
 import { GlobalStyles } from '../styles/AppStyles';
 import { useTheme } from '../contexts/ThemeContext';
 import Constants from 'expo-constants';
+import Logger from '../utils/logger';
 import { initNotifications, registerNotificationResponseListener, ensureDailyMorningReminderScheduled } from '../utils/notifications';
 import { processOutbox } from '../utils/offlineQueue';
 import Animated, { FadeIn, FadeOut } from 'react-native-reanimated';
@@ -112,7 +113,7 @@ const AppNavigator = () => {
     if (webClientId) {
       GoogleSignin.configure({ webClientId });
     } else {
-      try { console.warn('[GoogleSignin] Brak googleWebClientId w app config. Logowanie Google może nie działać.'); } catch {}
+      Logger.warn('[GoogleSignin] Brak googleWebClientId w app config. Logowanie Google może nie działać.');
     }
 
     const subscriber = onAuthStateChanged(getAuth(), async (user) => {
@@ -121,7 +122,8 @@ const AppNavigator = () => {
         try {
           const userDoc = await getDoc(doc(db, 'users', user.uid));
           setUserProfileExists(userDoc.exists());
-        } catch {
+        } catch (e) {
+          Logger.warn('Failed to read user profile', e);
           setUserProfileExists(false);
         }
       } else {
@@ -131,11 +133,18 @@ const AppNavigator = () => {
         setInitializing(false);
       }
     });
-    (async () => { try { await ensureDailyMorningReminderScheduled(); } catch {} })();
-    const outboxTimer = setInterval(() => { processOutbox().catch(() => {}); }, 15000);
-    const appStateSub = AppState.addEventListener('change', (state) => { if (state === 'active') { processOutbox().catch(() => {}); } });
+    (async () => { try { await ensureDailyMorningReminderScheduled(); } catch (e) { Logger.warn('ensureDailyMorningReminderScheduled failed', e); } })();
+    const outboxTimer = setInterval(() => { processOutbox().catch((e) => Logger.debug('processOutbox tick failed', e)); }, 15000);
+    const appStateSub = AppState.addEventListener('change', (state) => { if (state === 'active') { processOutbox().catch((e) => Logger.debug('processOutbox onFocus failed', e)); } });
     return () => { try { sub?.remove?.(); } catch {}; try { appStateSub.remove(); } catch {}; clearInterval(outboxTimer); subscriber(); };
   }, []);
+
+  // Fade overlay when theme/accent changes to smoothen transition
+  useEffect(() => {
+    setShowThemeFade(true);
+    const t = setTimeout(() => setShowThemeFade(false), 220);
+    return () => clearTimeout(t);
+  }, [theme.colorScheme, theme.accent, theme.colors.primary]);
 
   if (initializing) {
     return <View style={GlobalStyles.centered}><ActivityIndicator size="large" color={theme.colors.primary} /></View>;
@@ -172,13 +181,6 @@ const AppNavigator = () => {
       notification: theme.colors.primary,
     },
   };
-
-  // Fade overlay when theme/accent changes to smoothen transition
-  useEffect(() => {
-    setShowThemeFade(true);
-    const t = setTimeout(() => setShowThemeFade(false), 220);
-    return () => clearTimeout(t);
-  }, [theme.colorScheme, theme.accent, theme.colors.primary]);
 
   return (
     <ToastProvider>

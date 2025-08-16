@@ -5,6 +5,7 @@ import { AppState, AppStateStatus } from 'react-native';
 export const useResendTimer = (isActive: boolean) => {
   const [remainingSeconds, setRemainingSeconds] = useState(0);
   const untilRef = useRef<number | null>(null);
+  const rafRef = useRef<number | null>(null);
 
   useEffect(() => {
     if (!isActive) return;
@@ -18,7 +19,17 @@ export const useResendTimer = (isActive: boolean) => {
     };
 
     updateRemaining();
-    const intervalId = setInterval(updateRemaining, 500);
+    let intervalId: ReturnType<typeof setInterval> | null = null;
+    // Prefer RAF when available for smoother UI while active
+    const loop = () => {
+      updateRemaining();
+      rafRef.current = requestAnimationFrame(loop);
+    };
+    try {
+      rafRef.current = requestAnimationFrame(loop);
+    } catch {
+      intervalId = setInterval(updateRemaining, 500);
+    }
 
     const handleAppStateChange = (state: AppStateStatus) => {
       if (state === 'active') updateRemaining();
@@ -26,7 +37,8 @@ export const useResendTimer = (isActive: boolean) => {
     const appStateSub = AppState.addEventListener('change', handleAppStateChange);
 
     return () => {
-      clearInterval(intervalId);
+      if (intervalId) clearInterval(intervalId);
+      if (rafRef.current) { try { cancelAnimationFrame(rafRef.current); } catch {} rafRef.current = null; }
       appStateSub.remove();
     };
   }, [isActive]);

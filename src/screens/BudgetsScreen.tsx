@@ -153,7 +153,7 @@ const BudgetsScreen = () => {
               onPressIn={() => { scale.value = withSpring(0.98, { damping: 15 }); }}
               onPressOut={() => { scale.value = withSpring(1, { damping: 15 }); }}
               onPress={() => navigation.navigate('BudgetDetail', { budgetId: item.id })}
-              android_ripple={{ color: '#0000001a' }}
+              android_ripple={{ color: 'rgba(0,0,0,0.1)' }}
             >
                 <Animated.View entering={FadeInUp} layout={Layout.springify()} style={[
                     styles.budgetItem,

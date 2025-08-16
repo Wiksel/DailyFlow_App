@@ -235,9 +235,7 @@ const styles = StyleSheet.create({
         fontSize: 16,
         fontWeight: '600',
     },
-    headerLabelActive: {
-        color: '#0782F9',
-    },
+    headerLabelActive: {},
     expandedContent: {
         padding: 15,
         paddingTop: 0,

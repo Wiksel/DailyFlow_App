@@ -73,9 +73,11 @@ const darkColors: ThemeColors = {
 };
 
 const ThemeContext = createContext<Theme | undefined>(undefined);
+// Optional export for class components (e.g., ErrorBoundary) to access theme
+export const ThemeReactContext = ThemeContext;
 
 export const ThemeProvider: React.FC<React.PropsWithChildren<{}>> = ({ children }) => {
-  const [mode, setModeState] = useState<ThemeMode>('system');
+  const [mode, setModeState] = useState<ThemeMode>('dark');
   const [systemScheme, setSystemScheme] = useState<Exclude<ColorSchemeName, null>>((Appearance as any).getColorScheme?.() || 'light');
   const [accent, setAccentState] = useState<Accent>('blue');
 

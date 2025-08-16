@@ -121,7 +121,7 @@ const CategoriesScreen = () => {
                     onChangeText={setNewCategoryName}
                     editable={!isSubmitting}
                 />
-                <Text style={[styles.label, { color: theme.colors.textPrimary }]}>Wybierz kolor</Text>
+                <Text style={[styles.label, { color: theme.colors.textPrimary }]} accessibilityRole="header">Wybierz kolor</Text>
                 {/* Zmieniono View na ScrollView */}
                 <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.colorContainer}>
                     {COLORS.map(color => (
@@ -131,6 +131,8 @@ const CategoriesScreen = () => {
                             onPress={() => setSelectedColor(color)}
                             disabled={isSubmitting}
                             accessibilityLabel={`Kolor ${color}${selectedColor===color ? ' wybrany' : ''}`}
+                            accessibilityRole="button"
+                            accessibilityState={{ selected: selectedColor === color }}
                         />
                     ))}
                 </ScrollView>

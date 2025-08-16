@@ -67,6 +67,8 @@ const Chip = ({ onPress, active, activeColor, inactiveColor, textColorActive, te
                 try { const mod = await import('expo-haptics'); await mod.selectionAsync(); } catch {}
                 onPress();
             }}
+            accessibilityRole="button"
+            accessibilityLabel={`Filtr: ${label}${active ? ' (aktywny)' : ''}`}
             style={({ pressed }) => ([
                 styles.filterButton,
                 { backgroundColor: active ? activeColor : inactiveColor, opacity: pressed ? 0.95 : 1 },

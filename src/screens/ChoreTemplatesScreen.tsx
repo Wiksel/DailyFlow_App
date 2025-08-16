@@ -188,6 +188,9 @@ const ChoreTemplatesScreen = () => {
                             ]}
                             onPress={() => setSelectedCategory(cat.id)}
                             disabled={isSubmitting}
+                            accessibilityRole="button"
+                            accessibilityLabel={`Kategoria ${cat.name}${selectedCategory===cat.id ? ' wybrana' : ''}`}
+                            accessibilityState={{ selected: selectedCategory === cat.id }}
                         >
                             <Text style={[
                                 styles.categoryText,
@@ -293,9 +296,9 @@ const styles = StyleSheet.create({
     categoryText: { color: 'white', fontWeight: Typography.bold.fontWeight },
     cancelButton: { marginTop: Spacing.small, padding: Spacing.small },
     cancelButtonText: { color: Colors.danger, textAlign: 'center', fontSize: Typography.body.fontSize },
-    templateItem: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', padding: Spacing.large, backgroundColor: 'white', borderBottomWidth: 1, borderColor: Colors.border },
+    templateItem: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', padding: Spacing.large, borderBottomWidth: 1, borderColor: Colors.border },
     templateName: { fontSize: Typography.body.fontSize, fontWeight: Typography.semiBold.fontWeight },
-    templateDifficulty: { fontSize: Typography.small.fontSize, color: Colors.textSecondary },
+    templateDifficulty: { fontSize: Typography.small.fontSize },
     categoryTag: { paddingHorizontal: Spacing.small, paddingVertical: 3, borderRadius: 10 },
     categoryTagText: { color: 'white', fontSize: Typography.small.fontSize, fontWeight: Typography.bold.fontWeight },
     emptyText: { textAlign: 'center', marginTop: Spacing.xLarge, fontSize: Typography.body.fontSize, color: Colors.textSecondary },

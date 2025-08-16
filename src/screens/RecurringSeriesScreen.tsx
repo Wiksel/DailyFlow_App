@@ -153,7 +153,7 @@ const styles = StyleSheet.create({
   chip: { paddingHorizontal: Spacing.medium, paddingVertical: Spacing.xSmall, borderRadius: 16, marginRight: Spacing.small, marginTop: Spacing.xSmall },
   row: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', padding: Spacing.large, borderBottomWidth: 1, borderColor: Colors.border, backgroundColor: 'transparent' },
   rowTitle: { ...Typography.body, fontWeight: '700' },
-  rowSubtitle: { ...Typography.small, color: Colors.textSecondary },
+  rowSubtitle: { ...Typography.small },
 });
 
 export default RecurringSeriesScreen;

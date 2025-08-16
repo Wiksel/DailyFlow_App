@@ -11,6 +11,7 @@ async function getNotifications(): Promise<any | null> {
   }
 }
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import Logger from './logger';
 import { doc, updateDoc, increment, Timestamp, getDoc } from './firestoreCompat';
 import { getAuth } from '@react-native-firebase/auth';
 import { db } from '../../firebaseConfig';
@@ -23,16 +24,24 @@ export async function initNotifications() {
   const Notifications = await getNotifications();
   if (!Notifications) return; // unavailable (e.g., Expo Go)
   // Android channel
-  await Notifications.setNotificationChannelAsync('default', {
-    name: 'Ogólne',
-    importance: Notifications.AndroidImportance.DEFAULT,
-  });
+  try {
+    await Notifications.setNotificationChannelAsync('default', {
+      name: 'Ogólne',
+      importance: Notifications.AndroidImportance.DEFAULT,
+    });
+  } catch (e) {
+    Logger.debug('setNotificationChannelAsync failed', e);
+  }
 
   // Action categories
-  await Notifications.setNotificationCategoryAsync('TASK_ACTIONS', [
-    { identifier: 'DONE', buttonTitle: 'Gotowe' },
-    { identifier: 'SNOOZE_15', buttonTitle: 'Drzemka 15m' },
-  ]);
+  try {
+    await Notifications.setNotificationCategoryAsync('TASK_ACTIONS', [
+      { identifier: 'DONE', buttonTitle: 'Gotowe' },
+      { identifier: 'SNOOZE_15', buttonTitle: 'Drzemka 15m' },
+    ]);
+  } catch (e) {
+    Logger.debug('setNotificationCategoryAsync failed', e);
+  }
   // Nie prosimy o uprawnienia automatycznie – użytkownik może to zrobić na ekranie ustawień powiadomień
 }
 
@@ -81,7 +90,7 @@ export async function registerNotificationResponseListener() {
           trigger: nextDate,
         });
       }
-    } catch {}
+    } catch (e) { Logger.debug('Notification response handler failed', e); }
   });
 }
 

@@ -300,12 +300,12 @@ const ProfileScreen = () => {
 
             <Animated.View entering={FadeInUp.delay(180)} layout={Layout.springify()} style={[GlobalStyles.card, { backgroundColor: theme.colors.card, borderColor: theme.colors.border }] }>
                 <Text style={styles.sectionTitle}>Zarządzanie</Text>
-                <ActionButton title="Zarządzaj kategoriami" onPress={() => navigation.navigate('Categories')} style={[styles.manageButton, styles.purpleButton]} />
-                <ActionButton title="Szablony obowiązków" onPress={() => navigation.navigate('ChoreTemplates', {})} style={[styles.manageButton, styles.purpleButton]} />
-                <ActionButton title="Ustawienia priorytetów" onPress={() => navigation.navigate('Settings')} style={[styles.manageButton, styles.purpleButton]} />
-                <ActionButton title="Ustawienia konta" onPress={() => navigation.navigate('AccountSettings')} style={[styles.manageButton, styles.purpleButton]} />
-                <ActionButton title="Ustawienia wyświetlania" onPress={() => navigation.navigate('DisplaySettings')} style={[styles.manageButton, styles.purpleButton]} />
-                <ActionButton title="Kolejka offline" onPress={() => navigation.navigate('Outbox')} style={[styles.manageButton, styles.purpleButton]} />
+                <ActionButton title="Zarządzaj kategoriami" onPress={() => navigation.navigate('Categories')} style={[styles.manageButton, { backgroundColor: theme.colors.primary }]} />
+                <ActionButton title="Szablony obowiązków" onPress={() => navigation.navigate('ChoreTemplates', {})} style={[styles.manageButton, { backgroundColor: theme.colors.primary }]} />
+                <ActionButton title="Ustawienia priorytetów" onPress={() => navigation.navigate('Settings')} style={[styles.manageButton, { backgroundColor: theme.colors.primary }]} />
+                <ActionButton title="Ustawienia konta" onPress={() => navigation.navigate('AccountSettings')} style={[styles.manageButton, { backgroundColor: theme.colors.primary }]} />
+                <ActionButton title="Ustawienia wyświetlania" onPress={() => navigation.navigate('DisplaySettings')} style={[styles.manageButton, { backgroundColor: theme.colors.primary }]} />
+                <ActionButton title="Kolejka offline" onPress={() => navigation.navigate('Outbox')} style={[styles.manageButton, { backgroundColor: theme.colors.primary }]} />
                 <View style={{ height: 1, backgroundColor: theme.colors.border, marginTop: Spacing.medium }} />
             </Animated.View>
 
@@ -329,17 +329,17 @@ const ProfileScreen = () => {
                                 <View key={invite.id} style={styles.inviteContainer}>
                                     <Text style={styles.inviteText}>Zaproszenie od: <Text style={Typography.semiBold}>{invite.requesterNickname}</Text></Text>
                                     <View style={styles.inviteActions}>
-                                        <ActionButton
+                        <ActionButton
                                             title="Akceptuj"
                                             onPress={() => handleAcceptInvite(invite)}
                                             isLoading={isPairActionLoading}
-                                            style={[styles.inviteActionButton, styles.successButton]}
+                            style={[styles.inviteActionButton, { backgroundColor: theme.colors.success }]}
                                         />
-                                        <ActionButton
+                        <ActionButton
                                             title="Odrzuć"
                                             onPress={() => handleDeclineInvite(invite.id)}
                                             isLoading={isPairActionLoading}
-                                            style={[styles.inviteActionButton, styles.dangerButton]}
+                            style={[styles.inviteActionButton, { backgroundColor: theme.colors.danger }]}
                                         />
                                     </View>
                                 </View>
@@ -351,7 +351,7 @@ const ProfileScreen = () => {
             <ActionButton
                 title="Wyloguj się"
                 onPress={handleLogout}
-                style={{ marginHorizontal: Spacing.medium, marginTop: Spacing.medium, marginBottom: Spacing.small, backgroundColor: Colors.textSecondary }}
+                style={{ marginHorizontal: Spacing.medium, marginTop: Spacing.medium, marginBottom: Spacing.small, backgroundColor: theme.colors.textSecondary }}
             />
             {/* Usunięto „Usuń konto” z Profilu – dostępne w Ustawieniach konta */}
         </ScrollView>

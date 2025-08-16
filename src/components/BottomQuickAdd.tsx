@@ -4,6 +4,7 @@ import Animated, { useSharedValue, useAnimatedStyle, withSpring } from 'react-na
 import { useTheme } from '../contexts/ThemeContext';
 import { Spacing, Typography } from '../styles/AppStyles';
 import { Feather } from '@expo/vector-icons';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 interface BottomQuickAddProps {
   value: string;
@@ -17,8 +18,12 @@ const BottomQuickAdd: React.FC<BottomQuickAddProps> = ({ value, onChangeText, pl
   const theme = useTheme();
   const scale = useSharedValue(1);
   const animatedStyle = useAnimatedStyle(() => ({ transform: [{ scale: scale.value }] }));
+  const insets = useSafeAreaInsets();
   return (
-    <View style={[styles.container, { backgroundColor: theme.colors.card, borderColor: theme.colors.border }]}
+    <View style={[
+      styles.container,
+      { backgroundColor: theme.colors.card, borderColor: theme.colors.border, paddingBottom: Spacing.small + Math.max(0, insets.bottom * 0.5) }
+    ]}
       accessibilityRole="toolbar"
     >
       <TextInput
@@ -33,7 +38,7 @@ const BottomQuickAdd: React.FC<BottomQuickAddProps> = ({ value, onChangeText, pl
         testID="quick-add-input"
       />
       <Animated.View style={animatedStyle}>
-        <TouchableOpacity testID="quick-add-button" onPressIn={() => { if (!disabled) scale.value = withSpring(0.96, { damping: 18 }); }} onPressOut={() => { scale.value = withSpring(1, { damping: 18 }); }} onPress={onSubmit} disabled={disabled} style={[styles.addButton, { backgroundColor: disabled ? theme.colors.placeholder : theme.colors.primary }]} accessibilityLabel="Dodaj">
+        <TouchableOpacity testID="quick-add-button" onPressIn={() => { if (!disabled) scale.value = withSpring(0.96, { damping: 18 }); }} onPressOut={() => { scale.value = withSpring(1, { damping: 18 }); }} onPress={onSubmit} disabled={disabled} style={[styles.addButton, { backgroundColor: disabled ? theme.colors.placeholder : theme.colors.primary }]} accessibilityLabel="Dodaj" accessibilityHint="Dodaje szybkie zadanie">
           <Feather name="plus" size={22} color={'#fff'} />
         </TouchableOpacity>
       </Animated.View>

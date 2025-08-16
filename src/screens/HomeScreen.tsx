@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo, useRef } from 'react';
+import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, FlatList, ActivityIndicator, Modal, TextInput, Image, Vibration, ScrollView } from 'react-native';
 import * as Haptics from 'expo-haptics';
 import { scheduleTaskNotifications } from '../utils/notifications';
@@ -376,7 +376,7 @@ const HomeScreen = () => {
     };
 
     const pendingToggleIdsRef = useRef<Set<string>>(new Set());
-    const toggleComplete = async (task: Task) => {
+    const toggleComplete = useCallback(async (task: Task) => {
         if (!currentUser || !userProfile) return;
         if (pendingToggleIdsRef.current.has(task.id)) return;
         try {
@@ -405,25 +405,25 @@ const HomeScreen = () => {
         } finally {
             pendingToggleIdsRef.current.delete(task.id);
         }
-    };
+    }, [currentUser, userProfile, showToast]);
 
     const [confirmModalTask, setConfirmModalTask] = useState<Task | null>(null);
-    const handleTaskAction = (task: Task) => setConfirmModalTask(task);
+    const handleTaskAction = useCallback((task: Task) => setConfirmModalTask(task), []);
 
-    const renderTask = ({ item }: { item: Task }) => {
+    const renderTask = useCallback(({ item }: { item: Task }) => {
         let swipeableRef: Swipeable | null = null;
         const rowVertical = density === 'compact' ? Spacing.xSmall : Spacing.small;
         const rowHorizontal = density === 'compact' ? Spacing.small : Spacing.medium;
 
         const renderLeftActions = () => (
-            <View style={[styles.swipeAction, styles.swipeActionWidth, { backgroundColor: Colors.success }]}>
+            <View style={[styles.swipeAction, styles.swipeActionWidth, { backgroundColor: theme.colors.success }]}>
                 <Feather name="check" size={22} color="white" style={{ marginRight: 8 }} />
                 <Text style={styles.swipeActionText}>Ukończ</Text>
             </View>
         );
 
         const renderRightActions = () => (
-            <View style={[styles.swipeAction, styles.swipeActionWidth, { backgroundColor: item.completed ? Colors.warning : Colors.danger }]}>
+            <View style={[styles.swipeAction, styles.swipeActionWidth, { backgroundColor: item.completed ? theme.colors.warning : theme.colors.danger }]}>
                 <Feather name={item.completed ? 'archive' : 'trash-2'} size={22} color="white" style={{ marginRight: 8 }} />
                 <Text style={styles.swipeActionText}>{item.completed ? 'Archiwizuj' : 'Usuń'}</Text>
             </View>
@@ -460,13 +460,13 @@ const HomeScreen = () => {
                             styles.taskContainer,
                             { paddingVertical: rowVertical, paddingHorizontal: rowHorizontal },
                             item.completed && styles.taskContainerCompleted,
-                            item.priority >= 4 && { borderLeftWidth: 4, borderLeftColor: Colors.danger },
-                            item.priority === 3 && { borderLeftWidth: 3, borderLeftColor: Colors.warning },
-                            item.priority < 3 && { borderLeftWidth: 2, borderLeftColor: Colors.success },
+                            item.priority >= 4 && { borderLeftWidth: 4, borderLeftColor: theme.colors.danger },
+                            item.priority === 3 && { borderLeftWidth: 3, borderLeftColor: theme.colors.warning },
+                            item.priority < 3 && { borderLeftWidth: 2, borderLeftColor: theme.colors.success },
                             { backgroundColor: theme.colors.card, borderColor: theme.colors.border },
                         ]}>
                             <TouchableOpacity onPress={() => toggleComplete(item)} style={styles.checkboxTouchable}>
-                                <View style={[styles.checkbox, item.completed && styles.checkboxCompleted]}>
+                                <View style={[styles.checkbox, { borderColor: theme.colors.primary }, item.completed && { backgroundColor: theme.colors.success, borderColor: theme.colors.success }]}>
                                     {item.completed && <Feather name="check" size={18} color="white" />}
                                 </View>
                             </TouchableOpacity>
@@ -478,7 +478,7 @@ const HomeScreen = () => {
                                     {item.isShared && <Text style={[styles.creatorText, { color: theme.colors.textSecondary }]}>od: {item.creatorNickname}</Text>}
                                 </View>
                                 {item.completed && item.completedBy ? (
-                                    <Text style={[styles.completedText, { color: Colors.success }]}>
+                                    <Text style={[styles.completedText, { color: theme.colors.success }]}>
                                         Wykonane przez: {item.completedBy} {item.completedAt?.toDate().toLocaleDateString('pl-PL')}
                                     </Text>
                                 ) : (
@@ -486,7 +486,7 @@ const HomeScreen = () => {
                                         Dodano: {item.createdAt?.toDate().toLocaleDateString('pl-PL')}
                                     </Text>
                                 )}
-                                {item.deadline && !item.completed && <Text style={[styles.deadlineText, { color: Colors.danger }]}>Termin: {item.deadline.toDate().toLocaleDateString('pl-PL')}</Text>}
+                                {item.deadline && !item.completed && <Text style={[styles.deadlineText, { color: theme.colors.danger }]}>Termin: {item.deadline.toDate().toLocaleDateString('pl-PL')}</Text>}
                                 {item.deadline && !item.completed && (
                                   <View style={styles.progressBarContainer}>
                                     {(() => {
@@ -498,7 +498,7 @@ const HomeScreen = () => {
                                       const total = Math.max(1, deadline - start);
                                       const elapsed = Math.min(total, Math.max(0, now - start));
                                       const pct = Math.max(0, Math.min(1, elapsed / total));
-                                      const barColor = (pct >= 1 || now > deadline) ? Colors.danger : (pct >= 0.7 ? Colors.warning : theme.colors.primary);
+                                       const barColor = (pct >= 1 || now > deadline) ? theme.colors.danger : (pct >= 0.7 ? theme.colors.warning : theme.colors.primary);
                                       return (
                                         <View style={[styles.progressTrack, { backgroundColor: theme.colors.border }]}> 
                                           <View style={[styles.progressFill, { width: `${pct * 100}%`, backgroundColor: barColor }]} />
@@ -513,7 +513,7 @@ const HomeScreen = () => {
                                 <AnimatedIconButton
                                   icon={item.completed ? 'archive' : 'trash-2'}
                                   size={20}
-                                  color={item.completed ? Colors.textSecondary : Colors.danger}
+                                  color={item.completed ? theme.colors.textSecondary : theme.colors.danger}
                                   onPress={() => handleTaskAction(item)}
                                   accessibilityLabel={item.completed ? 'Archiwizuj' : 'Usuń'}
                                   style={styles.actionButton as any}
@@ -550,7 +550,9 @@ const HomeScreen = () => {
                 </TouchableOpacity>
             </Swipeable>
         );
-    };
+    }, [density, theme, categories, toggleComplete, handleTaskAction, navigation, showToast]);
+
+    const keyExtractor = useCallback((item: Task) => item.id, []);
 
     const filteredTemplates = templates.filter(t => activeCategory === 'all' || t.category === activeCategory);
 
@@ -569,11 +571,11 @@ const HomeScreen = () => {
               onAvatarPress={() => navigation.navigate('Profile')}
             />
             <View style={[styles.tabContainer, { backgroundColor: theme.colors.card, borderColor: theme.colors.border }]}>
-                <TouchableOpacity style={[styles.tab, taskType === 'personal' && styles.tabActive]} onPress={() => setTaskType('personal')} activeOpacity={0.8} accessibilityLabel="Zadania osobiste">
-                    <Text style={[styles.tabText, taskType === 'personal' && styles.tabTextActive]}>Osobiste</Text>
+                <TouchableOpacity style={[styles.tab, taskType === 'personal' && { backgroundColor: theme.colors.primary }]} onPress={() => setTaskType('personal')} activeOpacity={0.8} accessibilityLabel="Zadania osobiste" accessibilityState={{ selected: taskType==='personal' }}>
+                    <Text style={[styles.tabText, taskType === 'personal' && { color: '#fff' }]}>Osobiste</Text>
                 </TouchableOpacity>
-                <TouchableOpacity style={[styles.tab, taskType === 'shared' && styles.tabActive]} onPress={() => setTaskType('shared')} activeOpacity={0.8} accessibilityLabel="Zadania wspólne">
-                    <Text style={[styles.tabText, taskType === 'shared' && styles.tabTextActive]}>Wspólne</Text>
+                <TouchableOpacity style={[styles.tab, taskType === 'shared' && { backgroundColor: theme.colors.primary }]} onPress={() => setTaskType('shared')} activeOpacity={0.8} accessibilityLabel="Zadania wspólne" accessibilityState={{ selected: taskType==='shared' }}>
+                    <Text style={[styles.tabText, taskType === 'shared' && { color: '#fff' }]}>Wspólne</Text>
                 </TouchableOpacity>
             </View>
             {taskType === 'shared' && userProfile?.partnerNickname ? (
@@ -663,7 +665,7 @@ const HomeScreen = () => {
                         {renderTask(args)}
                       </Animated.View>
                     )}
-                    keyExtractor={(item) => item.id}
+                    keyExtractor={keyExtractor}
                     getItemLayout={(data, index) => ({ length: 78, offset: 78 * index, index })}
                     style={styles.list}
                     initialNumToRender={12}

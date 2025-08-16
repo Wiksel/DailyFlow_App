@@ -34,6 +34,7 @@ export type PendingOp = AddOp | UpdateOp | DeleteOp;
 
 const OUTBOX_KEY = (uid: string) => `dailyflow_outbox_${uid}`;
 let processing = false;
+const MAX_QUEUE = 500; // hard safety cap to prevent unbounded growth
 
 async function readQueue(uid: string): Promise<PendingOp[]> {
   try { const raw = await AsyncStorage.getItem(OUTBOX_KEY(uid)); return raw ? JSON.parse(raw) : []; } catch { return []; }
@@ -54,25 +55,36 @@ function genId() { return `${Date.now()}_${Math.random().toString(36).slice(2, 8
 export async function enqueueAdd(collectionPath: string, data: any) {
   const uid = getAuth().currentUser?.uid; if (!uid) return;
   const op: AddOp = { id: genId(), action: 'add', collectionPath, data, createdAt: Date.now(), retryCount: 0, nextAttemptAt: Date.now() } as any;
-  const ops = await readQueue(uid); ops.push(op); await writeQueue(uid, ops);
+  const ops = await readQueue(uid);
+  if (ops.length >= MAX_QUEUE) { ops.shift(); }
+  ops.push(op);
+  await writeQueue(uid, ops);
 }
 
 export async function enqueueUpdate(docPath: string, data: any) {
   const uid = getAuth().currentUser?.uid; if (!uid) return;
   const op: UpdateOp = { id: genId(), action: 'update', docPath, data, createdAt: Date.now(), retryCount: 0, nextAttemptAt: Date.now() } as any;
-  const ops = await readQueue(uid); ops.push(op); await writeQueue(uid, ops);
+  const ops = await readQueue(uid);
+  if (ops.length >= MAX_QUEUE) { ops.shift(); }
+  ops.push(op);
+  await writeQueue(uid, ops);
 }
 
 export async function enqueueDelete(docPath: string) {
   const uid = getAuth().currentUser?.uid; if (!uid) return;
   const op: DeleteOp = { id: genId(), action: 'delete', docPath, createdAt: Date.now(), retryCount: 0, nextAttemptAt: Date.now() } as any;
-  const ops = await readQueue(uid); ops.push(op); await writeQueue(uid, ops);
+  const ops = await readQueue(uid);
+  if (ops.length >= MAX_QUEUE) { ops.shift(); }
+  ops.push(op);
+  await writeQueue(uid, ops);
 }
 
 export async function processOutbox(maxOps: number = 20) {
+  // Acquire lock only when we know there is a user context
+  const uid = getAuth().currentUser?.uid;
+  if (!uid) return;
   if (processing) return;
   processing = true;
-  const uid = getAuth().currentUser?.uid; if (!uid) return;
   try {
     let ops = await readQueue(uid);
     if (ops.length === 0) return;

@@ -96,13 +96,13 @@ const AddTaskModal = ({ visible, onClose, onAddTask, initialCategory }: AddTaskM
 };
 
 const styles = StyleSheet.create({
-    container: { flex: 1, backgroundColor: 'white' },
-    header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', padding: 20, paddingTop: 60, borderBottomWidth: 1, borderColor: '#eee' },
+    container: { flex: 1 },
+    header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', padding: 20, paddingTop: 60, borderBottomWidth: 1 },
     headerTitle: { fontSize: 22, fontWeight: 'bold' },
-    closeButtonText: { fontSize: 16, color: '#0782F9' },
+    closeButtonText: { fontSize: 16 },
     form: { paddingHorizontal: 20, flex: 1, paddingBottom: 20 },
-    saveButton: { backgroundColor: '#28a745', padding: 15, borderRadius: 8, alignItems: 'center', marginTop: 20 },
-    saveButtonText: { color: 'white', fontSize: 18, fontWeight: 'bold' },
+    saveButton: { padding: 15, borderRadius: 8, alignItems: 'center', marginTop: 20 },
+    saveButtonText: { fontSize: 18, fontWeight: 'bold' },
 });
 
 export default AddTaskModal;

@@ -227,7 +227,6 @@ const styles = StyleSheet.create({
   },
   empty: {
     ...Typography.small,
-    color: Colors.textSecondary,
   },
   taskRow: {
     flexDirection: 'row',
@@ -246,7 +245,6 @@ const styles = StyleSheet.create({
   },
   timeText: {
     ...Typography.small,
-    color: Colors.textSecondary,
     marginLeft: Spacing.small,
   }
 });

@@ -408,38 +408,20 @@ const ArchiveScreen = () => {
                 <ActionButton
                     title="Osobiste"
                     onPress={() => { setArchivedTaskType('personal'); setSelectedPartnerId('all'); }}
-                    style={[
-                        styles.taskTypeButton,
-                        archivedTaskType === 'personal' ? styles.taskTypeButtonActive : {}
-                    ]}
-                    textStyle={[
-                        styles.taskTypeButtonText,
-                        archivedTaskType === 'personal' ? styles.taskTypeButtonTextActive : {}
-                    ]}
+                    style={[styles.taskTypeButton, archivedTaskType === 'personal' ? { backgroundColor: theme.colors.primary } : { backgroundColor: theme.colors.inputBackground }]}
+                    textStyle={[styles.taskTypeButtonText, archivedTaskType === 'personal' ? { color: '#fff' } : { color: theme.colors.textSecondary }]}
                 />
                 <ActionButton
                     title="Wspólne"
                     onPress={() => { setArchivedTaskType('shared'); setSelectedPartnerId('all'); }}
-                    style={[
-                        styles.taskTypeButton,
-                        archivedTaskType === 'shared' ? styles.taskTypeButtonActive : {}
-                    ]}
-                    textStyle={[
-                        styles.taskTypeButtonText,
-                        archivedTaskType === 'shared' ? styles.taskTypeButtonTextActive : {}
-                    ]}
+                    style={[styles.taskTypeButton, archivedTaskType === 'shared' ? { backgroundColor: theme.colors.primary } : { backgroundColor: theme.colors.inputBackground }]}
+                    textStyle={[styles.taskTypeButtonText, archivedTaskType === 'shared' ? { color: '#fff' } : { color: theme.colors.textSecondary }]}
                 />
                  <ActionButton
                     title="Wszystkie"
                     onPress={() => { setArchivedTaskType('all'); setSelectedPartnerId('all'); }}
-                    style={[
-                        styles.taskTypeButton,
-                        archivedTaskType === 'all' ? styles.taskTypeButtonActive : {}
-                    ]}
-                    textStyle={[
-                        styles.taskTypeButtonText,
-                        archivedTaskType === 'all' ? styles.taskTypeButtonTextActive : {}
-                    ]}
+                    style={[styles.taskTypeButton, archivedTaskType === 'all' ? { backgroundColor: theme.colors.primary } : { backgroundColor: theme.colors.inputBackground }]}
+                    textStyle={[styles.taskTypeButtonText, archivedTaskType === 'all' ? { color: '#fff' } : { color: theme.colors.textSecondary }]}
                 />
             </Animated.View>
 
@@ -578,11 +560,9 @@ const styles = StyleSheet.create({
     taskTitle: {
         fontSize: Typography.body.fontSize + 1, // 16
         fontWeight: Typography.semiBold.fontWeight, // '600'
-        color: Colors.textPrimary,
     },
     taskDescription: {
         fontSize: Typography.small.fontSize + 2, // 14
-        color: Colors.textSecondary,
         marginTop: Spacing.xSmall, // 4
         fontStyle: 'italic',
     },
@@ -594,13 +574,11 @@ const styles = StyleSheet.create({
     },
     creatorText: {
         fontSize: Typography.small.fontSize, // 12
-        color: Colors.textSecondary,
         fontStyle: 'italic',
         marginRight: Spacing.small, // 8
     },
     sharedInfoText: {
         fontSize: Typography.small.fontSize, // 12
-        color: Colors.primary,
         fontStyle: 'italic',
         marginTop: Spacing.xSmall, // 4
         marginLeft: Spacing.small, // 8
@@ -620,7 +598,6 @@ const styles = StyleSheet.create({
     },
     completedText: {
         fontSize: Typography.small.fontSize, // 12
-        color: Colors.textSecondary,
         fontStyle: 'italic',
         marginTop: Spacing.xSmall + 2, // 6
     },
@@ -642,16 +619,8 @@ const styles = StyleSheet.create({
     taskTypeButton: {
         flex: 1,
         marginHorizontal: Spacing.xSmall, // 5
-        backgroundColor: Colors.light,
-    },
-    taskTypeButtonActive: {
-        backgroundColor: Colors.primary,
-    },
-    taskTypeButtonTextActive: {
-        color: 'white',
     },
     taskTypeButtonText: {
-        color: Colors.textSecondary,
         fontWeight: Typography.bold.fontWeight,
         fontSize: Typography.body.fontSize,
     },
@@ -666,7 +635,6 @@ const styles = StyleSheet.create({
     partnerFilterLabel: {
         fontSize: Typography.body.fontSize,
         fontWeight: Typography.semiBold.fontWeight,
-        color: Colors.textSecondary,
         marginBottom: Spacing.xSmall, // 5
     },
     pickerWrapper: {

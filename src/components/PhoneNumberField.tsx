@@ -2,6 +2,7 @@ import React, { RefObject } from 'react';
 import { View, TextInput, StyleSheet } from 'react-native';
 import CountryPicker, { Country } from 'react-native-country-picker-modal';
 import { Colors, GlobalStyles, Spacing } from '../styles/AppStyles';
+import { useTheme } from '../contexts/ThemeContext';
 
 interface PhoneNumberFieldProps {
   country: Country;
@@ -22,10 +23,13 @@ const PhoneNumberField = ({
   onChangeText,
   onSubmitEditing,
   placeholderTextColor = Colors.placeholder,
-  textColor = '#fff',
+  textColor,
 }: PhoneNumberFieldProps) => {
+  const theme = useTheme();
+  const resolvedTextColor = textColor || theme.colors.textPrimary;
+  const resolvedPlaceholder = placeholderTextColor || theme.colors.placeholder;
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, { borderColor: theme.colors.border, backgroundColor: theme.colors.inputBackground }]}>
       <CountryPicker
         countryCode={country.cca2}
         withFilter
@@ -39,7 +43,7 @@ const PhoneNumberField = ({
       />
       <TextInput
         ref={inputRef}
-        style={[styles.input, { color: textColor }]}
+        style={[styles.input, { color: resolvedTextColor }]}
         placeholder="000 000 000"
         keyboardType="phone-pad"
         autoFocus={false}
@@ -48,7 +52,7 @@ const PhoneNumberField = ({
         maxLength={11}
         onSubmitEditing={onSubmitEditing}
         blurOnSubmit
-        placeholderTextColor={placeholderTextColor}
+        placeholderTextColor={resolvedPlaceholder}
       />
     </View>
   );

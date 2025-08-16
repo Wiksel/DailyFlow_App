@@ -60,7 +60,7 @@ const AppHeader: React.FC<AppHeaderProps> = ({ title, rightActions = [], avatarU
         </View>
         <View style={styles.actionsRow}>
           {isOffline && (
-            <View style={{ paddingHorizontal: 10, paddingVertical: 4, borderRadius: 12, backgroundColor: '#00000040', marginRight: Spacing.small }} accessibilityLabel="Tryb offline">
+            <View style={{ paddingHorizontal: 10, paddingVertical: 4, borderRadius: 12, backgroundColor: 'rgba(0,0,0,0.25)', marginRight: Spacing.small }} accessibilityLabel="Tryb offline">
               <Text style={{ color: 'white', fontWeight: '700', fontSize: 12 }}>Offline{pendingOpsCount>0?` · ${pendingOpsCount}`:''}</Text>
             </View>
           )}

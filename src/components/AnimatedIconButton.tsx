@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { TouchableOpacity, ViewStyle, View, Text } from 'react-native';
 import Animated, { useSharedValue, useAnimatedStyle, withSpring } from 'react-native-reanimated';
 import { Feather } from '@expo/vector-icons';
+import { useTheme } from '../contexts/ThemeContext';
 import * as Haptics from 'expo-haptics';
 
 interface AnimatedIconButtonProps {
@@ -15,7 +16,8 @@ interface AnimatedIconButtonProps {
   tooltip?: string;
 }
 
-const AnimatedIconButton: React.FC<AnimatedIconButtonProps> = ({ icon, size = 22, color = '#000', onPress, accessibilityLabel, disabled = false, style, tooltip }) => {
+const AnimatedIconButton: React.FC<AnimatedIconButtonProps> = ({ icon, size = 22, color, onPress, accessibilityLabel, disabled = false, style, tooltip }) => {
+  const theme = useTheme();
   const scale = useSharedValue(1);
   const animatedStyle = useAnimatedStyle(() => ({ transform: [{ scale: scale.value }], opacity: disabled ? 0.5 : 1 }));
   const [showTip, setShowTip] = useState(false);
@@ -38,7 +40,7 @@ const AnimatedIconButton: React.FC<AnimatedIconButtonProps> = ({ icon, size = 22
           onPress={async () => { if (disabled) return; try { await Haptics.selectionAsync(); } catch {}; onPress(); }}
           disabled={disabled}
         >
-          <Feather name={icon} size={size} color={color} />
+          <Feather name={icon} size={size} color={color || theme.colors.textPrimary} />
         </TouchableOpacity>
       </View>
     </Animated.View>

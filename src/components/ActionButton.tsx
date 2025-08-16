@@ -1,4 +1,4 @@
-import React, { useRef } from 'react';
+import React, { memo, useMemo, useRef } from 'react';
 import { Pressable, Text, ActivityIndicator, ViewStyle, TextStyle } from 'react-native';
 import { Feather } from '@expo/vector-icons';
 import { GlobalStyles } from '../styles/AppStyles';
@@ -17,17 +17,20 @@ interface ActionButtonProps {
     leftIconColor?: string;
     leftIconSize?: number;
     accessibilityLabel?: string;
+    testID?: string;
 }
 
-const ActionButton = ({ title, onPress, isLoading = false, style, textStyle, disabled = false, haptic = 'light', leftIcon, leftIconColor, leftIconSize = 18, accessibilityLabel }: ActionButtonProps) => {
+const ActionButton = ({ title, onPress, isLoading = false, style, textStyle, disabled = false, haptic = 'light', leftIcon, leftIconColor, leftIconSize = 18, accessibilityLabel, testID }: ActionButtonProps) => {
   const theme = useTheme();
   const lastPressRef = useRef<number>(0);
   const buttonDisabled = isLoading || disabled;
   const scale = useSharedValue(1);
   const animatedStyle = useAnimatedStyle(() => ({ transform: [{ scale: scale.value }], opacity: buttonDisabled ? 0.8 : 1 }));
+  const a11yLabel = useMemo(() => accessibilityLabel || title, [accessibilityLabel, title]);
 
   return (
     <Pressable
+      testID={testID}
       onPressIn={() => { if (!buttonDisabled) scale.value = withSpring(0.97, { damping: 18 }); }}
       onPressOut={() => { scale.value = withSpring(1, { damping: 18 }); }}
       onPress={async () => {
@@ -45,7 +48,7 @@ const ActionButton = ({ title, onPress, isLoading = false, style, textStyle, dis
       }}
       disabled={buttonDisabled}
       accessibilityRole="button"
-      accessibilityLabel={accessibilityLabel || title}
+      accessibilityLabel={a11yLabel}
       hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
       style={({ pressed }) => ([
         GlobalStyles.button,
@@ -70,4 +73,4 @@ const ActionButton = ({ title, onPress, isLoading = false, style, textStyle, dis
 
 // Lokalny StyleSheet nie jest już potrzebny, ponieważ wszystkie style pochodzą z GlobalStyles
 
-export default ActionButton;
+export default memo(ActionButton);

@@ -6,6 +6,7 @@ import { Country } from 'react-native-country-picker-modal';
 import { createNewUserInFirestore, checkIfPhoneExists, setSuggestedLoginIdentifier, mapFirebaseAuthErrorToMessage } from '../utils/authUtils';
 import { useToast, ToastOverlay, ToastOverlaySuppressor } from '../contexts/ToastContext';
 import { Colors, Spacing, Typography, GlobalStyles } from '../styles/AppStyles';
+import { useTheme } from '../contexts/ThemeContext';
 import PasswordInput from './PasswordInput';
 import PhoneNumberField from './PhoneNumberField';
 import { formatPolishPhone, extractDigits, buildE164 } from '../utils/phone';
@@ -21,6 +22,7 @@ interface PhoneAuthModalProps {
 type AuthStep = 'enter-phone' | 'enter-code' | 'enter-details';
 
 const PhoneAuthModal = ({ visible, onClose, onRegistered }: PhoneAuthModalProps) => {
+  const theme = useTheme();
   const [step, setStep] = useState<AuthStep>('enter-phone');
   const [isLoading, setIsLoading] = useState(false);
   const { showToast: showGlobalToast } = useToast();
@@ -284,8 +286,8 @@ const PhoneAuthModal = ({ visible, onClose, onRegistered }: PhoneAuthModalProps)
               value={formattedPhoneNumber}
               onChangeText={handlePhoneNumberChange}
               onSubmitEditing={() => sendVerificationCode()}
-              placeholderTextColor={Colors.placeholder}
-              textColor={'#fff'}
+              placeholderTextColor={theme.colors.placeholder}
+              textColor={theme.colors.textPrimary}
             />
             <TouchableOpacity style={GlobalStyles.button} onPress={async () => { try { const m = await import('expo-haptics'); await m.selectionAsync(); } catch {}; sendVerificationCode(); }} disabled={isLoading}>
               <Text style={[GlobalStyles.buttonText, isLoading && styles.buttonTextHidden]}>Wyślij kod</Text>
@@ -298,7 +300,7 @@ const PhoneAuthModal = ({ visible, onClose, onRegistered }: PhoneAuthModalProps)
           <>
             <Text style={styles.modalTitle}>Wpisz kod weryfikacyjny</Text>
             <Text style={styles.modalSubtitle}>{`Wysłaliśmy 6-cyfrowy kod\nna numer +${country.callingCode[0]} ${formattedPhoneNumber}.`}</Text>
-            <TextInput style={[GlobalStyles.input, { textAlign: 'center', letterSpacing: 8, color: '#fff', backgroundColor: 'transparent', borderColor: '#333' }]} placeholder="000000" placeholderTextColor={Colors.placeholder} keyboardType="number-pad" value={code} onChangeText={setCode} maxLength={6} onSubmitEditing={() => confirmCode()} blurOnSubmit={true} />
+            <TextInput style={[GlobalStyles.input, { textAlign: 'center', letterSpacing: 8, color: theme.colors.textPrimary, backgroundColor: theme.colors.inputBackground }]} placeholder="000000" placeholderTextColor={theme.colors.placeholder} keyboardType="number-pad" value={code} onChangeText={setCode} maxLength={6} onSubmitEditing={() => confirmCode()} blurOnSubmit={true} accessibilityLabel="Kod weryfikacyjny" />
             <TouchableOpacity style={[GlobalStyles.button, { marginTop: Spacing.small }]} onPress={async () => { try { const m = await import('expo-haptics'); await m.selectionAsync(); } catch {}; confirmCode(); }} disabled={isLoading}>
               <Text style={[GlobalStyles.buttonText, isLoading && styles.buttonTextHidden]}>Zatwierdź</Text>
               {isLoading && <ActivityIndicator color="white" style={styles.activityIndicator} />}
@@ -317,7 +319,7 @@ const PhoneAuthModal = ({ visible, onClose, onRegistered }: PhoneAuthModalProps)
           <>
             <Text style={styles.modalTitle}>Dokończ rejestrację</Text>
             <Text style={styles.modalSubtitle}>Uzupełnij dane swojego konta.</Text>
-            <TextInput style={[GlobalStyles.input, { marginBottom: Spacing.medium, color: '#fff', backgroundColor: 'transparent', borderColor: '#333' }]} placeholder="Twój Nick" placeholderTextColor={Colors.placeholder} value={nickname} onChangeText={setNickname} />
+            <TextInput style={[GlobalStyles.input, { marginBottom: Spacing.medium, color: theme.colors.textPrimary, backgroundColor: theme.colors.inputBackground }]} placeholder="Twój Nick" placeholderTextColor={theme.colors.placeholder} value={nickname} onChangeText={setNickname} accessibilityLabel="Nick" />
             <PasswordInput
                 value={password}
                 onChangeText={(val) => {
@@ -325,8 +327,8 @@ const PhoneAuthModal = ({ visible, onClose, onRegistered }: PhoneAuthModalProps)
                     if(passwordError) validatePassword(val);
                 }}
                 onBlur={() => validatePassword(password)}
-                containerStyle={[passwordError ? styles.inputError : {}, { backgroundColor: 'transparent', borderColor: '#333' }]}
-                inputStyle={{ color: '#fff' }}
+                 containerStyle={[passwordError ? styles.inputError : {}, { backgroundColor: theme.colors.inputBackground, borderColor: theme.colors.border }]}
+                 inputStyle={{ color: theme.colors.textPrimary }}
                 placeholder="Hasło (min. 6, litera, cyfra)"
             />
             {!!passwordError && <Text style={styles.errorText}>{passwordError}</Text>}
@@ -344,12 +346,12 @@ const PhoneAuthModal = ({ visible, onClose, onRegistered }: PhoneAuthModalProps)
 
   return (
     <Modal visible={visible} transparent={true} animationType="fade" onRequestClose={handleClose}>
-      <View style={[styles.modalContainer, { backgroundColor: 'rgba(0,0,0,0.75)' }]}>
+      <View style={[styles.modalContainer, { backgroundColor: 'rgba(0,0,0,0.75)' }]}> 
         {/* Wyłącz globalny overlay na czas wyświetlania modala */}
         <ToastOverlaySuppressor />
-        <View style={[styles.modalContent, { backgroundColor: '#111', borderColor: '#222', borderWidth: 1 }] }>
+        <View style={[styles.modalContent, { backgroundColor: theme.colors.card, borderColor: theme.colors.border, borderWidth: 1 }] }>
           <TouchableOpacity style={styles.closeButton} onPress={handleClose}>
-            <Text style={[styles.closeButtonText, { color: '#bbb' }]}>Anuluj</Text>
+            <Text style={[styles.closeButtonText, { color: theme.colors.textSecondary }]}>Anuluj</Text>
           </TouchableOpacity>
           {renderStep()}
         </View>

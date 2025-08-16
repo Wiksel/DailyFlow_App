@@ -270,7 +270,6 @@ const styles = StyleSheet.create({
         marginBottom: Spacing.medium,
     },
     commentContainer: {
-        backgroundColor: Colors.light,
         borderRadius: 8,
         padding: Spacing.small,
         marginBottom: Spacing.small,
@@ -282,7 +281,6 @@ const styles = StyleSheet.create({
     },
     commentAuthor: {
         fontWeight: Typography.bold.fontWeight,
-        color: Colors.dark,
     },
     commentDate: {
         fontSize: Typography.small.fontSize,
@@ -290,11 +288,9 @@ const styles = StyleSheet.create({
     },
     commentText: {
         fontSize: Typography.body.fontSize,
-        color: Colors.textPrimary,
     },
     emptyCommentText: {
         textAlign: 'center',
-        color: Colors.textSecondary,
         fontStyle: 'italic',
     },
     addCommentContainer: {
@@ -304,7 +300,6 @@ const styles = StyleSheet.create({
     },
     commentInput: {
         flex: 1,
-        backgroundColor: Colors.inputBackground,
         borderRadius: 20,
         paddingHorizontal: Spacing.medium,
         paddingVertical: Spacing.small,
@@ -312,19 +307,15 @@ const styles = StyleSheet.create({
         maxHeight: 120,
         marginRight: Spacing.small,
         fontSize: Typography.body.fontSize,
-        color: Colors.textPrimary,
     },
     commentButton: {
-        backgroundColor: Colors.primary,
         borderRadius: 22,
         width: 44,
         height: 44,
         justifyContent: 'center',
         alignItems: 'center',
     },
-    commentButtonDisabled: {
-        backgroundColor: Colors.disabled,
-    },
+    commentButtonDisabled: {},
 });
 
 export default TaskDetailScreen;

@@ -10,6 +10,7 @@ interface LabeledInputProps extends Omit<TextInputProps, 'style' | 'value' | 'on
   containerStyle?: ViewStyle | ViewStyle[];
   inputStyle?: TextStyle | TextStyle[];
   labelStyle?: TextStyle | TextStyle[];
+  testID?: string;
 }
 
 const LabeledInput = ({
@@ -21,6 +22,7 @@ const LabeledInput = ({
   labelStyle,
   placeholder,
   editable = true,
+  testID,
   ...props
 }: LabeledInputProps) => {
   const theme = useTheme();
@@ -30,6 +32,7 @@ const LabeledInput = ({
         <Text style={[styles.label, { color: theme.colors.textSecondary }, labelStyle]}>{label}</Text>
       ) : null}
       <TextInput
+        testID={testID}
         style={[GlobalStyles.input, { backgroundColor: theme.colors.inputBackground, borderColor: theme.colors.border, color: theme.colors.textPrimary }, inputStyle]}
         value={value}
         onChangeText={onChangeText}

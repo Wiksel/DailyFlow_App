@@ -376,10 +376,10 @@ const AccountSettingsScreen = () => {
           <Text style={styles.label}>E‑mail i hasło</Text>
           {hasPassword ? (
             <>
-        <TouchableOpacity style={[GlobalStyles.button, styles.secondary]} onPress={async () => { try { const m = await import('expo-haptics'); await m.selectionAsync(); } catch {}; setChangePasswordVisible(true); }} disabled={isBusy}>
+        <TouchableOpacity style={[GlobalStyles.button, { backgroundColor: theme.colors.secondary }]} onPress={async () => { try { const m = await import('expo-haptics'); await m.selectionAsync(); } catch {}; setChangePasswordVisible(true); }} disabled={isBusy}>
                 <Text style={GlobalStyles.buttonText}>Zmień hasło</Text>
               </TouchableOpacity>
-        <TouchableOpacity style={[GlobalStyles.button, styles.danger, { marginTop: Spacing.small }]} onPress={async () => { try { const m = await import('expo-haptics'); await m.notificationAsync(m.NotificationFeedbackType.Warning); } catch {}; setConfirmUnlink('password'); }} disabled={isBusy || requireAtLeastOneProvider()}>
+        <TouchableOpacity style={[GlobalStyles.button, { backgroundColor: theme.colors.danger }, { marginTop: Spacing.small }]} onPress={async () => { try { const m = await import('expo-haptics'); await m.notificationAsync(m.NotificationFeedbackType.Warning); } catch {}; setConfirmUnlink('password'); }} disabled={isBusy || requireAtLeastOneProvider()}>
                 <Text style={GlobalStyles.buttonText}>Odłącz</Text>
               </TouchableOpacity>
             </>
@@ -454,7 +454,7 @@ const AccountSettingsScreen = () => {
         <View style={styles.row}>
           <Text style={styles.label}>Google</Text>
           {hasGoogle ? (
-            <TouchableOpacity style={[GlobalStyles.button, styles.danger]} onPress={async () => { try { const m = await import('expo-haptics'); await m.notificationAsync(m.NotificationFeedbackType.Warning); } catch {}; setConfirmUnlink('google.com'); }} disabled={isBusy || requireAtLeastOneProvider()}>
+            <TouchableOpacity style={[GlobalStyles.button, { backgroundColor: theme.colors.danger }]} onPress={async () => { try { const m = await import('expo-haptics'); await m.notificationAsync(m.NotificationFeedbackType.Warning); } catch {}; setConfirmUnlink('google.com'); }} disabled={isBusy || requireAtLeastOneProvider()}>
               <Text style={GlobalStyles.buttonText}>Odłącz Google</Text>
             </TouchableOpacity>
           ) : (
@@ -467,7 +467,7 @@ const AccountSettingsScreen = () => {
         <View style={styles.row}>
           <Text style={styles.label}>Telefon</Text>
           {hasPhone ? (
-            <TouchableOpacity style={[GlobalStyles.button, styles.danger]} onPress={async () => { try { const m = await import('expo-haptics'); await m.notificationAsync(m.NotificationFeedbackType.Warning); } catch {}; unlinkProvider('phone'); }} disabled={isBusy || requireAtLeastOneProvider()}>
+            <TouchableOpacity style={[GlobalStyles.button, { backgroundColor: theme.colors.danger }]} onPress={async () => { try { const m = await import('expo-haptics'); await m.notificationAsync(m.NotificationFeedbackType.Warning); } catch {}; unlinkProvider('phone'); }} disabled={isBusy || requireAtLeastOneProvider()}>
               <Text style={GlobalStyles.buttonText}>Odłącz telefon</Text>
             </TouchableOpacity>
           ) : (
@@ -485,13 +485,13 @@ const AccountSettingsScreen = () => {
             <View style={{ marginTop: Spacing.small }}>
               <Text style={[styles.label, { color: theme.colors.textSecondary }]}>Oczekuje na weryfikację: {pendingEmail}</Text>
               <View style={styles.pendingActions}>
-                <TouchableOpacity style={[GlobalStyles.button, styles.compactButton, styles.secondary]} onPress={resendPendingEmail} disabled={emailChanging || isResendingPending}>
+                <TouchableOpacity style={[GlobalStyles.button, styles.compactButton, { backgroundColor: theme.colors.secondary }]} onPress={resendPendingEmail} disabled={emailChanging || isResendingPending}>
                   <Text style={[GlobalStyles.buttonText, styles.compactButtonText]} numberOfLines={1} ellipsizeMode="tail">{isResendingPending ? 'Wysyłanie…' : 'Wyślij ponownie'}</Text>
                 </TouchableOpacity>
                 <TouchableOpacity style={[GlobalStyles.button, styles.compactButton]} onPress={checkPendingStatus} disabled={emailChanging}>
                   <Text style={[GlobalStyles.buttonText, styles.compactButtonText]} numberOfLines={1} ellipsizeMode="tail">Sprawdź status</Text>
                 </TouchableOpacity>
-                <TouchableOpacity style={[GlobalStyles.button, styles.compactButton, styles.danger]} onPress={cancelPending} disabled={emailChanging}>
+                <TouchableOpacity style={[GlobalStyles.button, styles.compactButton, { backgroundColor: theme.colors.danger }]} onPress={cancelPending} disabled={emailChanging}>
                   <Text style={[GlobalStyles.buttonText, styles.compactButtonText]} numberOfLines={1} ellipsizeMode="tail">Anuluj</Text>
                 </TouchableOpacity>
               </View>
@@ -634,7 +634,7 @@ const AccountSettingsScreen = () => {
 
       <View style={[GlobalStyles.section, { backgroundColor: theme.colors.card, borderColor: theme.colors.border }]}>
         <Text style={[styles.sectionTitle, { color: theme.colors.textPrimary }]}>Zarządzanie kontem</Text>
-        <TouchableOpacity style={[GlobalStyles.button, styles.danger]} onPress={async () => { try { const m = await import('expo-haptics'); await m.notificationAsync(m.NotificationFeedbackType.Warning); } catch {}; setConfirmDeleteVisible(true); }} disabled={isBusy}>
+            <TouchableOpacity style={[GlobalStyles.button, { backgroundColor: theme.colors.danger }]} onPress={async () => { try { const m = await import('expo-haptics'); await m.notificationAsync(m.NotificationFeedbackType.Warning); } catch {}; setConfirmDeleteVisible(true); }} disabled={isBusy}>
           <Text style={GlobalStyles.buttonText}>Usuń konto</Text>
         </TouchableOpacity>
       </View>

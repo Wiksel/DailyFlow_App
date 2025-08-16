@@ -30,15 +30,19 @@ export const UIProvider: React.FC<React.PropsWithChildren<{}>> = ({ children }) 
     // initial network status
     const prevOfflineRef = { current: isOffline } as { current: boolean };
     (async () => {
-      try { const state = await Network.getNetworkStateAsync(); setIsOffline(!(state.isConnected && state.isInternetReachable)); } catch {}
-    })();
-    // poll network status lightly; better would be event if available
-    const t = setInterval(async () => {
-      try { const state = await Network.getNetworkStateAsync(); setIsOffline(!(state.isConnected && state.isInternetReachable)); } catch {}
-      // when going back online, try to process outbox immediately
       try {
         const state = await Network.getNetworkStateAsync();
         const online = !!(state.isConnected && state.isInternetReachable);
+        setIsOffline(!online);
+        prevOfflineRef.current = !online;
+      } catch {}
+    })();
+    // poll network status lightly; better would be event if available
+    const t = setInterval(async () => {
+      try {
+        const state = await Network.getNetworkStateAsync();
+        const online = !!(state.isConnected && state.isInternetReachable);
+        setIsOffline(!online);
         if (online && prevOfflineRef.current) {
           prevOfflineRef.current = false;
           const mod = await import('../utils/offlineQueue');
