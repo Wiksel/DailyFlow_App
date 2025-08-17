@@ -21,9 +21,10 @@ const ForgotPasswordModal = ({ visible, onClose }: ForgotPasswordModalProps) => 
   const { showToast: showCustomToast } = useToast();
   const theme = useTheme();
 
+  const emailRegex = /\S+@\S+\.\S+/;
   const handlePasswordReset = async () => {
-    if (!identifier.trim()) {
-      showCustomToast('Proszę wprowadzić e‑mail lub telefon.', 'error');
+    if (!identifier.trim() || !emailRegex.test(identifier.trim())) {
+      showCustomToast('Proszę wprowadzić poprawny adres e‑mail.', 'error');
       return;
     }
     
@@ -33,7 +34,7 @@ const ForgotPasswordModal = ({ visible, onClose }: ForgotPasswordModalProps) => 
       const email = await findUserEmailByIdentifier(identifier.trim());
       
       if (!email) {
-        showCustomToast('Nie znaleziono użytkownika.', 'error');
+        showCustomToast('Nie znaleziono użytkownika dla podanego e‑maila.', 'error');
         setIsLoading(false);
         return;
       }
@@ -72,12 +73,13 @@ const ForgotPasswordModal = ({ visible, onClose }: ForgotPasswordModalProps) => 
                <Text style={[styles.modalSubtitle, { color: theme.colors.textSecondary }]}>Podaj swój e‑mail lub telefon, a wyślemy link do ustawienia hasła.</Text>
               <LabeledInput
                 label="Identyfikator"
-                placeholder="E‑mail lub telefon (9 cyfr)"
+                placeholder="E‑mail"
                 value={identifier}
                 onChangeText={setIdentifier}
                 autoCapitalize="none"
                 editable={!isLoading}
                 onSubmitEditing={handlePasswordReset}
+                containerStyle={{ width: '100%' }}
               />
               <TouchableOpacity
                style={[GlobalStyles.button, { marginTop: Spacing.medium, width: '100%' }]}

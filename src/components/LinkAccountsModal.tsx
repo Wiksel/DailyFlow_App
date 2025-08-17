@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
-import { Text } from 'react-native';
+import { View, Text, StyleSheet } from 'react-native';
+import { Spacing } from '../styles/AppStyles';
 import PasswordInput from './PasswordInput';
 import ActionModal from './ActionModal';
 
@@ -34,10 +35,12 @@ const LinkAccountsModal = ({ visible, email, onCancel, onConfirm }: LinkAccounts
         { text: 'Połącz i zaloguj', onPress: handleConfirm, variant: 'primary' },
       ]}
     >
-      <>
+      <View>
         <Paragraph email={email} />
-        <PasswordInput value={password} onChangeText={setPassword} placeholder="Hasło do konta" />
-      </>
+        <View style={styles.fieldSpacer}>
+          <PasswordInput value={password} onChangeText={setPassword} placeholder="Hasło do konta" />
+        </View>
+      </View>
     </ActionModal>
   );
 };
@@ -59,9 +62,15 @@ const ParaText = ({ children }: { children: React.ReactNode }) => {
     // styl zdefiniowany inline dla minimalnej ingerencji
     // (zachowuje dotychczasowy wygląd)
     // eslint-disable-next-line react-native/no-inline-styles
-    <Text style={{ marginBottom: 12, textAlign: 'center' }}>{children}</Text>
+    <Text style={{ marginBottom: 12, textAlign: 'center', color: '#ffffff', lineHeight: 20 }}>{children}</Text>
   );
 };
+
+const styles = StyleSheet.create({
+  fieldSpacer: {
+    marginBottom: Spacing.large,
+  },
+});
 
 export default LinkAccountsModal;
 

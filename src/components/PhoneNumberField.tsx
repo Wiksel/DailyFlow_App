@@ -1,6 +1,7 @@
 import React, { RefObject } from 'react';
 import { View, TextInput, StyleSheet } from 'react-native';
 import CountryPicker, { Country } from 'react-native-country-picker-modal';
+import { Keyboard } from 'react-native';
 import { Colors, GlobalStyles, Spacing } from '../styles/AppStyles';
 import { useTheme } from '../contexts/ThemeContext';
 
@@ -26,6 +27,7 @@ const PhoneNumberField = ({
   textColor,
 }: PhoneNumberFieldProps) => {
   const theme = useTheme();
+  // Usuwamy agresywne wymuszanie – pole filtra samo prosi o focus
   const resolvedTextColor = textColor || theme.colors.textPrimary;
   const resolvedPlaceholder = placeholderTextColor || theme.colors.placeholder;
   return (
@@ -39,7 +41,16 @@ const PhoneNumberField = ({
         withCountryNameButton={false}
         onSelect={onSelectCountry}
         containerButtonStyle={styles.countryPickerButton}
-        onOpen={() => setTimeout(() => inputRef.current?.focus(), 0)}
+        // Autofocusuj pole wyszukiwarki po otwarciu modala
+        filterProps={{ autoFocus: true }}
+        onOpen={() => { try { Keyboard.dismiss(); } catch {}; }}
+        modalProps={{ presentationStyle: 'fullScreen' } as any}
+        theme={{
+          backgroundColor: '#111',
+          onBackgroundTextColor: '#fff',
+          primaryColor: '#0782F9',
+          fontSize: 16,
+        }}
       />
       <TextInput
         ref={inputRef}

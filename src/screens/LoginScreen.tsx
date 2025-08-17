@@ -2,6 +2,7 @@ import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { View, Text, StyleSheet, TextInput, TouchableOpacity, ActivityIndicator, Image, Dimensions, ScrollView, Platform, Keyboard } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import LabeledInput from '../components/LabeledInput';
+import PasswordInput from '../components/PasswordInput';
 import { useNavigation } from '@react-navigation/native';
 import auth, { FirebaseAuthTypes, getAuth, signInWithEmailAndPassword, createUserWithEmailAndPassword, GoogleAuthProvider, signInWithCredential } from '@react-native-firebase/auth';
 import { GoogleSignin } from '@react-native-google-signin/google-signin';
@@ -44,21 +45,20 @@ const LoginForm = React.memo(({ identifier, setIdentifier, loginPassword, setLog
         />
         </View>
         <View style={styles.inputWrapper}>
-            <LabeledInput
-            testID="login-password-input"
-            placeholder="Hasło"
-            value={loginPassword}
-            onChangeText={setLoginPassword}
-            editable={!isLoading}
-                secureTextEntry={true}
-        />
+            <PasswordInput
+              testID="login-password-input"
+              placeholder="Hasło"
+              value={loginPassword}
+              onChangeText={setLoginPassword}
+              editable={!isLoading}
+            />
         </View>
         <TouchableOpacity 
             testID="forgot-password-button"
             style={styles.forgotPasswordButton} 
             onPress={() => setForgotPasswordModalVisible(true)}
         >
-            <Text style={[styles.forgotPasswordText, { color: theme.colors.primary }]}>Zapomniałem hasła</Text>
+            <Text style={[styles.forgotPasswordText, { color: Colors.primary }]}>Zapomniałem hasła</Text>
         </TouchableOpacity>
             <TouchableOpacity 
             testID="login-button"
@@ -77,10 +77,10 @@ const LoginForm = React.memo(({ identifier, setIdentifier, loginPassword, setLog
             onPress={onGoogleButtonPress} 
             disabled={isLoading} 
         >
-            {isLoading ? <ActivityIndicator color={theme.colors.primary} /> : (
+            {isLoading ? <ActivityIndicator color={Colors.primary} /> : (
                 <>
                     <Image source={require('../../assets/google-icon.png')} style={styles.socialIcon} />
-                    <Text style={[styles.socialButtonText, { color: theme.colors.primary }]}>Zaloguj się z Google</Text>
+                    <Text style={[styles.socialButtonText, { color: Colors.primary }]}>Zaloguj się z Google</Text>
                 </>
             )}
         </TouchableOpacity>
@@ -113,15 +113,14 @@ const RegisterForm = React.memo(({ registerData, handleRegisterDataChange, email
             {!!emailError && <Text style={styles.errorText}>{emailError}</Text>}
         </View>
         <View style={styles.inputWrapper}>
-            <LabeledInput
-                testID="register-password-input"
-                value={registerData.password}
-                onChangeText={(val: string) => handleRegisterDataChange('password', val)}
-                editable={!isLoading}
-                containerStyle={passwordError ? styles.inputError : {}}
-                onBlur={() => validatePassword(registerData.password)}
-                placeholder="Hasło (min. 6, litera, cyfra)"
-                secureTextEntry={true}
+            <PasswordInput
+              testID="register-password-input"
+              value={registerData.password}
+              onChangeText={(val: string) => handleRegisterDataChange('password', val)}
+              editable={!isLoading}
+              placeholder="Hasło (min. 6, litera, cyfra)"
+              onBlur={() => validatePassword(registerData.password)}
+              inputStyle={passwordError ? (styles.inputError as any) : undefined}
             />
             {!!passwordError && <Text style={styles.errorText}>{passwordError}</Text>}
         </View>
@@ -143,10 +142,10 @@ const RegisterForm = React.memo(({ registerData, handleRegisterDataChange, email
                 onPress={onGoogleButtonPress} 
                 disabled={isLoading} 
             >
-                {isLoading ? <ActivityIndicator color={theme.colors.primary} /> : (
+                {isLoading ? <ActivityIndicator color={Colors.primary} /> : (
                     <>
                         <Image source={require('../../assets/google-icon.png')} style={styles.socialIcon} />
-                        <Text style={[styles.socialButtonText, { color: theme.colors.textPrimary }]}>Google</Text>
+                        <Text style={[styles.socialButtonText, { color: 'white' }]}>Google</Text>
                     </>
                 )}
             </TouchableOpacity>
@@ -373,7 +372,7 @@ const LoginScreen = () => {
         const { message, level } = mapFirebaseAuthErrorToMessage(code);
         showToast(message, level);
     };
-    const handleResendVerification = async (user: FirebaseAuthTypes.User) => { try { await user.sendEmailVerification(); showToast('Nowy link weryfikacyjny został wysłany. Sprawdź skrzynkę (także spam).', 'success'); } catch (error: any) { handleAuthError(error); } };
+    const handleResendVerification = async (user: FirebaseAuthTypes.User) => { try { await user.sendEmailVerification(); showToast('Nowy link weryfikacyjny został wysłany.\nSprawdź skrzynkę (także spam).', 'success'); } catch (error: any) { handleAuthError(error); } };
     const handleLogin = async () => { 
         if (isLoading) return; // Zapobiegaj wielokrotnemu wywoływaniu
         if (!identifier.trim() || !loginPassword.trim()) { 
@@ -439,23 +438,45 @@ const LoginScreen = () => {
         setIsLoading(true);
         try {
             await GoogleSignin.hasPlayServices({ showPlayServicesUpdateDialog: true });
-            // spróbuj użyć istniejącego tokenu zanim pokażesz dialog
-            let idToken = (await GoogleSignin.getTokens())?.idToken;
+            await GoogleSignin.signOut().catch(() => {});
+            const signInResp: any = await GoogleSignin.signIn();
+            let idToken = signInResp?.idToken || signInResp?.data?.idToken;
             if (!idToken) {
-                const signInResp: any = await GoogleSignin.signIn();
-                idToken = signInResp?.data?.idToken || (await GoogleSignin.getTokens())?.idToken;
+                try { const tokens = await GoogleSignin.getTokens(); idToken = tokens?.idToken || null; } catch {}
+            }
+            if (!idToken) {
+                try { const silent: any = await GoogleSignin.signInSilently(); idToken = silent?.idToken || silent?.data?.idToken || null; } catch {}
+            }
+            if (!idToken) { showToast('Logowanie anulowane.', 'info'); return; }
+            if (!idToken) {
+                idToken = (await GoogleSignin.getTokens())?.idToken;
+            }
+            if (!idToken) {
+                const silent: any = await GoogleSignin.signInSilently().catch(() => null);
+                idToken = silent?.idToken || null;
             }
             if (!idToken) throw new Error('Brak tokena Google');
             const googleCredential = GoogleAuthProvider.credential(idToken);
 
             const currentUserInfo = await GoogleSignin.getCurrentUser();
-            const email = currentUserInfo?.user?.email;
+            const email = signInResp?.user?.email || currentUserInfo?.user?.email;
             if (email) {
                 try {
                     const methods = await auth().fetchSignInMethodsForEmail(email);
-                    const hasPassword = methods.includes('password');
-                    if (hasPassword) {
-                        // Zapytaj o połączenie kont
+                    let hasPassword = methods.includes('password');
+                    let hasGoogle = methods.includes('google.com');
+                    // Dodatkowy fallback: sprawdź profil w Firestore
+                    try {
+                        let snap = await getDocs(query(collection(db, 'users'), where('emailLower', '==', email.toLowerCase()), limit(1)) as any);
+                        if (!snap || snap.docs.length === 0) {
+                            snap = await getDocs(query(collection(db, 'users'), where('email', '==', email), limit(1)) as any);
+                        }
+                        const data = snap.docs[0]?.data() as any;
+                        if (data?.authProviders?.password) hasPassword = true;
+                        if (data?.authProviders?.google) hasGoogle = true;
+                    } catch {}
+                    if (hasPassword && !hasGoogle) {
+                        // Konto już istnieje z hasłem – zapytaj o połączenie
                         setPendingGoogleCredential(googleCredential);
                         setLinkEmail(email);
                         setLinkModalVisible(true);
@@ -470,6 +491,14 @@ const LoginScreen = () => {
             const userDoc = await getDoc(doc(db, 'users', user.uid));
             if (!userDoc.exists()) {
                 navigation.navigate('Nickname');
+            } else {
+                // Użytkownik istnieje, ale jeśli brak nickname – również poproś o uzupełnienie
+                try {
+                    const data = userDoc.data() as any;
+                    if (!data?.nickname || String(data.nickname).trim().length === 0) {
+                        navigation.navigate('Nickname');
+                    }
+                } catch {}
             }
         } catch (error: any) {
             const code = String(error?.code || '')
@@ -479,14 +508,13 @@ const LoginScreen = () => {
                 setLinkEmail(error?.email || linkEmail);
                 setPendingGoogleCredential(error?.credential || pendingGoogleCredential);
                 setLinkModalVisible(true);
-            } else if (code === '12500' || code === 'sign_in_failed' || code === 'DEVELOPER_ERROR') {
-                showToast('Logowanie Google nie powiodło się. Spróbuj ponownie.', 'error');
-            } else if (code === '10') {
-                showToast('Błąd konfiguracji Google (SHA/klient). Zaktualizuj google-services.json i przebuduj.', 'error');
+            } else if (code === '12500' || code === 'sign_in_failed' || code === 'DEVELOPER_ERROR' || code === '10') {
+                showToast('Problem z konfiguracją Google. Sprawdź webClientId i klucze SHA.', 'error');
             } else if (code === 'NETWORK_ERROR') {
                 showToast('Brak połączenia z siecią. Spróbuj ponownie.', 'error');
             } else {
-                showToast('Wystąpił błąd podczas logowania przez Google.', 'error');
+                // Tłumaczymy techniczne błędy na czytelny komunikat (bez surowych treści)
+                showToast('Nie udało się zalogować przez Google. Spróbuj ponownie.', 'error');
             }
         } finally {
             setIsLoading(false);
@@ -638,16 +666,9 @@ const LoginScreen = () => {
                                     ))}
                                 </View>
                                 <View style={[styles.textOverlay, { transform: [{ translateY: Spacing.small }], backgroundColor: 'transparent' }]}> 
-                                    <View onLayout={(e) => {
-                                        try {
-                                            const textWidth = e.nativeEvent.layout.width;
-                                            const desired = Math.max(240, Math.min(300, textWidth + 24));
-                                            const next = Math.round(desired);
-                                            if (next !== logoDiameterState) setLogoDiameterState(next);
-                                        } catch {}
-                                    }}>
-                                        <Text style={[styles.header, { color: theme.colors.textPrimary, fontFamily: 'DancingScript_700Bold' as any, fontSize: 58 }]}>Daily Flow</Text>
-                                        <Text style={[styles.subtitle, { color: theme.colors.textSecondary, fontFamily: 'DancingScript_400Regular' as any, fontSize: 24 }]}>Twoje centrum organizacji</Text>
+                                    <View onLayout={() => {}}>
+                                        <Text style={[styles.header, { color: theme.colors.textPrimary, fontFamily: 'DancingScript_700Bold' as any, fontSize: 68 }]}>Daily Flow</Text>
+                                        <Text style={[styles.subtitle, { color: theme.colors.textSecondary, fontFamily: 'DancingScript_400Regular' as any, fontSize: 28 }]}>Twoje centrum organizacji</Text>
                                     </View>
                                 </View>
                             </View>
@@ -693,7 +714,7 @@ const LoginScreen = () => {
                     </GestureDetector>
                 </Animated.View>
             </ScrollView>
-            <PhoneAuthModal visible={phoneModalVisible} onClose={() => setPhoneModalVisible(false)} onRegistered={() => { swipeDirection.value = -1; targetProgress.value = 0; }} />
+            <PhoneAuthModal visible={phoneModalVisible} onClose={() => setPhoneModalVisible(false)} onRegistered={() => { swipeDirection.value = -1; targetProgress.value = 0; try { runOnJS(setCurrentTab)(0); } catch {} }} />
             <ForgotPasswordModal visible={forgotPasswordModalVisible} onClose={() => setForgotPasswordModalVisible(false)} />
             {/* Dialog: konto niezweryfikowane */}
             <ActionModal
@@ -733,6 +754,9 @@ const LoginScreen = () => {
                             const userDoc = await getDoc(doc(db, 'users', user.uid));
                             if (!userDoc.exists()) {
                                 await createNewUserInFirestore(user, user.displayName || user.email || '');
+                            } else {
+                                // Zapisz, że Google jest połączony, by nie pytać ponownie przy kolejnych logowaniach
+                                try { await upsertAuthProvidersForUser(user); } catch {}
                             }
                         }
                         setLinkModalVisible(false);
@@ -747,10 +771,10 @@ const LoginScreen = () => {
                 title={'Konto już istnieje'}
                 message={`Dla adresu ${loginSuggestionEmail} znaleziono:\n${loginSuggestionDetails || '— brak dopasowanych metod'}`}
                 actions={[
-                    ...(loginSuggestionHasPassword ? [{ text: 'Zaloguj hasłem', onPress: () => { setIdentifier(loginSuggestionEmail); swipeDirection.value = -1; targetProgress.value = 0; setLoginSuggestionVisible(false); } }] as any : []),
+                    ...(loginSuggestionHasPassword ? [{ text: 'Zaloguj hasłem', onPress: () => { setIdentifier(loginSuggestionEmail); swipeDirection.value = -1; targetProgress.value = 0; runOnJS(setCurrentTab)(0); setLoginSuggestionVisible(false); } }] as any : []),
+                    { text: 'Anuluj', onPress: () => setLoginSuggestionVisible(false), variant: 'secondary' },
                     ...(loginSuggestionHasGoogle ? [{ text: 'Zaloguj Google', onPress: async () => { setLoginSuggestionVisible(false); try { await onGoogleButtonPress(); } catch {} } }] as any : []),
                     ...(loginSuggestionHasPhone ? [{ text: 'Zaloguj telefonem', onPress: () => { setLoginSuggestionVisible(false); setPhoneModalVisible(true); } }] as any : []),
-                    { text: 'Anuluj', onPress: () => setLoginSuggestionVisible(false), variant: 'secondary' },
                 ]}
                 onRequestClose={() => setLoginSuggestionVisible(false)}
             />
