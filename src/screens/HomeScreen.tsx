@@ -17,6 +17,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useToast } from '../contexts/ToastContext';
 import { Colors, Spacing, GlobalStyles, Typography } from '../styles/AppStyles';
 import SearchBar from '../components/SearchBar';
+import TaskItem from '../components/TaskItem';
 
 const CACHED_TASKS_KEY = 'dailyflow_cached_tasks';
 
@@ -240,7 +241,7 @@ const HomeScreen = () => {
         }
     };
 
-    const toggleComplete = async (task: Task) => {
+    const toggleComplete = React.useCallback(async (task: Task) => {
         if (!currentUser || !userProfile) return;
         try {
             const taskRef = doc(db, 'tasks', task.id);
@@ -259,9 +260,9 @@ const HomeScreen = () => {
         } catch (error) {
             console.error("Błąd zmiany statusu zadania: ", error);
         }
-    };
+    }, [currentUser, userProfile, showToast]);
 
-    const handleTaskAction = (task: Task) => {
+    const handleTaskAction = React.useCallback((task: Task) => {
         const action = task.completed ? "Zarchiwizuj" : "Usuń";
         const handler = async () => {
             try {
@@ -281,52 +282,24 @@ const HomeScreen = () => {
             `Czy na pewno chcesz ${action.toLowerCase()}\nto zadanie?`,
             [{ text: "Anuluj" }, { text: action, style: "destructive", onPress: handler }]
         );
-    };
+    }, [showToast]);
 
-    const renderTask = ({ item }: { item: Task }) => {
+    const handleTaskPress = React.useCallback((taskId: string) => {
+        navigation.navigate('TaskDetail', { taskId });
+    }, [navigation]);
+
+    const renderTask = React.useCallback(({ item }: { item: Task }) => {
         const category = categories.find((c: Category) => c.id === item.category);
         return (
-            <TouchableOpacity onPress={() => navigation.navigate('TaskDetail', { taskId: item.id })}>
-                <View style={[
-                    styles.taskContainer,
-                    item.completed && styles.taskContainerCompleted,
-                    item.priority >= 4 && { borderLeftWidth: 4, borderLeftColor: Colors.danger },
-                    item.priority === 3 && { borderLeftWidth: 3, borderLeftColor: Colors.warning },
-                    item.priority < 3 && { borderLeftWidth: 2, borderLeftColor: Colors.success },
-                ]}>
-                    <TouchableOpacity onPress={() => toggleComplete(item)} style={styles.checkboxTouchable}>
-                        <View style={[styles.checkbox, item.completed && styles.checkboxCompleted]}>
-                            {item.completed && <Feather name="check" size={18} color="white" />}
-                        </View>
-                    </TouchableOpacity>
-                    <View style={styles.taskContent}>
-                        <Text style={[styles.taskText, item.completed && styles.taskTextCompleted]}>{item.text}</Text>
-                        {!!item.description && <Text style={styles.descriptionText} numberOfLines={3}>{item.description}</Text>}
-                        <View style={styles.taskMetaContainer}>
-                            {category && <View style={[styles.categoryTag, {backgroundColor: category.color}]}><Text style={styles.categoryTagText}>{category.name}</Text></View>}
-                            {item.isShared && <Text style={styles.creatorText}>od: {item.creatorNickname}</Text>}
-                        </View>
-                        {item.completed && item.completedBy ? (
-                            <Text style={styles.completedText}>
-                                Wykonane przez: {item.completedBy} {item.completedAt?.toDate().toLocaleDateString('pl-PL')}
-                            </Text>
-                        ) : (
-                            item.createdAt && <Text style={styles.createdText}>
-                                Dodano: {item.createdAt?.toDate().toLocaleDateString('pl-PL')}
-                            </Text>
-                        )}
-                        {item.deadline && !item.completed && <Text style={styles.deadlineText}>Termin: {item.deadline.toDate().toLocaleDateString('pl-PL')}</Text>}
-                    </View>
-                    <View style={styles.rightSection}>
-                        <PriorityIndicator priority={item.priority} />
-                        <TouchableOpacity onPress={() => handleTaskAction(item)} style={styles.actionButton}>
-                            <Feather name={item.completed ? "archive" : "trash-2"} size={20} color={item.completed ? Colors.textSecondary : Colors.danger} />
-                        </TouchableOpacity>
-                    </View>
-                </View>
-            </TouchableOpacity>
+            <TaskItem
+                task={item}
+                category={category}
+                onPress={handleTaskPress}
+                onToggleComplete={toggleComplete}
+                onAction={handleTaskAction}
+            />
         );
-    };
+    }, [categories, handleTaskPress, toggleComplete, handleTaskAction]);
 
     const filteredTemplates = templates.filter(t => activeCategory === 'all' || t.category === activeCategory);
 
@@ -388,6 +361,10 @@ const HomeScreen = () => {
                     data={processedAndSortedTasks}
                     renderItem={renderTask}
                     keyExtractor={item => item.id}
+                    initialNumToRender={10}
+                    windowSize={5}
+                    maxToRenderPerBatch={10}
+                    removeClippedSubviews={true}
                     style={styles.list}
                     ListEmptyComponent={
                         <EmptyState
