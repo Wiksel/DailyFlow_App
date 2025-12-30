@@ -14,10 +14,11 @@ interface AddTaskModalProps {
     onClose: () => void;
     onAddTask: (taskData: any) => void;
     initialCategory: string;
+    initialDeadline?: Timestamp | null;
 }
 
-const AddTaskModal = ({ visible, onClose, onAddTask, initialCategory }: AddTaskModalProps) => {
-    const { categories } = useCategories();
+const AddTaskModal = ({ visible, onClose, onAddTask, initialCategory, initialDeadline = null }: AddTaskModalProps) => {
+    const { categories, loading } = useCategories();
     const { showToast } = useToast();
     const theme = useTheme();
 
@@ -27,18 +28,19 @@ const AddTaskModal = ({ visible, onClose, onAddTask, initialCategory }: AddTaskM
         category: initialCategory,
         basePriority: 3,
         difficulty: 1,
-        deadline: null,
+        deadline: initialDeadline ?? null,
     });
     
     const [showDatePicker, setShowDatePicker] = useState(false);
 
     useEffect(() => {
+        if (!visible) return;
         if (categories.find(c => c.id === initialCategory)) {
-            setTaskData(prev => ({ ...prev, category: initialCategory }));
+            setTaskData(prev => ({ ...prev, category: initialCategory, deadline: initialDeadline ?? prev.deadline }));
         } else if (categories.length > 0) {
-            setTaskData(prev => ({ ...prev, category: categories[0].id }));
+            setTaskData(prev => ({ ...prev, category: categories[0].id, deadline: initialDeadline ?? prev.deadline }));
         }
-    }, [initialCategory, categories, visible]); // Dodajemy 'visible', by resetować kategorię przy każdym otwarciu
+    }, [initialCategory, initialDeadline, categories, visible]);
 
     const resetForm = () => {
          setTaskData({
@@ -47,7 +49,7 @@ const AddTaskModal = ({ visible, onClose, onAddTask, initialCategory }: AddTaskM
             category: initialCategory,
             basePriority: 3,
             difficulty: 1,
-            deadline: null,
+            deadline: initialDeadline ?? null,
         });
     };
 
@@ -82,27 +84,24 @@ const AddTaskModal = ({ visible, onClose, onAddTask, initialCategory }: AddTaskM
                 { text: 'Dodaj zadanie', variant: 'primary', onPress: handleSave },
             ]}
         >
-            <View style={[styles.form, { backgroundColor: 'transparent', paddingHorizontal: 0, paddingBottom: 0 }]}> 
-                <TaskForm 
-                    taskData={taskData}
-                    onDataChange={handleDataChange}
-                    showDatePicker={showDatePicker}
-                    onShowDatePicker={() => setShowDatePicker(true)}
-                    onDatePickerChange={onDateChange}
-                />
+            <View style={[styles.form, { backgroundColor: theme.colors.card, paddingHorizontal: 0, paddingBottom: 0 }]}> 
+                {loading && <Text style={{ color: theme.colors.textSecondary, padding: 8 }}>Ładowanie kategorii…</Text>}
+                {!loading && (
+                    <TaskForm 
+                        taskData={taskData}
+                        onDataChange={handleDataChange}
+                        showDatePicker={showDatePicker}
+                        onShowDatePicker={() => setShowDatePicker(true)}
+                        onDatePickerChange={onDateChange}
+                    />
+                )}
             </View>
         </ActionModal>
     );
 };
 
 const styles = StyleSheet.create({
-    container: { flex: 1 },
-    header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', padding: 20, paddingTop: 60, borderBottomWidth: 1 },
-    headerTitle: { fontSize: 22, fontWeight: 'bold' },
-    closeButtonText: { fontSize: 16 },
-    form: { paddingHorizontal: 20, flex: 1, paddingBottom: 20 },
-    saveButton: { padding: 15, borderRadius: 8, alignItems: 'center', marginTop: 20 },
-    saveButtonText: { fontSize: 18, fontWeight: 'bold' },
+    form: { paddingHorizontal: 12, flex: 1, paddingBottom: 12 },
 });
 
 export default AddTaskModal;

@@ -14,13 +14,13 @@ interface ActionModalProps {
   visible: boolean;
   title: string;
   message?: string;
-  actions: ActionButtonConfig[];
+  actions?: ActionButtonConfig[];
   onRequestClose?: () => void;
   children?: ReactNode;
   placement?: 'center' | 'bottom';
 }
 
-const ActionModal = ({ visible, title, message, actions, onRequestClose, children, placement = 'center' }: ActionModalProps) => {
+const ActionModal = ({ visible, title, message, actions = [], onRequestClose, children, placement = 'center' }: ActionModalProps) => {
   const theme = useTheme();
   return (
     <Modal visible={visible} transparent animationType="none" onRequestClose={onRequestClose}>

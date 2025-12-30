@@ -173,7 +173,7 @@ const ChoreTemplatesScreen = () => {
     return (
         <View style={[GlobalStyles.container, { backgroundColor: theme.colors.background }]}>
             <AppHeader title="Szablony" />
-            <Animated.View entering={FadeInUp} layout={Layout.springify()} style={[GlobalStyles.section, { backgroundColor: theme.colors.card, borderColor: theme.colors.border }]}>
+            <Animated.View layout={Layout.springify()} style={[GlobalStyles.section, { backgroundColor: theme.colors.card, borderColor: theme.colors.border }]}> 
                 <Text style={[styles.sectionTitle, { color: theme.colors.textPrimary }]}>{editingTemplate ? 'Edytuj szablon' : 'Dodaj nowy szablon'}</Text>
                 <LabeledInput label="Nazwa szablonu" placeholder="Np. Zmywanie naczyń" value={newTemplateName} onChangeText={setNewTemplateName} editable={!isSubmitting} />
                 <Text style={styles.label}>Kategoria</Text>
@@ -231,7 +231,7 @@ const ChoreTemplatesScreen = () => {
                     <Animated.FlatList
                         data={filteredTemplates}
                         renderItem={(args) => (
-                          <Animated.View entering={FadeInUp.duration(200)} layout={Layout.springify()}>
+                          <Animated.View layout={Layout.springify()}>
                             {renderTemplate(args)}
                           </Animated.View>
                         )}

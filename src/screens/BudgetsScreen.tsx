@@ -155,7 +155,7 @@ const BudgetsScreen = () => {
               onPress={() => navigation.navigate('BudgetDetail', { budgetId: item.id })}
               android_ripple={{ color: 'rgba(0,0,0,0.1)' }}
             >
-                <Animated.View entering={FadeInUp} layout={Layout.springify()} style={[
+                <Animated.View layout={Layout.springify()} style={[
                     styles.budgetItem,
                     { backgroundColor: theme.colors.card, borderColor: theme.colors.border, borderWidth: 1 },
                     isCompact && { paddingVertical: Spacing.medium, paddingHorizontal: Spacing.medium },
@@ -194,7 +194,7 @@ const BudgetsScreen = () => {
             <Animated.FlatList
                 data={budgets}
                 renderItem={(args) => (
-                  <Animated.View entering={FadeInUp.duration(250)} layout={Layout.springify()}>
+                  <Animated.View layout={Layout.springify()}>
                     {renderBudget(args)}
                   </Animated.View>
                 )}

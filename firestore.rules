@@ -1,0 +1,145 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function isSignedIn() {
+      return request.auth != null && request.auth.uid != null;
+    }
+
+    function isMemberOfPair(pairId) {
+      return pairId != null
+        && exists(/databases/$(database)/documents/pairs/$(pairId))
+        && get(/databases/$(database)/documents/pairs/$(pairId)).data.members.hasAny([request.auth.uid]);
+    }
+
+    // PUBLIC USERS (public lookup profile)
+    match /publicUsers/{userId} {
+      // Allow signed-in clients to read public profiles
+      allow read: if isSignedIn();
+      // Only the owner can create/update their public profile
+      allow create, update: if isSignedIn() && request.auth.uid == userId;
+      allow delete: if false;
+    }
+
+    // USERS (private profile)
+    match /users/{userId} {
+      allow create: if isSignedIn() && request.auth.uid == userId;
+      // For now: any signed-in user can read (keeps current app flows working)
+      allow read: if isSignedIn();
+      // Owner updates + limited pairId transitions
+      allow update: if isSignedIn() && (
+        request.auth.uid == userId
+        || (
+          resource.data.pairId == null
+          && request.resource.data.pairId != null
+          && isMemberOfPair(request.resource.data.pairId)
+          && get(/databases/$(database)/documents/pairs/$(request.resource.data.pairId)).data.members.hasAll([userId, request.auth.uid])
+        )
+        || (
+          resource.data.pairId != null
+          && request.resource.data.pairId == null
+          && isMemberOfPair(resource.data.pairId)
+          && get(/databases/$(database)/documents/pairs/$(resource.data.pairId)).data.members.hasAll([userId, request.auth.uid])
+        )
+      );
+      allow delete: if false;
+    }
+
+    // PAIRS
+    match /pairs/{pairId} {
+      allow read: if isSignedIn() && isMemberOfPair(pairId);
+
+      allow create: if isSignedIn()
+        && request.resource.data.members is list
+        && request.resource.data.members.size() == 2
+        && request.resource.data.members.hasAny([request.auth.uid])
+        && request.resource.data.status in ['pending', 'active'];
+
+      allow update: if isSignedIn() && isMemberOfPair(pairId);
+      allow delete: if isSignedIn() && isMemberOfPair(pairId);
+    }
+
+    // CATEGORIES
+    match /categories/{id} {
+      allow read: if isSignedIn() && resource.data.userId == request.auth.uid;
+      allow create: if isSignedIn() && request.resource.data.userId == request.auth.uid;
+      allow update, delete: if isSignedIn() && resource.data.userId == request.auth.uid;
+    }
+
+    // TASKS
+    match /tasks/{taskId} {
+      allow read: if isSignedIn() && (
+        resource.data.userId == request.auth.uid
+        || (resource.data.pairId != null && isMemberOfPair(resource.data.pairId))
+      );
+
+      allow create: if isSignedIn()
+        && request.resource.data.userId == request.auth.uid
+        && (
+          request.resource.data.pairId == null
+          || isMemberOfPair(request.resource.data.pairId)
+        );
+
+      allow update, delete: if isSignedIn()
+        && (
+          resource.data.userId == request.auth.uid
+          || (resource.data.pairId != null && isMemberOfPair(resource.data.pairId))
+        )
+        && request.resource.data.userId == resource.data.userId
+        && request.resource.data.pairId == resource.data.pairId;
+    }
+
+    // TASK COMMENTS
+    match /tasks/{taskId}/comments/{commentId} {
+      function canReadTask() {
+        return exists(/databases/$(database)/documents/tasks/$(taskId))
+          && (
+            get(/databases/$(database)/documents/tasks/$(taskId)).data.userId == request.auth.uid
+            || (
+              get(/databases/$(database)/documents/tasks/$(taskId)).data.pairId != null
+              && isMemberOfPair(get(/databases/$(database)/documents/tasks/$(taskId)).data.pairId)
+            )
+          );
+      }
+      allow read: if isSignedIn() && canReadTask();
+      allow create: if isSignedIn() && canReadTask()
+        && request.resource.data.authorId == request.auth.uid;
+      allow update, delete: if isSignedIn()
+        && (request.auth.uid == resource.data.authorId || canReadTask());
+    }
+
+    // BUDGETS
+    match /budgets/{budgetId} {
+      allow read, update, delete: if isSignedIn()
+        && resource.data.members.hasAny([request.auth.uid]);
+      allow create: if isSignedIn()
+        && request.resource.data.members.hasAny([request.auth.uid]);
+    }
+
+    // EXPENSES
+    match /expenses/{expenseId} {
+      function isBudgetMember(budgetId) {
+        return budgetId != null
+          && exists(/databases/$(database)/documents/budgets/$(budgetId))
+          && get(/databases/$(database)/documents/budgets/$(budgetId)).data.members.hasAny([request.auth.uid]);
+      }
+      allow read, update, delete: if isSignedIn() && isBudgetMember(resource.data.budgetId);
+      allow create: if isSignedIn() && isBudgetMember(request.resource.data.budgetId);
+    }
+
+    // RECURRING SERIES
+    match /recurringSeries/{seriesId} {
+      allow read: if isSignedIn() && resource.data.userId == request.auth.uid;
+      allow create: if isSignedIn() && request.resource.data.userId == request.auth.uid;
+      allow update, delete: if isSignedIn() && resource.data.userId == request.auth.uid;
+    }
+
+    // CHORE TEMPLATES
+    match /choreTemplates/{templateId} {
+      allow read: if isSignedIn() && resource.data.userId == request.auth.uid;
+      allow create: if isSignedIn() && request.resource.data.userId == request.auth.uid;
+      allow update, delete: if isSignedIn() && resource.data.userId == request.auth.uid;
+    }
+  }
+}

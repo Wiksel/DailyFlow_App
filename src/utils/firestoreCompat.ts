@@ -1,88 +1,66 @@
-import {
-  getFirestore,
-  collection as fsCollection,
-  doc as fsDoc,
-  addDoc as fsAddDoc,
-  updateDoc as fsUpdateDoc,
-  deleteDoc as fsDeleteDoc,
-  setDoc as fsSetDoc,
-  getDoc as fsGetDoc,
-  getDocs as fsGetDocs,
-  onSnapshot as fsOnSnapshot,
-  query as fsQuery,
-  where as fsWhere,
-  orderBy as fsOrderBy,
-  limit as fsLimit,
-  writeBatch as fsWriteBatch,
-  Timestamp as FsTimestamp,
-  increment as fsIncrement,
-  deleteField as fsDeleteField,
-  Query,
-  CollectionReference,
-  DocumentReference,
-  QueryConstraint as FsQueryConstraint,
-} from 'firebase/firestore';
-import { db } from '../../firebaseConfig';
+import firestore, { FirebaseFirestoreTypes } from '@react-native-firebase/firestore';
 
-export type Timestamp = FsTimestamp;
-export const Timestamp = FsTimestamp;
-export const increment = fsIncrement;
-export const deleteField = fsDeleteField;
+// Timestamp & FieldValue helpers
+export type Timestamp = FirebaseFirestoreTypes.Timestamp;
+export const Timestamp = firestore.Timestamp;
+export const increment = (n: number) => firestore.FieldValue.increment(n);
+export const deleteField = () => firestore.FieldValue.delete();
 
-export type CompatCollectionRef = CollectionReference;
-export type CompatDocRef = DocumentReference;
-export type CompatQuery = Query;
+// Compat types
+export type CompatCollectionRef = FirebaseFirestoreTypes.CollectionReference;
+export type CompatDocRef = FirebaseFirestoreTypes.DocumentReference;
+export type CompatQuery = FirebaseFirestoreTypes.Query;
+
+// QueryConstraint implemented as a function transforming a Query
+export type QueryConstraint = (q: CompatQuery) => CompatQuery;
+export type WhereFilterOp = FirebaseFirestoreTypes.WhereFilterOp;
+export type OrderByDirection = FirebaseFirestoreTypes.OrderByDirection;
 
 export function collection(_db: unknown, ...segments: string[]): CompatCollectionRef {
-  if (segments.length === 1 && segments[0].includes('/')) {
-    return fsCollection(getFirestore(), segments[0]);
-  }
-  const [first, ...rest] = segments;
-  return fsCollection(getFirestore(), first, ...rest);
+  const path = segments.join('/');
+  return firestore().collection(path);
 }
 
 export function doc(source: unknown, ...segments: string[]): CompatDocRef {
-  // Overloads supported:
-  // - doc(db, 'col', 'id', ...)
-  // - doc(db, 'col/id[/sub/id]')
-  // - doc(collectionRef)
-  // - doc(collectionRef, 'id')
-  if (typeof source === 'object' && source !== null && ('path' in (source as any))) {
-    const colRef = source as unknown as CompatCollectionRef;
-    if (segments.length === 0) return fsDoc(colRef);
-    if (segments.length === 1) return fsDoc(colRef, segments[0]);
+  // Overloads supported similar to Web SDK
+  if (source && typeof (source as any).doc === 'function') {
+    const colRef = source as CompatCollectionRef;
+    if (segments.length === 0) return colRef.doc();
+    if (segments.length === 1) return colRef.doc(segments[0]);
   }
   if (segments.length === 1 && segments[0].includes('/')) {
-    return fsDoc(getFirestore(), segments[0]);
+    return firestore().doc(segments[0]);
   }
-  const [first, ...rest] = segments;
-  return fsDoc(getFirestore(), first, ...rest);
+  const path = segments.join('/');
+  // If called as doc(db, 'col', 'id', ...)
+  return firestore().doc(path);
 }
 
 export async function addDoc(col: CompatCollectionRef, data: Record<string, unknown>) {
-  return fsAddDoc(col, data);
+  const ref = await col.add(data as any);
+  return ref;
 }
 
 export async function updateDoc(ref: CompatDocRef, data: Record<string, unknown>) {
-  return fsUpdateDoc(ref, data as any);
+  return ref.update(data as any);
 }
 
 export async function deleteDoc(ref: CompatDocRef) {
-  return fsDeleteDoc(ref);
+  return ref.delete();
 }
 
 export async function setDoc(ref: CompatDocRef, data: Record<string, unknown>, options?: { merge?: boolean }) {
-  if (options) {
-    return fsSetDoc(ref, data as any, options as any);
+  if (options && options.merge) {
+    return ref.set(data as any, { merge: true });
   }
-  return fsSetDoc(ref, data as any);
+  return ref.set(data as any);
 }
 
 export function writeBatch(_db?: unknown) {
-  const batch = fsWriteBatch(getFirestore());
+  const batch = firestore().batch();
   return {
     set(ref: CompatDocRef, data: Record<string, unknown>, options?: { merge?: boolean }) {
-      return options ? batch.set(ref, data as any, options as any) : batch.set(ref, data as any);
+      return options && options.merge ? batch.set(ref, data as any, { merge: true }) : batch.set(ref, data as any);
     },
     update(ref: CompatDocRef, data: Record<string, unknown>) {
       return batch.update(ref, data as any);
@@ -96,37 +74,35 @@ export function writeBatch(_db?: unknown) {
   };
 }
 
-export type WhereFilterOp = Parameters<typeof fsWhere>[1];
-export type OrderByDirection = Parameters<typeof fsOrderBy>[1];
-export type QueryConstraint = FsQueryConstraint;
-
 export function where(fieldPath: string, opStr: WhereFilterOp, value: any): QueryConstraint {
-  return fsWhere(fieldPath, opStr as any, value);
+  return (q: CompatQuery) => q.where(fieldPath, opStr as any, value);
 }
 
 export function orderBy(fieldPath: string, directionStr?: OrderByDirection): QueryConstraint {
-  return directionStr ? (fsOrderBy(fieldPath, directionStr as any) as any) : (fsOrderBy(fieldPath) as any);
+  return (q: CompatQuery) => (directionStr ? q.orderBy(fieldPath, directionStr as any) : q.orderBy(fieldPath));
 }
 
 export function limit(n: number): QueryConstraint {
-  return fsLimit(n);
+  return (q: CompatQuery) => q.limit(n);
 }
 
 export function query(col: CompatCollectionRef, ...constraints: QueryConstraint[]): CompatQuery {
-  return fsQuery(col, ...(constraints as any));
+  let q: CompatQuery = col;
+  for (const c of constraints) q = c(q);
+  return q;
 }
 
 export type DocSnapshotCompat = { exists: () => boolean; data: () => any };
 export async function getDoc(ref: CompatDocRef): Promise<DocSnapshotCompat> {
-  const snap = await fsGetDoc(ref);
-  return { exists: () => snap.exists(), data: () => snap.data() as any };
+  const snap = await ref.get();
+  return { exists: () => snap.exists, data: () => (snap.data() as any) };
 }
 
 export type QueryDocCompat = { id: string; data: () => any; ref: CompatDocRef };
 export type QuerySnapshotCompat = { empty: boolean; docs: QueryDocCompat[]; forEach: (cb: (d: QueryDocCompat) => void) => void };
 export async function getDocs(q: CompatQuery): Promise<QuerySnapshotCompat> {
-  const snap = await fsGetDocs(q);
-  const docs: QueryDocCompat[] = snap.docs.map((d) => ({ id: d.id, data: () => d.data() as any, ref: d.ref }));
+  const snap = await q.get();
+  const docs: QueryDocCompat[] = snap.docs.map((d) => ({ id: d.id, data: () => (d.data() as any), ref: d.ref }));
   return { empty: snap.empty, docs, forEach: (cb) => docs.forEach(cb) };
 }
 
@@ -137,14 +113,20 @@ export function onSnapshot(
   next: ((snapshot: QuerySnapshotCompat) => void) | ((snapshot: DocSnapshotCompat) => void),
   error?: (e: any) => void,
 ): () => void {
-  const isDocRef = (ref: any) => typeof ref?.id === 'string' && typeof ref?.path === 'string' && typeof ref?.parent !== 'undefined';
+  const isDocRef = (ref: any) => typeof ref?.id === 'string' && typeof ref?.path === 'string' && typeof ref?.parent !== 'undefined' && typeof (ref as any).get === 'function';
   if (isDocRef(source)) {
-    return fsOnSnapshot(source as CompatDocRef, (snap) => (next as any)({ exists: () => snap.exists(), data: () => snap.data() as any }), error);
+    const unsubscribe = (source as CompatDocRef).onSnapshot(
+      (snap) => (next as any)({ exists: () => snap.exists, data: () => (snap.data() as any) }),
+      error,
+    );
+    return unsubscribe;
   }
-  return fsOnSnapshot(source as any, (snap) => {
-    const docs: QueryDocCompat[] = (snap as any).docs.map((d: any) => ({ id: d.id, data: () => d.data() as any, ref: d.ref }));
-    (next as any)({ empty: (snap as any).empty, docs, forEach: (cb: (d: QueryDocCompat) => void) => docs.forEach(cb) });
-  }, error);
+  const unsubscribe = (source as any).onSnapshot(
+    (snap: FirebaseFirestoreTypes.QuerySnapshot) => {
+      const docs: QueryDocCompat[] = snap.docs.map((d) => ({ id: d.id, data: () => (d.data() as any), ref: d.ref }));
+      (next as any)({ empty: snap.empty, docs, forEach: (cb: (d: QueryDocCompat) => void) => docs.forEach(cb) });
+    },
+    error,
+  );
+  return unsubscribe;
 }
-
-

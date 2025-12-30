@@ -7,7 +7,7 @@ import AppHeader from '../components/AppHeader';
 
 const DisplaySettingsScreen = () => {
   const theme = useTheme();
-  const { density, setDensity } = useUI();
+  const { density, setDensity, focusModeEnabled, setFocusModeEnabled } = useUI();
   const compact = density === 'compact';
 
   return (
@@ -50,6 +50,17 @@ const DisplaySettingsScreen = () => {
             <TouchableOpacity key={mode} style={[styles.chip, { backgroundColor: (density===mode) ? theme.colors.primary : theme.colors.inputBackground }]} onPress={async () => { try { const h = await import('expo-haptics'); await h.selectionAsync(); } catch {}; setDensity(mode as any); }}>
               <Text style={[styles.chipText, { color: (density===mode) ? 'white' : theme.colors.textPrimary }]}>
                 {mode==='compact' ? 'Kompaktowy' : 'Standardowy'}
+              </Text>
+            </TouchableOpacity>
+          ))}
+        </View>
+
+        <Text style={[styles.label, { color: theme.colors.textPrimary, marginTop: Spacing.medium }]}>Tryb skupienia (Focus Mode)</Text>
+        <View style={styles.row}>
+          {[true, false].map(v => (
+            <TouchableOpacity key={String(v)} style={[styles.chip, { backgroundColor: (focusModeEnabled===v) ? theme.colors.primary : theme.colors.inputBackground }]} onPress={async () => { try { const h = await import('expo-haptics'); await h.selectionAsync(); } catch {}; setFocusModeEnabled(v); }}>
+              <Text style={[styles.chipText, { color: (focusModeEnabled===v) ? 'white' : theme.colors.textPrimary }]}>
+                {v ? 'Włączony' : 'Wyłączony'}
               </Text>
             </TouchableOpacity>
           ))}

@@ -10,11 +10,24 @@ import Animated, { useSharedValue, useAnimatedStyle, withSpring } from 'react-na
 interface CategoryFilterProps {
     activeCategory: string | 'all';
     onSelectCategory: (categoryId: string | 'all') => void;
+    compact?: boolean;
+    allowDeselect?: boolean;
+    hideAllOption?: boolean;
+    dimInactive?: boolean;
+    leftAccessory?: React.ReactNode;
 }
 
-const CategoryFilter = ({ activeCategory, onSelectCategory }: CategoryFilterProps) => {
+const CategoryFilter = ({ activeCategory, onSelectCategory, compact = false, allowDeselect = false, hideAllOption = false, dimInactive = false, leftAccessory }: CategoryFilterProps) => {
     const { categories, loading } = useCategories();
     const theme = useTheme();
+    const dim = (hex: string, alpha: number) => {
+        const m = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
+        if (!m) return hex;
+        const r = parseInt(m[1], 16);
+        const g = parseInt(m[2], 16);
+        const b = parseInt(m[3], 16);
+        return `rgba(${r},${g},${b},${alpha})`;
+    };
 
     if (loading) {
         return (
@@ -28,27 +41,22 @@ const CategoryFilter = ({ activeCategory, onSelectCategory }: CategoryFilterProp
         <ScrollView
             horizontal
             showsHorizontalScrollIndicator={false}
-            style={[styles.filterScrollView, { backgroundColor: theme.colors.card, borderColor: theme.colors.border }]}
-            contentContainerStyle={styles.filterContainer}
+            style={[styles.filterScrollView, { backgroundColor: theme.colors.card, borderColor: theme.colors.border }, compact && { borderBottomWidth: 0, minHeight: undefined }]}
+            contentContainerStyle={[styles.filterContainer, compact && { paddingVertical: Spacing.xSmall }]}
         >
-            <Chip
-                onPress={() => onSelectCategory('all')}
-                active={activeCategory === 'all'}
-                activeColor={theme.colors.primary}
-                inactiveColor={theme.colors.inputBackground}
-                textColorActive={'white'}
-                textColorInactive={theme.colors.textPrimary}
-                label="Wszystkie"
-            />
+            {leftAccessory}
+            {/* Opcja "Wszystkie" usunięta w trybie filtrów inline */}
             {categories.map((cat: Category) => (
                 <Chip
                     key={cat.id}
-                    onPress={() => onSelectCategory(cat.id)}
+                    onPress={() => {
+                        if (allowDeselect && activeCategory === cat.id) { onSelectCategory('all'); } else { onSelectCategory(cat.id); }
+                    }}
                     active={activeCategory === cat.id}
                     activeColor={cat.color}
-                    inactiveColor={theme.colors.inputBackground}
-                    textColorActive={isColorLight(cat.color) ? Colors.textPrimary : 'white'}
-                    textColorInactive={theme.colors.textPrimary}
+                    inactiveColor={dimInactive ? dim(cat.color, 0.35) : theme.colors.inputBackground}
+                    textColorActive={'white'}
+                    textColorInactive={theme.colors.placeholder}
                     label={cat.name}
                 />
             ))}
@@ -117,7 +125,8 @@ const styles = StyleSheet.create({
         backgroundColor: Colors.primary,
     },
     filterText: {
-        fontWeight: Typography.semiBold.fontWeight, // <-- Zmiana tutaj
+        ...Typography.body,
+        fontWeight: '400',
     },
     filterTextDefault: {
         color: Colors.textPrimary,

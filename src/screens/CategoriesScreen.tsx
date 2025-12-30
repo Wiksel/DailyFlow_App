@@ -148,7 +148,7 @@ const CategoriesScreen = () => {
             <Animated.FlatList
                 data={categories}
                 renderItem={(args) => (
-                  <Animated.View entering={FadeInUp.duration(200)} layout={Layout.springify()}>
+                  <Animated.View layout={Layout.springify()}>
                     {renderCategory(args)}
                   </Animated.View>
                 )}

@@ -9,9 +9,12 @@ interface UISettings {
   setDensity: (d: Density) => void;
   isOffline: boolean;
   pendingOpsCount: number;
+  focusModeEnabled: boolean;
+  setFocusModeEnabled: (v: boolean) => void;
 }
 
 const STORAGE_KEY = 'dailyflow_ui_density';
+const FOCUS_KEY = 'dailyflow_ui_focus_mode';
 
 const UIContext = createContext<UISettings | undefined>(undefined);
 
@@ -19,17 +22,21 @@ export const UIProvider: React.FC<React.PropsWithChildren<{}>> = ({ children }) 
   const [density, setDensityState] = useState<Density>('standard');
   const [isOffline, setIsOffline] = useState<boolean>(false);
   const [pendingOpsCount, setPendingOpsCount] = useState<number>(0);
+  const [focusModeEnabled, setFocusModeEnabledState] = useState<boolean>(false);
+
+  const prevOfflineRef = useRef<boolean>(false);
 
   useEffect(() => {
     (async () => {
       try {
-        const stored = await AsyncStorage.getItem(STORAGE_KEY);
-        if (stored === 'standard' || stored === 'compact') setDensityState(stored);
+        const d = await AsyncStorage.getItem(STORAGE_KEY);
+        if (d === 'compact' || d === 'standard') setDensityState(d as Density);
       } catch {}
-    })();
-    // initial network status
-    const prevOfflineRef = { current: isOffline } as { current: boolean };
-    (async () => {
+      try {
+        const stored = await AsyncStorage.getItem(FOCUS_KEY);
+        if (stored === '1' || stored === 'true') setFocusModeEnabledState(true);
+        else if (stored === '0' || stored === 'false') setFocusModeEnabledState(false);
+      } catch {}
       try {
         const state = await Network.getNetworkStateAsync();
         const online = !!(state.isConnected && state.isInternetReachable);
@@ -37,7 +44,7 @@ export const UIProvider: React.FC<React.PropsWithChildren<{}>> = ({ children }) 
         prevOfflineRef.current = !online;
       } catch {}
     })();
-    // poll network status lightly; better would be event if available
+
     const t = setInterval(async () => {
       try {
         const state = await Network.getNetworkStateAsync();
@@ -60,8 +67,12 @@ export const UIProvider: React.FC<React.PropsWithChildren<{}>> = ({ children }) 
     try { await AsyncStorage.setItem(STORAGE_KEY, d); } catch {}
   };
 
+  const setFocusModeEnabled = async (v: boolean) => {
+    setFocusModeEnabledState(v);
+    try { await AsyncStorage.setItem(FOCUS_KEY, v ? '1' : '0'); } catch {}
+  };
+
   useEffect(() => {
-    // read outbox size for current user periodically
     const readCount = async () => {
       try {
         const { getAuth } = await import('@react-native-firebase/auth');
@@ -77,7 +88,7 @@ export const UIProvider: React.FC<React.PropsWithChildren<{}>> = ({ children }) 
     return () => clearInterval(t);
   }, []);
 
-  const value = useMemo(() => ({ density, setDensity, isOffline, pendingOpsCount }), [density, isOffline, pendingOpsCount]);
+  const value = useMemo(() => ({ density, setDensity, isOffline, pendingOpsCount, focusModeEnabled, setFocusModeEnabled }), [density, isOffline, pendingOpsCount, focusModeEnabled]);
   return <UIContext.Provider value={value}>{children}</UIContext.Provider>;
 };
 
@@ -86,5 +97,4 @@ export const useUI = () => {
   if (!ctx) throw new Error('useUI must be used within UIProvider');
   return ctx;
 };
-
 

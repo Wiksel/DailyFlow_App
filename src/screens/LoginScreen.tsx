@@ -345,17 +345,17 @@ const LoginScreen = () => {
         let hasGoogle = !!resolvedMethods?.includes('google.com');
         let hasPhone = false;
         try {
-            let snap = await getDocs(query(collection(db, 'users'), where('emailLower', '==', normalizedEmail), limit(1)) as any);
-            if (!snap || snap.docs.length === 0) {
-                snap = await getDocs(query(collection(db, 'users'), where('email', '==', normalizedEmail), limit(1)) as any);
-            }
+            // Prefer publicUsers for safe pre-auth lookup
+            let snap = await getDocs(query(collection(db, 'publicUsers'), where('emailLower', '==', normalizedEmail), limit(1)) as any);
             const data = snap.docs[0]?.data() as any;
-            hasPhone = !!data?.phoneNumber;
-            if (data?.authProviders) {
-                hasGoogle = hasGoogle || !!data.authProviders.google;
-                hasPassword = hasPassword || !!data.authProviders.password;
+            // publicUsers does not contain phoneNumber; leave hasPhone as false
+            if (data) {
+                if (data.hasGoogle) hasGoogle = true;
+                if (data.hasPassword) hasPassword = true;
             }
-        } catch {}
+        } catch {
+            // Brak uprawnień lub offline – nie blokuj dalszego działania sugestii
+        }
         setLoginSuggestionHasPassword(hasPassword);
         setLoginSuggestionHasGoogle(hasGoogle);
         setLoginSuggestionHasPhone(hasPhone);
@@ -465,16 +465,15 @@ const LoginScreen = () => {
                     const methods = await auth().fetchSignInMethodsForEmail(email);
                     let hasPassword = methods.includes('password');
                     let hasGoogle = methods.includes('google.com');
-                    // Dodatkowy fallback: sprawdź profil w Firestore
+                    // Dodatkowy fallback: sprawdź publiczny profil
                     try {
-                        let snap = await getDocs(query(collection(db, 'users'), where('emailLower', '==', email.toLowerCase()), limit(1)) as any);
-                        if (!snap || snap.docs.length === 0) {
-                            snap = await getDocs(query(collection(db, 'users'), where('email', '==', email), limit(1)) as any);
-                        }
+                        const snap = await getDocs(query(collection(db, 'publicUsers'), where('emailLower', '==', email.toLowerCase()), limit(1)) as any);
                         const data = snap.docs[0]?.data() as any;
-                        if (data?.authProviders?.password) hasPassword = true;
-                        if (data?.authProviders?.google) hasGoogle = true;
-                    } catch {}
+                        if (data?.hasPassword) hasPassword = true;
+                        if (data?.hasGoogle) hasGoogle = true;
+                    } catch {
+                        // Brak uprawnień lub offline – pomiń fallback, bazuj na methods
+                    }
                     if (hasPassword && !hasGoogle) {
                         // Konto już istnieje z hasłem – zapytaj o połączenie
                         setPendingGoogleCredential(googleCredential);

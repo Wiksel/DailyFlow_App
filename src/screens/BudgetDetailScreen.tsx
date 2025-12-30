@@ -120,7 +120,7 @@ const BudgetDetailScreen = () => {
     };
 
     const renderExpense = ({ item, index }: { item: Expense, index: number }) => (
-        <Animated.View entering={FadeInUp.delay(index * 40)} layout={Layout.springify()} style={[styles.expenseItem, { backgroundColor: theme.colors.card, borderColor: theme.colors.border }]}>
+        <Animated.View layout={Layout.springify()} style={[styles.expenseItem, { backgroundColor: theme.colors.card, borderColor: theme.colors.border }]}>
             <View>
                 <Text style={[styles.expenseName, { color: theme.colors.textPrimary }]}>{item.name}</Text>
                 <Text style={[styles.expenseMeta, { color: theme.colors.textSecondary }]}>Dodane przez: {item.addedByName} - {item.date.toDate().toLocaleDateString('pl-PL')}</Text>
@@ -143,7 +143,7 @@ const BudgetDetailScreen = () => {
     return (
         <View style={[GlobalStyles.container, { backgroundColor: theme.colors.background }]}>
             <AppHeader title="Szczegóły budżetu" />
-            <Animated.View entering={FadeInUp} layout={Layout.springify()} style={[GlobalStyles.card, styles.summaryContainer, { backgroundColor: theme.colors.card, borderColor: theme.colors.border }]}> 
+            <Animated.View layout={Layout.springify()} style={[GlobalStyles.card, styles.summaryContainer, { backgroundColor: theme.colors.card, borderColor: theme.colors.border }]}> 
                 <Text style={[styles.budgetName, { color: theme.colors.textPrimary }]}>{budget.name}</Text>
                 <Text style={[styles.budgetAmount, { color: theme.colors.textSecondary }]}>{budget.currentAmount.toFixed(2)} zł / {budget.targetAmount.toFixed(2)} zł</Text>
                 <View style={[styles.progressBarContainer, { backgroundColor: theme.colors.border }]}>

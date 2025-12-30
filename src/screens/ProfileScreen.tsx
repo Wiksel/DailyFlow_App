@@ -104,8 +104,9 @@ const ProfileScreen = () => {
         }
         setIsPairActionLoading(true);
         try {
-            const usersRef = collection(db, 'users');
-            const q = query(usersRef, where("email", "==", inviteEmail.trim().toLowerCase()));
+            // Prefer publicUsers for lookup by lower-cased email
+            const pubRef = collection(db, 'publicUsers');
+            const q = query(pubRef, where("emailLower", "==", inviteEmail.trim().toLowerCase()));
             const querySnapshot = await getDocs(q);
             if (querySnapshot.empty) {
                 showToast("Nie znaleziono użytkownika \no podanym adresie e-mail.", 'error');
@@ -249,7 +250,7 @@ const ProfileScreen = () => {
     return (
         <ScrollView style={[GlobalStyles.container, { backgroundColor: theme.colors.background }] }>
             <AppHeader title="Profil i para" />
-            <Animated.View entering={FadeInUp} layout={Layout.springify()} style={[GlobalStyles.card, styles.profileSection, { backgroundColor: theme.colors.card, borderColor: theme.colors.border }] }>
+            <Animated.View layout={Layout.springify()} style={[GlobalStyles.card, styles.profileSection, { backgroundColor: theme.colors.card, borderColor: theme.colors.border }] }>
                 <View style={styles.avatarContainer}>
                     {userProfile?.photoURL ? (
                         <Image source={{ uri: userProfile.photoURL }} style={styles.avatarImage} />
@@ -265,7 +266,7 @@ const ProfileScreen = () => {
                 <Text style={[styles.emailText, { color: theme.colors.textSecondary }]}>{currentUser?.email}</Text>
             </Animated.View>
 
-            <Animated.View entering={FadeInUp.delay(60)} layout={Layout.springify()} style={[GlobalStyles.card, styles.statsContainer, { backgroundColor: theme.colors.card, borderColor: theme.colors.border }]}> 
+            <Animated.View layout={Layout.springify()} style={[GlobalStyles.card, styles.statsContainer, { backgroundColor: theme.colors.card, borderColor: theme.colors.border }]}> 
                 <View style={styles.statCard}>
                     <Feather name="star" size={24} color={Colors.warning} />
                     <Text style={styles.statValue}>{userProfile?.points ?? 0}</Text>
@@ -280,7 +281,7 @@ const ProfileScreen = () => {
 
             {/* Sekcja zmiany nicku przeniesiona do Ustawień konta – usunięta z Profilu */}
 
-            <Animated.View entering={FadeInUp.delay(120)} layout={Layout.springify()} style={[GlobalStyles.card, { backgroundColor: theme.colors.card, borderColor: theme.colors.border }] }>
+            <Animated.View layout={Layout.springify()} style={[GlobalStyles.card, { backgroundColor: theme.colors.card, borderColor: theme.colors.border }] }>
                 <Text style={styles.sectionTitle}>Zaproś do pary</Text>
                 <TextInput
                     style={[GlobalStyles.input, { backgroundColor: theme.colors.inputBackground, borderColor: theme.colors.border, color: theme.colors.textPrimary }]}
@@ -298,7 +299,7 @@ const ProfileScreen = () => {
                 />
             </Animated.View>
 
-            <Animated.View entering={FadeInUp.delay(180)} layout={Layout.springify()} style={[GlobalStyles.card, { backgroundColor: theme.colors.card, borderColor: theme.colors.border }] }>
+            <Animated.View layout={Layout.springify()} style={[GlobalStyles.card, { backgroundColor: theme.colors.card, borderColor: theme.colors.border }] }>
                 <Text style={styles.sectionTitle}>Zarządzanie</Text>
                 <ActionButton title="Zarządzaj kategoriami" onPress={() => navigation.navigate('Categories')} style={[styles.manageButton, { backgroundColor: theme.colors.primary }]} />
                 <ActionButton title="Szablony obowiązków" onPress={() => navigation.navigate('ChoreTemplates', {})} style={[styles.manageButton, { backgroundColor: theme.colors.primary }]} />
@@ -310,7 +311,7 @@ const ProfileScreen = () => {
             </Animated.View>
 
             {userProfile?.pairId ? (
-                <Animated.View entering={FadeInUp.delay(240)} layout={Layout.springify()} style={[GlobalStyles.card, { backgroundColor: theme.colors.card, borderColor: theme.colors.border }] }>
+                <Animated.View layout={Layout.springify()} style={[GlobalStyles.card, { backgroundColor: theme.colors.card, borderColor: theme.colors.border }] }>
                     <Text style={styles.sectionTitle}>Twoja para</Text>
                     <Text style={styles.pairInfo}>Jesteś w parze z: <Text style={Typography.bold}>{partnerEmail}</Text></Text>
                     <ActionButton

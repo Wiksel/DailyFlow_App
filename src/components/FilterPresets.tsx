@@ -18,6 +18,9 @@ interface FilterPresetsProps<T = any> {
   title?: string;
   getCurrentFilters: () => T;
   applyFilters: (data: T) => void;
+  hideTitle?: boolean;
+  hideSaveButton?: boolean;
+  refreshToken?: number;
 }
 
 function generateId() {
@@ -30,6 +33,9 @@ const FilterPresets = <T extends Record<string, unknown>>({
   title = 'Presety filtrów',
   getCurrentFilters,
   applyFilters,
+  hideTitle = false,
+  hideSaveButton = false,
+  refreshToken,
 }: FilterPresetsProps<T>) => {
   const theme = useTheme();
   const [presets, setPresets] = useState<Array<FilterPreset<T>>>([]);
@@ -46,7 +52,7 @@ const FilterPresets = <T extends Record<string, unknown>>({
         if (raw) setPresets(JSON.parse(raw));
       } catch {}
     })();
-  }, [key]);
+  }, [key, refreshToken]);
 
   const persist = async (next: Array<FilterPreset<T>>) => {
     setPresets(next);
@@ -75,13 +81,19 @@ const FilterPresets = <T extends Record<string, unknown>>({
 
   return (
     <View style={[styles.container, { backgroundColor: theme.colors.card, borderColor: theme.colors.border }]}>
-      <View style={styles.headerRow}>
-        <Text style={[styles.title, { color: theme.colors.textSecondary }]}>{title}</Text>
-        <TouchableOpacity onPress={() => setIsModalVisible(true)} style={[styles.saveButton, { backgroundColor: theme.colors.primary }]}>
-          <Feather name="save" size={16} color="white" />
-          <Text style={styles.saveButtonText}>Zapisz preset</Text>
-        </TouchableOpacity>
-      </View>
+      {(!hideTitle || !hideSaveButton) && (
+        <View style={[styles.headerRow, (hideTitle || hideSaveButton) && { justifyContent: 'flex-start' }]}>
+          {!hideTitle && (
+            <Text style={[styles.title, { color: theme.colors.textSecondary }]}>{title}</Text>
+          )}
+          {!hideSaveButton && (
+            <TouchableOpacity onPress={() => setIsModalVisible(true)} style={[styles.saveButton, { backgroundColor: theme.colors.primary }]}>
+              <Feather name="save" size={16} color="white" />
+              <Text style={styles.saveButtonText}>Zapisz preset</Text>
+            </TouchableOpacity>
+          )}
+        </View>
+      )}
       <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.chipsRow}>
         {presets.map((p) => (
           <View key={p.id} style={[styles.presetChip, { backgroundColor: theme.colors.inputBackground }]}>
@@ -118,15 +130,17 @@ const FilterPresets = <T extends Record<string, unknown>>({
 
 const styles = StyleSheet.create({
   container: {
-    borderBottomWidth: 1,
+    borderBottomWidth: 0,
     paddingHorizontal: Spacing.medium,
-    paddingTop: Spacing.small,
-    paddingBottom: Spacing.small,
+    paddingTop: 0,
+    paddingBottom: 0,
   },
   headerRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
+    paddingTop: Spacing.small,
+    paddingBottom: 2,
   },
   title: {
     fontSize: Typography.small.fontSize + 1,
@@ -144,13 +158,14 @@ const styles = StyleSheet.create({
     fontWeight: '700',
   },
   chipsRow: {
-    paddingTop: Spacing.small,
+    paddingTop: 4,
+    paddingBottom: 4,
   },
   presetChip: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: Spacing.medium,
-    paddingVertical: Spacing.xSmall,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
     borderRadius: 16,
     marginRight: Spacing.small,
     maxWidth: 200,

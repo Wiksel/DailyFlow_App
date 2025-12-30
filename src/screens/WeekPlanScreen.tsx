@@ -122,7 +122,7 @@ const WeekPlanScreen = () => {
         renderItem={({ item: dayKey, index }) => {
           const tasks = grouped[dayKey];
           return (
-            <Animated.View entering={FadeInUp.delay(index * 60)} layout={Layout.springify()} style={[styles.dayCard, { backgroundColor: theme.colors.card, borderColor: theme.colors.border }]}>
+            <Animated.View layout={Layout.springify()} style={[styles.dayCard, { backgroundColor: theme.colors.card, borderColor: theme.colors.border }]}> 
               <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
                 <Text style={[styles.dayLabel, { color: theme.colors.textPrimary }]}>{dayLabels[dayKey]}</Text>
                 <Text style={[styles.timeText, { color: theme.colors.textSecondary }]}>Obciążenie: {dayLoad[dayKey]}</Text>

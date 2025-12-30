@@ -142,7 +142,7 @@ const SettingsScreen = () => {
     return (
         <ScrollView style={[styles.container, { backgroundColor: theme.colors.background }]}>
             <AppHeader title="Ustawienia priorytetów" />
-            <Animated.View entering={FadeInUp} layout={Layout.springify()} style={[GlobalStyles.card, { backgroundColor: theme.colors.card }] }>
+            <Animated.View layout={Layout.springify()} style={[GlobalStyles.card, { backgroundColor: theme.colors.card }] }>
                 <Text style={styles.sectionTitle}>Priorytety - Deadline</Text>
                 <Text style={styles.description}>
                     Dostosuj, jak bardzo priorytet zadania wzrośnie, gdy zbliża się jego termin wykonania. Przesuwanie jednego suwaka dostosuje pozostałe.
@@ -198,12 +198,12 @@ const SettingsScreen = () => {
                     step={1} 
                 />
             </Animated.View>
-            <Animated.View entering={FadeInUp.delay(60)} layout={Layout.springify()} style={[GlobalStyles.card, { backgroundColor: theme.colors.card }]}>
+            <Animated.View layout={Layout.springify()} style={[GlobalStyles.card, { backgroundColor: theme.colors.card }]}> 
                 <Text style={styles.sectionTitle}>Priorytety - Zadania bez terminu</Text>
                 <Text style={styles.label}>Zwiększaj o +1 co {settings.agingBoostDays} dni</Text>
                 <Slider value={settings.agingBoostDays} onValueChange={(v) => handleThresholdChange('agingBoostDays', v)} minimumValue={1} maximumValue={30} step={1} />
             </Animated.View>
-            <Animated.View entering={FadeInUp.delay(120)} layout={Layout.springify()}>
+            <Animated.View layout={Layout.springify()}>
             <TouchableOpacity style={[styles.saveButton, saving && GlobalStyles.disabledButton]} onPress={handleSave} disabled={saving}>
                 <Text style={styles.saveButtonText}>{saving ? 'Zapisywanie…' : 'Zapisz ustawienia'}</Text>
             </TouchableOpacity>

@@ -47,7 +47,7 @@ export const Spacing = {
 export const GlobalStyles = StyleSheet.create({
     container: {
         flex: 1,
-        backgroundColor: Colors.backgroundLight,
+        backgroundColor: 'transparent',
     },
     screenPadding: {
         paddingHorizontal: 16,

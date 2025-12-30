@@ -25,7 +25,8 @@
         "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#ffffff"
       },
-      "edgeToEdgeEnabled": true,
+      "edgeToEdgeEnabled": false,
+      "softwareKeyboardLayoutMode": "resize",
       "package": "com.wiksel.dailyflow",
       "googleServicesFile": "./google-services.json"
     },

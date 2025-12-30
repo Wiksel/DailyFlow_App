@@ -91,6 +91,18 @@ export const createNewUserInFirestore = async (user: FirebaseAuthTypes.User, dis
         },
     });
 
+    // Public lookup profile (for safe pre-auth lookups)
+    const publicUserRef = doc(collection(db, 'publicUsers'), user.uid);
+    batch.set(publicUserRef as any, {
+        nickname: finalNickname,
+        photoURL: user.photoURL || null,
+        // Keep lower-cased email only if present
+        emailLower: user.email ? user.email.toLowerCase() : null,
+        // Optional basic flags for UX
+        hasGoogle: (user.providerData || []).some(p => p?.providerId === 'google.com'),
+        hasPassword: (user.providerData || []).some(p => p?.providerId === 'password'),
+    });
+
     DEFAULT_CATEGORIES.forEach(category => {
         const categoryRef = doc(collection(db, "categories"));
         batch.set(categoryRef, { ...category, userId: user.uid });
@@ -121,6 +133,17 @@ export const upsertAuthProvidersForUser = async (user: FirebaseAuthTypes.User) =
         }
         if (user.phoneNumber) update.phoneNumber = user.phoneNumber;
         await setDoc(userRef as any, update, { merge: true });
+
+        // Sync public profile
+        const publicRef = doc(collection(db, 'publicUsers'), user.uid);
+        const pubUpdate: any = {
+          nickname: (user.displayName || null),
+          photoURL: user.photoURL || null,
+          emailLower: user.email ? user.email.toLowerCase() : null,
+          hasGoogle: (user.providerData || []).some(p => p?.providerId === 'google.com'),
+          hasPassword: (user.providerData || []).some(p => p?.providerId === 'password'),
+        };
+        await setDoc(publicRef as any, pubUpdate, { merge: true });
     } catch {}
 };
 
@@ -161,16 +184,19 @@ export const findUserEmailByIdentifier = async (identifier: string): Promise<str
     
     // Sprawdź każdy możliwy format
     for (const format of uniqueFormats) {
-        const phoneQuery = query(usersRef, where('phoneNumber', '==', format), limit(1));
-        const phoneSnapshot = await getDocs(phoneQuery);
-        
-        if (!phoneSnapshot.empty) {
-            const userData: any = phoneSnapshot.docs[0].data();
-            // Jeśli konto posiada e‑mail → użyj go. W przeciwnym razie użyj wzorca "dummy email" na bazie dokładnie zapisanego numeru.
-            if (userData.email) return userData.email as string;
-            const storedPhone: string = userData.phoneNumber || format;
-            const canonical = storedPhone.startsWith('+') ? storedPhone : `+${storedPhone}`;
-            return `${canonical}@dailyflow.app`;
+        try {
+            const phoneQuery = query(usersRef, where('phoneNumber', '==', format), limit(1));
+            const phoneSnapshot = await getDocs(phoneQuery);
+            if (!phoneSnapshot.empty) {
+                const userData: any = phoneSnapshot.docs[0].data();
+                // Jeśli konto posiada e‑mail → użyj go. W przeciwnym razie użyj wzorca "dummy email" na bazie dokładnie zapisanego numeru.
+                if (userData.email) return userData.email as string;
+                const storedPhone: string = userData.phoneNumber || format;
+                const canonical = storedPhone.startsWith('+') ? storedPhone : `+${storedPhone}`;
+                return `${canonical}@dailyflow.app`;
+            }
+        } catch {
+            // Brak uprawnień lub offline – kontynuuj fallbacki poniżej
         }
     }
     // Nie znaleziono w bazie, ale jeżeli identyfikator wygląda na telefon, spróbuj z domyślnym wzorcem (np. +48...)
@@ -230,11 +256,14 @@ export const checkIfPhoneExists = async (phoneNumber: string): Promise<boolean> 
     
     // Sprawdź każdy możliwy format
     for (const format of uniqueFormats) {
-        const phoneQuery = query(usersRef, where('phoneNumber', '==', format), limit(1));
-        const phoneSnapshot = await getDocs(phoneQuery);
-        
-        if (!phoneSnapshot.empty) {
-            return true;
+        try {
+            const phoneQuery = query(usersRef, where('phoneNumber', '==', format), limit(1));
+            const phoneSnapshot = await getDocs(phoneQuery);
+            if (!phoneSnapshot.empty) {
+                return true;
+            }
+        } catch {
+            // Brak uprawnień lub offline – traktuj jako brak wyniku
         }
     }
     

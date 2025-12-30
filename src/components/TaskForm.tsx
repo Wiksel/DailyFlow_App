@@ -33,13 +33,13 @@ const TaskForm = ({ taskData, onDataChange, showDatePicker, onDatePickerChange, 
     const theme = useTheme();
 
     return (
-        <ScrollView style={styles.formContainer} keyboardShouldPersistTaps="handled">
+        <ScrollView style={styles.formContainer} keyboardShouldPersistTaps="handled" contentContainerStyle={{ paddingHorizontal: Spacing.medium, paddingBottom: Spacing.medium }}>
             <LabeledInput
                 label="Nazwa zadania"
                 value={taskData.text}
                 onChangeText={(text) => onDataChange('text', text)}
                 placeholder="Nazwa"
-              />
+            />
 
             <LabeledInput
                 label="Opis (opcjonalnie)"
@@ -48,7 +48,7 @@ const TaskForm = ({ taskData, onDataChange, showDatePicker, onDatePickerChange, 
                 placeholder="Opis"
                 multiline
                 inputStyle={styles.multilineInput}
-              />
+            />
 
             <Text style={[styles.label, { color: theme.colors.textSecondary }]}>Kategoria</Text>
             <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.categoryContainer}>
@@ -94,7 +94,7 @@ const TaskForm = ({ taskData, onDataChange, showDatePicker, onDatePickerChange, 
             />
 
             <Text style={[styles.label, { color: theme.colors.textSecondary }]}>Termin wykonania</Text>
-            <TouchableOpacity onPress={onShowDatePicker} style={[styles.datePickerButton, { backgroundColor: theme.colors.inputBackground }]}> 
+            <TouchableOpacity onPress={onShowDatePicker} style={[styles.datePickerButton, { backgroundColor: theme.colors.inputBackground, borderColor: theme.colors.border }]}> 
                 <Text style={[styles.datePickerText, { color: theme.colors.textPrimary }]}>{taskData.deadline ? taskData.deadline.toDate().toLocaleDateString('pl-PL') : 'Ustaw termin'}</Text>
             </TouchableOpacity>
             {taskData.deadline && (
@@ -154,6 +154,8 @@ const styles = StyleSheet.create({
         backgroundColor: Colors.inputBackground,
         borderRadius: 8,
         padding: Spacing.medium,
+        borderWidth: 1,
+        borderColor: Colors.border,
     },
     datePickerText: {
         fontSize: Typography.body.fontSize,
