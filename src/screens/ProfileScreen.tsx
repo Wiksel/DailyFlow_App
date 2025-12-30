@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, TextInput, Alert, ActivityIndicator, ScrollView, Image } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { getAuth } from '@react-native-firebase/auth';
-import { db } from '../../firebaseConfig';
+import { db } from '../utils/firestoreCompat';
 import { doc, getDoc, onSnapshot, collection, query, where, getDocs, writeBatch, updateDoc, deleteDoc, addDoc } from '../utils/firestoreCompat';
 import { TaskStackNavigationProp } from '../types/navigation';
 import { UserProfile, Pair } from '../types';

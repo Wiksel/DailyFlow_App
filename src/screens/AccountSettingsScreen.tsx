@@ -3,7 +3,7 @@ import { View, Text, StyleSheet, ScrollView, TouchableOpacity, ActivityIndicator
 import LabeledInput from '../components/LabeledInput';
 import { getAuth, GoogleAuthProvider, EmailAuthProvider } from '@react-native-firebase/auth';
 import { collection, deleteDoc, doc, getDoc, getDocs, query, updateDoc, where, writeBatch, deleteField } from '../utils/firestoreCompat';
-import { db } from '../../firebaseConfig';
+import { db } from '../utils/firestoreCompat';
 import { useToast } from '../contexts/ToastContext';
 import ActionModal from '../components/ActionModal';
 import { Colors, GlobalStyles, Spacing, Typography } from '../styles/AppStyles';
@@ -691,5 +691,6 @@ const styles = StyleSheet.create({
 });
 
 export default AccountSettingsScreen;
+
 
 

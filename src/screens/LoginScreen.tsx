@@ -19,7 +19,7 @@ import { createNewUserInFirestore, findUserEmailByIdentifier, popSuggestedLoginI
 import { AuthStackParamList } from '../types/navigation';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { doc, getDoc, collection, query, where, getDocs, limit } from '../utils/firestoreCompat';
-import { db } from '../../firebaseConfig';
+import { db } from '../utils/firestoreCompat';
 
 import Animated, { useSharedValue, useAnimatedStyle, withSpring, withTiming, interpolateColor, interpolate, useAnimatedReaction, runOnJS } from 'react-native-reanimated';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
@@ -955,3 +955,4 @@ const styles = StyleSheet.create({
 });
 
 export default LoginScreen;
+

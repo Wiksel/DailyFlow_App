@@ -5,7 +5,7 @@ import { useRoute } from '@react-navigation/native';
 import { doc, onSnapshot, collection, addDoc, query, orderBy, getDoc, writeBatch, increment, where, Timestamp, updateDoc } from '../utils/firestoreCompat';
 import { enqueueAdd, enqueueUpdate } from '../utils/offlineQueue';
 import { getAuth } from '@react-native-firebase/auth';
-import { db } from '../../firebaseConfig';
+import { db } from '../utils/firestoreCompat';
 import { Feather } from '@expo/vector-icons';
 import { useToast } from '../contexts/ToastContext';
 import { Colors, Spacing, Typography, GlobalStyles } from '../styles/AppStyles';

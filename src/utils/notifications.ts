@@ -14,7 +14,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import Logger from './logger';
 import { doc, updateDoc, increment, Timestamp, getDoc } from './firestoreCompat';
 import { getAuth } from '@react-native-firebase/auth';
-import { db } from '../../firebaseConfig';
+import { db } from './firestoreCompat';
 import { Task, UserProfile } from '../types';
 
 const SCHEDULED_MAP_KEY = (uid: string) => `dailyflow_notif_scheduled_${uid}`;
@@ -161,5 +161,6 @@ export async function scheduleTaskNotifications(tasks: Task[], userProfile: User
   }
   try { await AsyncStorage.setItem(SCHEDULED_MAP_KEY(uid), JSON.stringify(map)); } catch {}
 }
+
 
 

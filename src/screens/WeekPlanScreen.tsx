@@ -7,7 +7,7 @@ import { useTheme } from '../contexts/ThemeContext';
 import { useToast } from '../contexts/ToastContext';
 import { doc, onSnapshot, collection, query, where, getDocs } from '../utils/firestoreCompat';
 import { getAuth } from '@react-native-firebase/auth';
-import { db } from '../../firebaseConfig';
+import { db } from '../utils/firestoreCompat';
 import { Colors, GlobalStyles, Spacing, Typography } from '../styles/AppStyles';
 import AppHeader from '../components/AppHeader';
 import { FadeInUp, Layout } from 'react-native-reanimated';
@@ -250,5 +250,6 @@ const styles = StyleSheet.create({
 });
 
 export default WeekPlanScreen;
+
 
 

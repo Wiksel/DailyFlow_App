@@ -1,7 +1,6 @@
 import { useCallback } from 'react';
-import { getAuth } from '@react-native-firebase/auth';
-import { collection, addDoc, updateDoc, deleteDoc, doc, increment, Timestamp } from '../utils/firestoreCompat';
-import { db } from '../../firebaseConfig';
+import { getAuth } from '../utils/authCompat';
+import { collection, addDoc, updateDoc, deleteDoc, doc, increment, Timestamp, db } from '../utils/firestoreCompat';
 import { enqueueAdd, enqueueUpdate, enqueueDelete } from '../utils/offlineQueue';
 import { Task, UserProfile } from '../types';
 import { useToast } from '../contexts/ToastContext';

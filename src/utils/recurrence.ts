@@ -1,5 +1,5 @@
 import { Timestamp, addDoc, collection, query, where, getDocs } from './firestoreCompat';
-import { db } from '../../firebaseConfig';
+import { db } from './firestoreCompat';
 import { RecurringSeries, Task } from '../types';
 
 export function toDateOnlyIso(d: Date): string {
@@ -81,5 +81,6 @@ export async function ensureInstancesForRange(series: RecurringSeries, rangeStar
   } as any;
   await addDoc(collection(db, 'tasks'), payload);
 }
+
 
 

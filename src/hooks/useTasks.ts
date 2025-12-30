@@ -1,8 +1,7 @@
 import { useState, useEffect } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { getAuth } from '@react-native-firebase/auth';
-import { collection, query, where, onSnapshot, Timestamp } from '../utils/firestoreCompat';
-import { db } from '../../firebaseConfig';
+import { getAuth } from '../utils/authCompat';
+import { collection, query, where, onSnapshot, Timestamp, db } from '../utils/firestoreCompat';
 import { Task, UserProfile } from '../types';
 import { scheduleTaskNotifications } from '../utils/notifications';
 
@@ -15,7 +14,7 @@ type SerializableTask = Omit<Task, 'createdAt' | 'deadline' | 'completedAt'> & {
 };
 
 export const useTasks = (
-    taskType: 'personal' | 'shared', 
+    taskType: 'personal' | 'shared',
     userProfile: UserProfile | null
 ) => {
     const [tasks, setTasks] = useState<Task[]>([]);
@@ -73,13 +72,13 @@ export const useTasks = (
 
         console.log(`Subscribing to ${taskType} tasks...`); // Debug log
 
-        const unsubscribe = onSnapshot(q, async (snapshot) => {
-            const tasksData = snapshot.docs.map(doc => ({ ...doc.data(), id: doc.id } as Task));
+        const unsubscribe = onSnapshot(q, async (snapshot: any) => {
+            const tasksData = snapshot.docs.map((doc: any) => ({ ...doc.data(), id: doc.id } as Task));
             setTasks(tasksData);
-            
+
             // Cache updates
             try {
-                 const serializableTasks = tasksData.map(t => ({
+                const serializableTasks = tasksData.map((t: Task) => ({
                     ...t,
                     createdAt: t.createdAt?.toDate().toISOString(),
                     deadline: t.deadline?.toDate().toISOString(),
@@ -91,10 +90,10 @@ export const useTasks = (
             }
 
             // Schedule notifications
-            try { 
-                await scheduleTaskNotifications(tasksData, userProfile); 
-            } catch {}
-            
+            try {
+                await scheduleTaskNotifications(tasksData, userProfile);
+            } catch { }
+
             setLoading(false);
         }, (error) => {
             console.error("Firestore subscription error: ", error);

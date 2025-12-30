@@ -7,7 +7,7 @@ import * as DocumentPicker from 'expo-document-picker';
 import ActionModal from '../components/ActionModal';
 import { useToast } from '../contexts/ToastContext';
 import { getAuth } from '@react-native-firebase/auth';
-import { db } from '../../firebaseConfig'; // <--- TEN IMPORT ZOSTAJE
+import { db } from '../utils/firestoreCompat'; // <--- TEN IMPORT ZOSTAJE
 import { collection, query, where, onSnapshot, orderBy, doc, updateDoc, deleteDoc, getDoc, addDoc, Timestamp } from '../utils/firestoreCompat';
 import { enqueueAdd, enqueueUpdate, enqueueDelete } from '../utils/offlineQueue';
 import { Task, Category, UserProfile, Pair } from '../types';

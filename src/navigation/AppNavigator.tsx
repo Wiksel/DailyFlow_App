@@ -4,11 +4,10 @@ import { NavigationContainer, DefaultTheme, DarkTheme, Theme as NavTheme } from 
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { Feather } from '@expo/vector-icons';
-import type { FirebaseAuthTypes } from '@react-native-firebase/auth';
-import { getAuth, onAuthStateChanged } from '@react-native-firebase/auth';
+import { getAuth, onAuthStateChanged, FirebaseAuthTypes } from '../utils/authCompat';
 import { GoogleSignin } from '@react-native-google-signin/google-signin';
 import { doc, getDoc } from '../utils/firestoreCompat';
-import { db } from '../../firebaseConfig';
+import { db } from '../utils/firestoreCompat';
 import { RootTabParamList, TaskStackParamList, BudgetStackParamList, AuthStackParamList } from '../types/navigation';
 import { isPasswordResetInProgress } from '../utils/authUtils';
 import { ToastProvider } from '../contexts/ToastContext';
@@ -43,33 +42,33 @@ const Tab = createBottomTabNavigator<RootTabParamList>();
 const TasksStackNavigator = createNativeStackNavigator<TaskStackParamList>();
 const BudgetsStackNavigator = createNativeStackNavigator<BudgetStackParamList>();
 
-  function TaskStack() {
+function TaskStack() {
   return (
     <TasksStackNavigator.Navigator screenOptions={{ animation: 'slide_from_right' }}>
-        <TasksStackNavigator.Screen name="Home" component={HomeScreen} options={{ headerShown: false }} />
-        <TasksStackNavigator.Screen name="TaskDetail" component={TaskDetailScreen} options={{ headerShown: false }} />
-        <TasksStackNavigator.Screen name="Archive" component={ArchiveScreen} options={{ headerShown: false }} />
-        <TasksStackNavigator.Screen name="Profile" component={ProfileScreen} options={{ title: 'Profil i para' }} />
-        <TasksStackNavigator.Screen name="ChoreTemplates" component={ChoreTemplatesScreen} options={{ headerShown: false }} />
-        <TasksStackNavigator.Screen name="Settings" component={SettingsScreen} options={{ headerShown: false }} />
-        <TasksStackNavigator.Screen name="WeekPlan" component={WeekPlanScreen} options={{ headerShown: false }} />
-        <TasksStackNavigator.Screen name="RecurringSeries" component={RecurringSeriesScreen} options={{ headerShown: false }} />
-        <TasksStackNavigator.Screen name="Notifications" component={NotificationsScreen} options={{ headerShown: false }} />
-        <TasksStackNavigator.Screen name="DisplaySettings" component={DisplaySettingsScreen} options={{ headerShown: false }} />
-        <TasksStackNavigator.Screen name="Outbox" component={OutboxScreen} options={{ headerShown: false }} />
-        <TasksStackNavigator.Screen name="AccountSettings" component={AccountSettingsScreen} options={{ headerShown: false }} />
-        <TasksStackNavigator.Screen name="Categories" component={CategoriesScreen} options={{ headerShown: false }} />
+      <TasksStackNavigator.Screen name="Home" component={HomeScreen} options={{ headerShown: false }} />
+      <TasksStackNavigator.Screen name="TaskDetail" component={TaskDetailScreen} options={{ headerShown: false }} />
+      <TasksStackNavigator.Screen name="Archive" component={ArchiveScreen} options={{ headerShown: false }} />
+      <TasksStackNavigator.Screen name="Profile" component={ProfileScreen} options={{ title: 'Profil i para' }} />
+      <TasksStackNavigator.Screen name="ChoreTemplates" component={ChoreTemplatesScreen} options={{ headerShown: false }} />
+      <TasksStackNavigator.Screen name="Settings" component={SettingsScreen} options={{ headerShown: false }} />
+      <TasksStackNavigator.Screen name="WeekPlan" component={WeekPlanScreen} options={{ headerShown: false }} />
+      <TasksStackNavigator.Screen name="RecurringSeries" component={RecurringSeriesScreen} options={{ headerShown: false }} />
+      <TasksStackNavigator.Screen name="Notifications" component={NotificationsScreen} options={{ headerShown: false }} />
+      <TasksStackNavigator.Screen name="DisplaySettings" component={DisplaySettingsScreen} options={{ headerShown: false }} />
+      <TasksStackNavigator.Screen name="Outbox" component={OutboxScreen} options={{ headerShown: false }} />
+      <TasksStackNavigator.Screen name="AccountSettings" component={AccountSettingsScreen} options={{ headerShown: false }} />
+      <TasksStackNavigator.Screen name="Categories" component={CategoriesScreen} options={{ headerShown: false }} />
     </TasksStackNavigator.Navigator>
   );
 }
 
-  function BudgetStack() {
-    return (
-      <BudgetsStackNavigator.Navigator screenOptions={{ animation: 'slide_from_right' }}>
-        <BudgetsStackNavigator.Screen name="Budgets" component={BudgetsScreen} options={{ headerShown: false }} />
-        <BudgetsStackNavigator.Screen name="BudgetDetail" component={BudgetDetailScreen} options={{ headerShown: false }} />
-      </BudgetsStackNavigator.Navigator>
-    );
+function BudgetStack() {
+  return (
+    <BudgetsStackNavigator.Navigator screenOptions={{ animation: 'slide_from_right' }}>
+      <BudgetsStackNavigator.Screen name="Budgets" component={BudgetsScreen} options={{ headerShown: false }} />
+      <BudgetsStackNavigator.Screen name="BudgetDetail" component={BudgetDetailScreen} options={{ headerShown: false }} />
+    </BudgetsStackNavigator.Navigator>
+  );
 }
 
 function AppTabs() {
@@ -105,10 +104,10 @@ const AppNavigator = () => {
     (async () => {
       try {
         await initNotifications();
-      } catch {}
+      } catch { }
     })();
     let sub: any;
-    (async () => { try { sub = await registerNotificationResponseListener(); } catch {} })();
+    (async () => { try { sub = await registerNotificationResponseListener(); } catch { } })();
     const webClientId = (Constants?.expoConfig?.extra as any)?.googleWebClientId;
     if (webClientId) {
       GoogleSignin.configure({ webClientId });
@@ -136,7 +135,7 @@ const AppNavigator = () => {
     (async () => { try { await ensureDailyMorningReminderScheduled(); } catch (e) { Logger.warn('ensureDailyMorningReminderScheduled failed', e); } })();
     const outboxTimer = setInterval(() => { processOutbox().catch((e) => Logger.debug('processOutbox tick failed', e)); }, 15000);
     const appStateSub = AppState.addEventListener('change', (state) => { if (state === 'active') { processOutbox().catch((e) => Logger.debug('processOutbox onFocus failed', e)); } });
-    return () => { try { sub?.remove?.(); } catch {}; try { appStateSub.remove(); } catch {}; clearInterval(outboxTimer); subscriber(); };
+    return () => { try { sub?.remove?.(); } catch { }; try { appStateSub.remove(); } catch { }; clearInterval(outboxTimer); subscriber(); };
   }, []);
 
   // Fade overlay when theme/accent changes to smoothen transition

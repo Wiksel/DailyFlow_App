@@ -8,7 +8,7 @@ import * as Haptics from 'expo-haptics';
 import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { getAuth } from '@react-native-firebase/auth';
-import { db } from '../../firebaseConfig';
+import { db } from '../utils/firestoreCompat';
 import { collection, query, where, onSnapshot, addDoc, doc, getDoc } from '../utils/firestoreCompat';
 import { enqueueAdd } from '../utils/offlineQueue';
 import { Feather } from '@expo/vector-icons';

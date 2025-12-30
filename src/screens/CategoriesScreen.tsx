@@ -5,7 +5,7 @@ import { View, Text, StyleSheet, FlatList, TextInput, TouchableOpacity, Activity
 import LabeledInput from '../components/LabeledInput';
 import Animated, { FadeInUp, Layout } from 'react-native-reanimated';
 import { getAuth } from '@react-native-firebase/auth'; // ZMIANA
-import { db } from '../../firebaseConfig'; // <--- TEN IMPORT ZOSTAJE
+import { db } from '../utils/firestoreCompat'; // <--- TEN IMPORT ZOSTAJE
 import { collection, addDoc, deleteDoc, doc, updateDoc, query, where, getDocs, writeBatch } from '../utils/firestoreCompat';
 import { enqueueAdd, enqueueUpdate, enqueueDelete } from '../utils/offlineQueue';
 import { Feather } from '@expo/vector-icons';

@@ -1,6 +1,6 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { addDoc, collection, doc, updateDoc, deleteDoc, increment } from './firestoreCompat';
-import { db } from '../../firebaseConfig';
+import { db } from './firestoreCompat';
 import { getAuth } from '@react-native-firebase/auth';
 
 type QueueAction = 'add' | 'update' | 'delete';
@@ -201,5 +201,6 @@ export async function processOpNow(opId: string): Promise<boolean> {
     return false;
   }
 }
+
 
 

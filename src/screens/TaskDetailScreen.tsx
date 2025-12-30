@@ -3,7 +3,7 @@ import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Platform, Activit
 import { useRoute, useNavigation } from '@react-navigation/native';
 import { doc, getDoc, updateDoc, Timestamp, collection, query, where, getDocs, addDoc, onSnapshot, orderBy } from '../utils/firestoreCompat';
 import { getAuth } from '@react-native-firebase/auth';
-import { db } from '../../firebaseConfig';
+import { db } from '../utils/firestoreCompat';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { DateTimePickerEvent } from '@react-native-community/datetimepicker';
 import { TaskStackParamList, TaskStackNavigationProp } from '../types/navigation';

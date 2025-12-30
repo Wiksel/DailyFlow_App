@@ -1,52 +1,51 @@
-import { db } from '../../firebaseConfig';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { doc, setDoc, collection, writeBatch, query, where, getDocs, limit, getDoc } from "./firestoreCompat";
-import type { FirebaseAuthTypes } from '@react-native-firebase/auth';
+import { doc, setDoc, collection, writeBatch, query, where, getDocs, limit, getDoc, db } from "./firestoreCompat";
+import { FirebaseAuthTypes } from '../utils/authCompat';
 import { DEFAULT_CATEGORIES } from '../constants/categories';
 
 export function mapFirebaseAuthErrorToMessage(code: string): { message: string; level: 'error' | 'info' } {
-  const c = (code || '').toLowerCase();
-  switch (c) {
-    case 'auth/invalid-credential':
-    case 'auth/wrong-password':
-      return { message: 'Nieprawidłowe dane logowania. Sprawdź identyfikator i hasło.', level: 'error' };
-    case 'auth/too-many-requests':
-      return { message: 'Dostęp tymczasowo zablokowany. Spróbuj ponownie później.', level: 'info' };
-    case 'auth/email-already-in-use':
-      return { message: 'Ten e‑mail jest już używany.', level: 'error' };
-    case 'auth/weak-password':
-      return { message: 'Hasło jest zbyt słabe. Użyj min. 6 znaków, w tym cyfry i litery.', level: 'error' };
-    case 'auth/invalid-email':
-      return { message: 'Podany adres e‑mail jest nieprawidłowy.', level: 'error' };
-    case 'auth/invalid-phone-number':
-      return { message: 'Nieprawidłowy format numeru telefonu.', level: 'error' };
-    case 'auth/invalid-verification-code':
-      return { message: 'Nieprawidłowy kod weryfikacyjny.', level: 'error' };
-    case 'auth/account-exists-with-different-credential':
-      return { message: 'Konto istnieje z innym sposobem logowania.', level: 'info' };
-    case 'auth/requires-recent-login':
-      return { message: 'Operacja wymaga ponownego logowania.', level: 'error' };
-    default:
-      return { message: 'Wystąpił nieoczekiwany błąd. Spróbuj ponownie.', level: 'error' };
-  }
+    const c = (code || '').toLowerCase();
+    switch (c) {
+        case 'auth/invalid-credential':
+        case 'auth/wrong-password':
+            return { message: 'Nieprawidłowe dane logowania. Sprawdź identyfikator i hasło.', level: 'error' };
+        case 'auth/too-many-requests':
+            return { message: 'Dostęp tymczasowo zablokowany. Spróbuj ponownie później.', level: 'info' };
+        case 'auth/email-already-in-use':
+            return { message: 'Ten e‑mail jest już używany.', level: 'error' };
+        case 'auth/weak-password':
+            return { message: 'Hasło jest zbyt słabe. Użyj min. 6 znaków, w tym cyfry i litery.', level: 'error' };
+        case 'auth/invalid-email':
+            return { message: 'Podany adres e‑mail jest nieprawidłowy.', level: 'error' };
+        case 'auth/invalid-phone-number':
+            return { message: 'Nieprawidłowy format numeru telefonu.', level: 'error' };
+        case 'auth/invalid-verification-code':
+            return { message: 'Nieprawidłowy kod weryfikacyjny.', level: 'error' };
+        case 'auth/account-exists-with-different-credential':
+            return { message: 'Konto istnieje z innym sposobem logowania.', level: 'info' };
+        case 'auth/requires-recent-login':
+            return { message: 'Operacja wymaga ponownego logowania.', level: 'error' };
+        default:
+            return { message: 'Wystąpił nieoczekiwany błąd. Spróbuj ponownie.', level: 'error' };
+    }
 }
 
 export const createNewUserInFirestore = async (user: FirebaseAuthTypes.User, displayName: string) => {
     const finalNickname = displayName.trim() || user.email?.split('@')[0] || 'Nowy Użytkownik';
     const userRef = doc(db, "users", user.uid);
-    
+
     // Sprawdź czy użytkownik już istnieje
     const userDoc = await getDoc(userRef);
-    
+
     if (userDoc.exists()) {
         // Jeśli użytkownik już istnieje, zaktualizuj tylko nickname i email (jeśli potrzeba)
         const userData = userDoc.data();
         const updateData: any = {};
-        
+
         if (finalNickname !== userData.nickname) {
             updateData.nickname = finalNickname;
         }
-        
+
         if (user.email && user.email !== userData.email) {
             updateData.email = user.email;
             updateData.emailLower = user.email.toLowerCase();
@@ -59,18 +58,18 @@ export const createNewUserInFirestore = async (user: FirebaseAuthTypes.User, dis
                 google: providers.includes('google.com'),
                 phone: !!user.phoneNumber,
             };
-        } catch {}
-        
+        } catch { }
+
         // Zaktualizuj tylko jeśli są zmiany
         if (Object.keys(updateData).length > 0) {
             await setDoc(userRef as any, updateData, { merge: true });
         }
         return;
     }
-    
+
     // Jeśli użytkownik nie istnieje, utwórz nowy
     const batch = writeBatch(db);
-    
+
     batch.set(userRef, {
         // Dla kont telefonicznych nie ustawiamy e‑maila; dla kont e‑mail zapisujemy email + emailLower
         ...(user.email ? { email: user.email, emailLower: (user.email || '').toLowerCase() } : {}),
@@ -137,20 +136,20 @@ export const upsertAuthProvidersForUser = async (user: FirebaseAuthTypes.User) =
         // Sync public profile
         const publicRef = doc(collection(db, 'publicUsers'), user.uid);
         const pubUpdate: any = {
-          nickname: (user.displayName || null),
-          photoURL: user.photoURL || null,
-          emailLower: user.email ? user.email.toLowerCase() : null,
-          hasGoogle: (user.providerData || []).some(p => p?.providerId === 'google.com'),
-          hasPassword: (user.providerData || []).some(p => p?.providerId === 'password'),
+            nickname: (user.displayName || null),
+            photoURL: user.photoURL || null,
+            emailLower: user.email ? user.email.toLowerCase() : null,
+            hasGoogle: (user.providerData || []).some(p => p?.providerId === 'google.com'),
+            hasPassword: (user.providerData || []).some(p => p?.providerId === 'password'),
         };
         await setDoc(publicRef as any, pubUpdate, { merge: true });
-    } catch {}
+    } catch { }
 };
 
 export const findUserEmailByIdentifier = async (identifier: string): Promise<string | null> => {
     const usersRef = collection(db, 'users');
     const cleanIdentifier = identifier.trim();
-    
+
     // Sprawdzenie, czy identyfikator jest adresem e-mail
     if (/\S+@\S+\.\S+/.test(cleanIdentifier)) {
         // Logika dla e-maila - można dodać zapytanie sprawdzające, czy e-mail istnieje
@@ -161,27 +160,27 @@ export const findUserEmailByIdentifier = async (identifier: string): Promise<str
     // Sprawdzenie, czy identyfikator jest numerem telefonu
     // Usuwamy wszystkie znaki, które nie są cyframi
     const numericOnly = cleanIdentifier.replace(/\D/g, '');
-    
+
     if (numericOnly.length === 0) {
         return null;
     }
-    
+
     // Możliwe formaty do sprawdzenia:
     const possibleFormats = [
         cleanIdentifier, // Dokładnie jak wprowadzono
         `+${numericOnly}`, // Z prefiksem +
         numericOnly, // Tylko cyfry
     ];
-    
+
     // Jeśli numer zaczyna się od cyfry (nie +), sprawdź też z kodem kraju
     if (/^\d/.test(cleanIdentifier) && numericOnly.length === 9) {
         // Dla polskich numerów (9 cyfr) dodaj +48
         possibleFormats.push(`+48${numericOnly}`);
     }
-    
+
     // Usuń duplikaty
     const uniqueFormats = [...new Set(possibleFormats)];
-    
+
     // Sprawdź każdy możliwy format
     for (const format of uniqueFormats) {
         try {
@@ -208,7 +207,7 @@ export const findUserEmailByIdentifier = async (identifier: string): Promise<str
         const canonical = `+${numericOnly}`;
         return `${canonical}@dailyflow.app`;
     }
-    
+
     return null;
 };
 
@@ -216,24 +215,24 @@ export const findUserEmailByIdentifier = async (identifier: string): Promise<str
 export const checkIfPhoneExists = async (phoneNumber: string): Promise<boolean> => {
     const usersRef = collection(db, 'users');
     const cleanPhoneNumber = phoneNumber.trim();
-    
+
     // Usuwamy wszystkie znaki, które nie są cyframi
     const numericOnly = cleanPhoneNumber.replace(/\D/g, '');
-    
+
     if (numericOnly.length === 0) {
         return false;
     }
-    
+
     // Możliwe formaty do sprawdzenia - bardziej precyzyjne
     const possibleFormats = [
         cleanPhoneNumber, // Dokładnie jak wprowadzono (np. +48123456789)
     ];
-    
+
     // Jeśli numer ma prefiks kraju (np. +48), sprawdź też bez prefiksu
     if (cleanPhoneNumber.startsWith('+')) {
         const withoutPrefix = cleanPhoneNumber.substring(1); // Usuń +
         possibleFormats.push(withoutPrefix);
-        
+
         // Dla polskich numerów sprawdź też z prefiksem +48
         if (cleanPhoneNumber.startsWith('+48') && numericOnly.length === 11) {
             const polishNumber = numericOnly.substring(2); // Usuń 48
@@ -242,18 +241,18 @@ export const checkIfPhoneExists = async (phoneNumber: string): Promise<boolean> 
     } else {
         // Jeśli numer nie ma prefiksu, sprawdź z prefiksem
         possibleFormats.push(`+${numericOnly}`);
-        
+
         // Dla polskich numerów (9 cyfr) dodaj +48
         if (numericOnly.length === 9) {
             possibleFormats.push(`+48${numericOnly}`);
         }
     }
-    
+
     // Usuń duplikaty
     const uniqueFormats = [...new Set(possibleFormats)];
-    
+
     // Debug logi usunięte w produkcji
-    
+
     // Sprawdź każdy możliwy format
     for (const format of uniqueFormats) {
         try {
@@ -266,7 +265,7 @@ export const checkIfPhoneExists = async (phoneNumber: string): Promise<boolean> 
             // Brak uprawnień lub offline – traktuj jako brak wyniku
         }
     }
-    
+
     return false;
 };
 
@@ -293,22 +292,23 @@ export const isPasswordResetInProgress = () => passwordResetInProgress;
 // Suggested login identifier persistence (to prefill login after flows)
 const SUGGESTED_LOGIN_KEY = 'dailyflow_suggested_login_identifier';
 export const setSuggestedLoginIdentifier = async (identifier: string) => {
-  try { await AsyncStorage.setItem(SUGGESTED_LOGIN_KEY, identifier); } catch {}
+    try { await AsyncStorage.setItem(SUGGESTED_LOGIN_KEY, identifier); } catch { }
 };
 export const popSuggestedLoginIdentifier = async (): Promise<string | null> => {
-  try {
-    const v = await AsyncStorage.getItem(SUGGESTED_LOGIN_KEY);
-    await AsyncStorage.removeItem(SUGGESTED_LOGIN_KEY);
-    return v;
-  } catch { return null; }
+    try {
+        const v = await AsyncStorage.getItem(SUGGESTED_LOGIN_KEY);
+        await AsyncStorage.removeItem(SUGGESTED_LOGIN_KEY);
+        return v;
+    } catch { return null; }
 };
 
 // Simple onboarding completion flag (first run helper)
 const ONBOARD_FLAG_KEY = 'dailyflow_onboarding_done';
 export const isOnboardingDone = async (): Promise<boolean> => {
-  try { return (await AsyncStorage.getItem(ONBOARD_FLAG_KEY)) === '1'; } catch { return false; }
+    try { return (await AsyncStorage.getItem(ONBOARD_FLAG_KEY)) === '1'; } catch { return false; }
 };
 export const setOnboardingDone = async (): Promise<void> => {
-  try { await AsyncStorage.setItem(ONBOARD_FLAG_KEY, '1'); } catch {}
+    try { await AsyncStorage.setItem(ONBOARD_FLAG_KEY, '1'); } catch { }
 };
+
 

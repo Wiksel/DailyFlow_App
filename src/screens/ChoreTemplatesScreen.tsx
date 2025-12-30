@@ -4,7 +4,7 @@ import LabeledInput from '../components/LabeledInput';
 import ActionModal from '../components/ActionModal';
 import { useRoute, RouteProp } from '@react-navigation/native';
 import { getAuth } from '@react-native-firebase/auth'; // ZMIANA
-import { db } from '../../firebaseConfig'; // <--- TEN IMPORT ZOSTAJE
+import { db } from '../utils/firestoreCompat'; // <--- TEN IMPORT ZOSTAJE
 import { collection, query, where, onSnapshot, addDoc, deleteDoc, doc, updateDoc } from '../utils/firestoreCompat';
 import { enqueueAdd, enqueueUpdate, enqueueDelete } from '../utils/offlineQueue';
 import Slider from '@react-native-community/slider';

@@ -4,7 +4,7 @@ import LabeledInput from '../components/LabeledInput';
 import { getAuth } from '@react-native-firebase/auth';
 import { collection, query, where, onSnapshot, addDoc, doc, updateDoc, deleteDoc, Timestamp } from '../utils/firestoreCompat';
 import { enqueueAdd, enqueueDelete } from '../utils/offlineQueue';
-import { db } from '../../firebaseConfig';
+import { db } from '../utils/firestoreCompat';
 import { Colors, GlobalStyles, Spacing, Typography } from '../styles/AppStyles';
 import Animated, { FadeInUp, Layout } from 'react-native-reanimated';
 import { useTheme } from '../contexts/ThemeContext';
@@ -157,5 +157,6 @@ const styles = StyleSheet.create({
 });
 
 export default RecurringSeriesScreen;
+
 
 

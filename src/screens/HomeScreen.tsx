@@ -4,9 +4,8 @@ import * as Haptics from 'expo-haptics';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Swipeable } from 'react-native-gesture-handler';
 import { useNavigation } from '@react-navigation/native';
-import { getAuth } from '@react-native-firebase/auth';
-import { doc, getDoc, onSnapshot, Timestamp } from '../utils/firestoreCompat';
-import { db } from '../../firebaseConfig';
+import { getAuth } from '../utils/authCompat';
+import { doc, getDoc, onSnapshot, collection, query, where, orderBy, limit, getDocs, Timestamp, db } from '../utils/firestoreCompat';
 import { Feather } from '@expo/vector-icons';
 import { TaskStackNavigationProp } from '../types/navigation';
 import { Task, UserProfile, ChoreTemplate, Category } from '../types';
@@ -107,8 +106,8 @@ const HomeScreen = () => {
         if (!currentUser) return;
         import('../utils/firestoreCompat').then(({ query, collection, where }) => {
             const q = query(collection(db, 'choreTemplates'), where("userId", "==", currentUser.uid));
-            const unsubscribe = onSnapshot(q, (snapshot) => {
-                setTemplates(snapshot.docs.map(doc => ({ ...doc.data(), id: doc.id } as ChoreTemplate)));
+            const unsubscribe = onSnapshot(q, (snapshot: any) => {
+                setTemplates(snapshot.docs.map((doc: any) => ({ ...doc.data(), id: doc.id } as ChoreTemplate)));
             });
             return () => unsubscribe();
         });
@@ -1168,7 +1167,7 @@ const UndoLastDeleted = () => {
             <Text style={{ color: theme.colors.textPrimary, flex: 1 }} numberOfLines={1}>Cofnij usunięcie: {String(payload?.text || '')}</Text>
             <TouchableOpacity onPress={async () => {
                 try {
-                    const { db } = await import('../../firebaseConfig');
+                    const { db } = await import('../utils/firestoreCompat');
                     const { collection, addDoc } = await import('../utils/firestoreCompat');
                     await addDoc(collection(db as any, 'tasks'), payload);
                 } catch { }

@@ -1,7 +1,7 @@
 import React, { createContext, useContext, useState, ReactNode, useEffect, useRef } from 'react';
 import { collection, query, where, onSnapshot } from '../utils/firestoreCompat';
 import auth from '@react-native-firebase/auth';
-import { db } from '../../firebaseConfig';
+import { db } from '../utils/firestoreCompat';
 import { Category } from '../types';
 
 interface CategoryContextData {
@@ -44,8 +44,15 @@ export const CategoryProvider = ({ children }: CategoryProviderProps) => {
                 const q = query(categoriesRef, where('userId', '==', firebaseUser.uid));
                 categoriesUnsubscribeRef.current = onSnapshot(
                     q,
-                    (snapshot) => {
-                        const categoriesData = snapshot.docs.map((doc) => ({ ...doc.data(), id: doc.id } as Category));
+                    (snapshot: any) => {
+                        console.log("CategoryContext snapshot:", snapshot);
+                        if (!snapshot || !snapshot.docs) {
+                            console.error("CategoryContext: snapshot or snapshot.docs is undefined!");
+                            setCategories([]);
+                            setLoading(false);
+                            return;
+                        }
+                        const categoriesData = snapshot.docs.map((doc: any) => ({ ...doc.data(), id: doc.id } as Category));
                         setCategories(categoriesData);
                         setLoading(false);
                     },
