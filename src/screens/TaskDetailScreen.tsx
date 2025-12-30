@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Platform, ActivityIndicator, Alert, FlatList, TextInput } from 'react-native';
 import { useRoute, useNavigation } from '@react-navigation/native';
 import { doc, getDoc, updateDoc, Timestamp, collection, query, where, getDocs, addDoc, onSnapshot, orderBy, QuerySnapshotCompat } from '../utils/firestoreCompat';
-import { getAuth } from '@react-native-firebase/auth';
+import { getAuth } from '../utils/authCompat';
 import { db } from '../utils/firestoreCompat';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { DateTimePickerEvent } from '@react-native-community/datetimepicker';

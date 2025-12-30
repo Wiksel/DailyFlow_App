@@ -1,7 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { View, Text, Modal, StyleSheet, TextInput, TouchableOpacity, ActivityIndicator, Keyboard } from 'react-native';
-import auth, { getAuth } from '@react-native-firebase/auth';
-import type { FirebaseAuthTypes } from '@react-native-firebase/auth';
+import auth, { getAuth, FirebaseAuthTypes } from '../utils/authCompat';
 import { Country } from 'react-native-country-picker-modal';
 import { findUserEmailByIdentifier, setPasswordResetInProgress, mapFirebaseAuthErrorToMessage } from '../utils/authUtils';
 import { Colors, Spacing, Typography, GlobalStyles } from '../styles/AppStyles';
@@ -26,7 +25,7 @@ const PhonePasswordResetModal = ({ visible, onClose, onSuccess }: PhonePasswordR
   const [step, setStep] = useState<ResetStep>('enter-phone');
   const [isLoading, setIsLoading] = useState(false);
   const { showToast } = useToast();
-  
+
   const [country, setCountry] = useState<Country>({
     cca2: 'PL',
     currency: ['PLN'],
@@ -46,7 +45,7 @@ const PhonePasswordResetModal = ({ visible, onClose, onSuccess }: PhonePasswordR
   const [isResending, setIsResending] = useState(false);
   const verificationIdRef = useRef<string | null>(null);
   const [userEmail, setUserEmail] = useState<string | null>(null);
-  
+
   const showCustomToast = useToast().showToast;
 
   const resetState = () => {
@@ -99,10 +98,10 @@ const PhonePasswordResetModal = ({ visible, onClose, onSuccess }: PhonePasswordR
       showCustomToast('Proszę podać poprawny 9-cyfrowy numer telefonu.', 'error');
       return;
     }
-    
+
     if (isResend) { setIsResending(true); } else { setIsLoading(true); }
     const fullPhoneNumber = buildE164(country.callingCode[0], phoneNumber);
-    
+
     try {
       setPasswordResetInProgress(true);
       // Sprawdź czy użytkownik istnieje
@@ -112,9 +111,9 @@ const PhonePasswordResetModal = ({ visible, onClose, onSuccess }: PhonePasswordR
         setIsLoading(false);
         return;
       }
-      
+
       setUserEmail(email);
-      
+
       // Wyślij kod SMS z timeoutem
       const confirmationResult = await Promise.race([
         auth().signInWithPhoneNumber(fullPhoneNumber),
@@ -144,7 +143,7 @@ const PhonePasswordResetModal = ({ visible, onClose, onSuccess }: PhonePasswordR
     const fullPhoneNumber = buildE164(country.callingCode[0], phoneNumber);
     setIsResending(true);
     try {
-      try { await getAuth().signOut(); } catch {}
+      try { await getAuth().signOut(); } catch { }
       await new Promise(r => setTimeout(r, 300));
       const confirmationResult = await Promise.race([
         auth().signInWithPhoneNumber(fullPhoneNumber),
@@ -171,7 +170,7 @@ const PhonePasswordResetModal = ({ visible, onClose, onSuccess }: PhonePasswordR
   const confirmCode = async () => {
     if (isLoading) return;
     Keyboard.dismiss();
-    
+
     if (code.length !== 6) {
       showCustomToast('Kod musi mieć 6 cyfr.', 'error');
       return;
@@ -222,7 +221,7 @@ const PhonePasswordResetModal = ({ visible, onClose, onSuccess }: PhonePasswordR
         onSuccess();
       }
       // Po zmianie hasła wracamy do ekranu logowania
-      try { await getAuth().signOut(); } catch {}
+      try { await getAuth().signOut(); } catch { }
     } catch (error: any) {
       showCustomToast('Błąd resetowania hasła. Spróbuj ponownie.', 'error');
     } finally {
@@ -232,7 +231,7 @@ const PhonePasswordResetModal = ({ visible, onClose, onSuccess }: PhonePasswordR
   };
 
   const isPasswordFormValid = isStrongPassword(newPassword);
-  
+
   const renderStep = () => {
     switch (step) {
       case 'enter-phone':
@@ -261,16 +260,16 @@ const PhonePasswordResetModal = ({ visible, onClose, onSuccess }: PhonePasswordR
           <>
             <Text style={styles.modalTitle}>Wpisz kod weryfikacyjny</Text>
             <Text style={styles.modalSubtitle}>{`Wysłaliśmy 6-cyfrowy kod\nna numer +${country.callingCode[0]} ${formattedPhoneNumber}.`}</Text>
-            <TextInput 
-              style={[GlobalStyles.input, { textAlign: 'center', letterSpacing: 8, color: theme.colors.textPrimary, backgroundColor: theme.colors.inputBackground }]} 
-              placeholder="000000" 
+            <TextInput
+              style={[GlobalStyles.input, { textAlign: 'center', letterSpacing: 8, color: theme.colors.textPrimary, backgroundColor: theme.colors.inputBackground }]}
+              placeholder="000000"
               placeholderTextColor={theme.colors.placeholder}
-              keyboardType="number-pad" 
-              value={code} 
-              onChangeText={setCode} 
-              maxLength={6} 
-              onSubmitEditing={confirmCode} 
-              blurOnSubmit={true} 
+              keyboardType="number-pad"
+              value={code}
+              onChangeText={setCode}
+              maxLength={6}
+              onSubmitEditing={confirmCode}
+              blurOnSubmit={true}
               accessibilityLabel="Kod weryfikacyjny"
             />
             <TouchableOpacity style={[GlobalStyles.button, { marginTop: Spacing.small }]} onPress={confirmCode} disabled={isLoading}>
@@ -295,16 +294,16 @@ const PhonePasswordResetModal = ({ visible, onClose, onSuccess }: PhonePasswordR
               value={newPassword}
               onChangeText={(val) => {
                 setNewPassword(val);
-                if(passwordError) validatePassword(val);
+                if (passwordError) validatePassword(val);
               }}
               onBlur={() => validatePassword(newPassword)}
               containerStyle={[passwordError ? styles.inputError : {}, { backgroundColor: theme.colors.inputBackground, borderColor: theme.colors.border }]}
               placeholder="Nowe hasło (min. 6, litera, cyfra)"
             />
             {!!passwordError && <Text style={styles.errorText}>{passwordError}</Text>}
-            <TouchableOpacity 
-              style={[GlobalStyles.button, { marginTop: Spacing.medium }, (isLoading || !isPasswordFormValid) && GlobalStyles.disabledButton]} 
-              onPress={resetPassword} 
+            <TouchableOpacity
+              style={[GlobalStyles.button, { marginTop: Spacing.medium }, (isLoading || !isPasswordFormValid) && GlobalStyles.disabledButton]}
+              onPress={resetPassword}
               disabled={isLoading || !isPasswordFormValid}
             >
               <Text style={[GlobalStyles.buttonText, isLoading && styles.buttonTextHidden]}>Zmień hasło</Text>
@@ -317,10 +316,10 @@ const PhonePasswordResetModal = ({ visible, onClose, onSuccess }: PhonePasswordR
 
   return (
     <Modal visible={visible} transparent={true} animationType="fade" onRequestClose={handleClose}>
-      <View style={[styles.modalContainer, { backgroundColor: 'rgba(0,0,0,0.75)' }]}> 
+      <View style={[styles.modalContainer, { backgroundColor: 'rgba(0,0,0,0.75)' }]}>
         {/* Wyłącz globalny overlay na czas wyświetlania modala */}
         <ToastOverlaySuppressor />
-        <View style={[styles.modalContent, { backgroundColor: theme.colors.card, borderColor: theme.colors.border, borderWidth: 1 }]}> 
+        <View style={[styles.modalContent, { backgroundColor: theme.colors.card, borderColor: theme.colors.border, borderWidth: 1 }]}>
           <TouchableOpacity style={styles.closeButton} onPress={handleClose}>
             <Text style={[styles.closeButtonText, { color: theme.colors.textSecondary }]}>Anuluj</Text>
           </TouchableOpacity>
@@ -345,7 +344,7 @@ const styles = StyleSheet.create({
   errorText: { color: Colors.danger, alignSelf: 'flex-start', width: '100%', marginLeft: Spacing.small, marginTop: Spacing.xSmall, marginBottom: Spacing.small, },
   buttonTextHidden: { opacity: 0, },
   activityIndicator: { position: 'absolute', },
-  
+
 });
 
 export default PhonePasswordResetModal; 

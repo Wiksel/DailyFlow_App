@@ -3,7 +3,7 @@ import { View, Text, StyleSheet, FlatList, TextInput, TouchableOpacity, Activity
 import LabeledInput from '../components/LabeledInput';
 import ActionModal from '../components/ActionModal';
 import { useRoute, RouteProp } from '@react-navigation/native';
-import { getAuth } from '@react-native-firebase/auth'; // ZMIANA
+import { getAuth } from '../utils/authCompat'; // ZMIANA
 import { db } from '../utils/firestoreCompat'; // <--- TEN IMPORT ZOSTAJE
 import { collection, query, where, onSnapshot, addDoc, deleteDoc, doc, updateDoc, QuerySnapshotCompat } from '../utils/firestoreCompat';
 import { enqueueAdd, enqueueUpdate, enqueueDelete } from '../utils/offlineQueue';

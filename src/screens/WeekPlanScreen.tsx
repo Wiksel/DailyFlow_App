@@ -6,7 +6,7 @@ import { updateDoc, doc as fsDoc, Timestamp } from '../utils/firestoreCompat';
 import { useTheme } from '../contexts/ThemeContext';
 import { useToast } from '../contexts/ToastContext';
 import { doc, onSnapshot, collection, query, where, getDocs, QuerySnapshotCompat } from '../utils/firestoreCompat';
-import { getAuth } from '@react-native-firebase/auth';
+import { getAuth } from '../utils/authCompat';
 import { db } from '../utils/firestoreCompat';
 import { Colors, GlobalStyles, Spacing, Typography } from '../styles/AppStyles';
 import AppHeader from '../components/AppHeader';

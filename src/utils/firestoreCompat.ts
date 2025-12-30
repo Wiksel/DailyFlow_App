@@ -1,49 +1,25 @@
-import { MockFirestore } from './mockFirebase';
-import { FirebaseFirestoreTypes } from '@react-native-firebase/firestore'; // Keep this import for types
-
-let firestoreModule: any;
-// firestoreTypes is not directly used in the new code, so it can be removed or kept as 'any' if needed for other types.
-// For now, let's assume FirebaseFirestoreTypes from the import above is sufficient for type definitions.
-
-try {
-  // Try to require the native module
-  firestoreModule = require('@react-native-firebase/firestore').default;
-  // We can't easily require types at runtime in the same way, but we can assume they exist if the module exists.
-  // For types, we'll just use 'any' or cast where needed to avoid crashes.
-} catch (e) {
-  console.log('Native Firestore not found, using Mock implementation.');
-  firestoreModule = (() => MockFirestore) as any;
-}
+import firestore, { FirebaseFirestoreTypes } from '@react-native-firebase/firestore';
 
 // Export a wrapper that checks if we are running in mock mode
 export const getFirestore = () => {
-  try {
-    // If firestoreModule is the actual native module, it needs to be called to get the instance.
-    // If it's the mock, MockFirestore is already the instance.
-    if (firestoreModule === MockFirestore) { // Check if it's the mock directly
-      return MockFirestore;
-    }
-    return firestoreModule(); // Call the native module function
-  } catch {
-    return MockFirestore;
-  }
+  return firestore();
 };
 
 // Timestamp & FieldValue helpers
-export const Timestamp = firestoreModule?.Timestamp || MockFirestore.Timestamp;
+export const Timestamp = firestore.Timestamp;
 export type Timestamp = FirebaseFirestoreTypes.Timestamp;
-export const increment = (n: number) => (firestoreModule?.FieldValue || MockFirestore.FieldValue).increment(n);
-export const deleteField = () => (firestoreModule?.FieldValue || MockFirestore.FieldValue).delete();
+export const increment = (n: number) => firestore.FieldValue.increment(n);
+export const deleteField = () => firestore.FieldValue.delete();
 
 export const db = getFirestore();
 
 // Compat types
-export type CompatCollectionRef = any;
-export type CompatDocRef = any;
-export type CompatQuery = any;
-export type WhereFilterOp = string;
+export type CompatCollectionRef = FirebaseFirestoreTypes.CollectionReference;
+export type CompatDocRef = FirebaseFirestoreTypes.DocumentReference;
+export type CompatQuery = FirebaseFirestoreTypes.Query;
+export type WhereFilterOp = FirebaseFirestoreTypes.WhereFilterOp;
 export type OrderByDirection = 'asc' | 'desc';
-export type QueryConstraint = any;
+export type QueryConstraint = (query: CompatQuery) => CompatQuery;
 
 export function collection(_db: unknown, ...segments: string[]): CompatCollectionRef {
   const path = segments.join('/');

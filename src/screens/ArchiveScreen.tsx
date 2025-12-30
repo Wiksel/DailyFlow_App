@@ -1,12 +1,12 @@
 // src/screens/ArchiveScreen.tsx
-import React, { useState, useEffect, useMemo, useRef } from 'react';
+import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import { View, Text, StyleSheet, FlatList, ActivityIndicator, TouchableOpacity, TextInput, ScrollView, Platform, Dimensions, Pressable } from 'react-native';
 import * as Haptics from 'expo-haptics';
 import * as FileSystem from 'expo-file-system';
 import * as DocumentPicker from 'expo-document-picker';
 import ActionModal from '../components/ActionModal';
 import { useToast } from '../contexts/ToastContext';
-import { getAuth } from '@react-native-firebase/auth';
+import { getAuth } from '../utils/authCompat';
 import { db } from '../utils/firestoreCompat'; // <--- TEN IMPORT ZOSTAJE
 import { collection, query, where, onSnapshot, orderBy, doc, updateDoc, deleteDoc, getDoc, addDoc, Timestamp, QuerySnapshotCompat } from '../utils/firestoreCompat';
 import { enqueueAdd, enqueueUpdate, enqueueDelete } from '../utils/offlineQueue';
@@ -28,6 +28,72 @@ import { toCsv, fromCsv } from '../utils/csv';
 import Animated, { FadeInUp, Layout, useSharedValue, useAnimatedStyle, withSpring } from 'react-native-reanimated';
 import AnimatedIconButton from '../components/AnimatedIconButton';
 import { useUI } from '../contexts/UIContext';
+
+const ArchivedTaskItem = React.memo(({
+    item,
+    categories,
+    userProfile,
+    theme,
+    isCompact,
+    onRestore,
+    onDelete
+}: {
+    item: Task;
+    categories: Category[];
+    userProfile: UserProfile | null;
+    theme: any;
+    isCompact: boolean;
+    onRestore: (id: string) => void;
+    onDelete: (id: string) => void;
+}) => {
+    const category = categories.find((c: Category) => c.id === item.category);
+    const isCompletedByCurrentUser = item.completedBy === userProfile?.nickname;
+    const isCreatedByCurrentUser = item.creatorNickname === userProfile?.nickname;
+
+    let sharedWithInfo = '';
+    if (item.isShared && userProfile?.pairId) {
+        if (item.completedBy && !isCompletedByCurrentUser) {
+            sharedWithInfo = `Ukończone przez: ${item.completedBy}`;
+        }
+        else if (item.creatorNickname && !isCreatedByCurrentUser) {
+            sharedWithInfo = `Utworzone przez: ${item.creatorNickname}`;
+        }
+    }
+
+    const scale = useSharedValue(1);
+    const animatedStyle = useAnimatedStyle(() => ({ transform: [{ scale: scale.value }] }));
+
+    return (
+        <Animated.View style={[
+            styles.taskContainer,
+            isCompact && { paddingVertical: Spacing.small, paddingHorizontal: Spacing.medium },
+            { backgroundColor: theme.colors.card, borderColor: theme.colors.border },
+            GlobalStyles.rowPress,
+            animatedStyle
+        ]}>
+            <View style={styles.taskContent}>
+                <Text style={[styles.taskTitle, { color: theme.colors.textPrimary }, isCompact && { fontSize: densityScale(Typography.body.fontSize + 1, true) }]}>{item.text}</Text>
+                {!!item.description && <Text style={[styles.taskDescription, { color: theme.colors.textSecondary }]}>{item.description}</Text>}
+
+                <View style={styles.taskMetaContainer}>
+                    {category && <View style={[styles.categoryTag, { backgroundColor: category.color }]}><Text style={styles.categoryTagText}>{category.name}</Text></View>}
+                    {item.isShared && <Text style={[styles.creatorText, { color: theme.colors.textSecondary }]}>od: {item.creatorNickname}</Text>}
+
+                    {sharedWithInfo ? <Text style={styles.sharedInfoText}>{sharedWithInfo}</Text> : null}
+                </View>
+                {item.completedBy && item.completedAt && (
+                    <Text style={[styles.completedText, { color: theme.colors.textSecondary }]}>
+                        Wykonane przez: {item.completedBy} dnia {item.completedAt?.toDate ? item.completedAt.toDate().toLocaleDateString('pl-PL') : ''}
+                    </Text>
+                )}
+            </View>
+            <View style={styles.actionsContainer}>
+                <AnimatedIconButton icon="refresh-ccw" size={22} color={theme.colors.primary} onPress={async () => { try { await Haptics.selectionAsync(); } catch { }; await onRestore(item.id); }} style={styles.actionButton as any} accessibilityLabel="Przywróć zadanie" />
+                <AnimatedIconButton icon="trash-2" size={22} color={theme.colors.danger} onPress={async () => { try { await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning); } catch { }; onDelete(item.id); }} style={[styles.actionButton as any, { marginLeft: Spacing.medium }]} accessibilityLabel="Usuń na stałe" />
+            </View>
+        </Animated.View>
+    );
+});
 
 const ArchiveScreen = () => {
     const [rawArchivedTasks, setRawArchivedTasks] = useState<Task[]>([]);
@@ -256,62 +322,15 @@ const ArchiveScreen = () => {
 
     }, [rawArchivedTasks, searchQuery, filterCompletedFromDate, filterCompletedToDate, activeCategoryArchive, archivedTaskType, selectedPartnerId, partnerNicknames, userProfile, currentUser]);
 
-    const handleRestoreTask = async (taskId: string) => {
+    const handleRestoreTask = useCallback(async (taskId: string) => {
         const payload = { status: 'active', completed: false, completedAt: null, completedBy: null };
         try { await updateDoc(doc(db, 'tasks', taskId), payload); }
         catch { await enqueueUpdate(`tasks/${taskId}`, payload); }
-    };
+    }, []);
 
-    const handlePermanentDelete = (taskId: string) => setConfirmDeleteTaskId(taskId);
+    const handlePermanentDelete = useCallback((taskId: string) => setConfirmDeleteTaskId(taskId), []);
 
-    const renderArchivedTask = ({ item }: { item: Task }) => {
-        const category = categories.find((c: Category) => c.id === item.category);
-        const isCompletedByCurrentUser = item.completedBy === userProfile?.nickname;
-        const isCreatedByCurrentUser = item.creatorNickname === userProfile?.nickname;
 
-        let sharedWithInfo = '';
-        if (item.isShared && userProfile?.pairId) {
-            if (item.completedBy && !isCompletedByCurrentUser) {
-                sharedWithInfo = `Ukończone przez: ${item.completedBy}`;
-            }
-            else if (item.creatorNickname && !isCreatedByCurrentUser) {
-                sharedWithInfo = `Utworzone przez: ${item.creatorNickname}`;
-            }
-        }
-
-        const scale = useSharedValue(1);
-        const animatedStyle = useAnimatedStyle(() => ({ transform: [{ scale: scale.value }] }));
-        return (
-            <Animated.View style={[
-                styles.taskContainer,
-                isCompact && { paddingVertical: Spacing.small, paddingHorizontal: Spacing.medium },
-                { backgroundColor: theme.colors.card, borderColor: theme.colors.border },
-                GlobalStyles.rowPress,
-                animatedStyle
-            ]}>
-                <View style={styles.taskContent}>
-                    <Text style={[styles.taskTitle, { color: theme.colors.textPrimary }, isCompact && { fontSize: densityScale(Typography.body.fontSize + 1, true) }]}>{item.text}</Text>
-                    {!!item.description && <Text style={[styles.taskDescription, { color: theme.colors.textSecondary }]}>{item.description}</Text>}
-
-                    <View style={styles.taskMetaContainer}>
-                        {category && <View style={[styles.categoryTag, { backgroundColor: category.color }]}><Text style={styles.categoryTagText}>{category.name}</Text></View>}
-                        {item.isShared && <Text style={[styles.creatorText, { color: theme.colors.textSecondary }]}>od: {item.creatorNickname}</Text>}
-
-                        {sharedWithInfo ? <Text style={styles.sharedInfoText}>{sharedWithInfo}</Text> : null}
-                    </View>
-                    {item.completedBy && item.completedAt && (
-                        <Text style={[styles.completedText, { color: theme.colors.textSecondary }]}>
-                            Wykonane przez: {item.completedBy} dnia {item.completedAt?.toDate ? item.completedAt.toDate().toLocaleDateString('pl-PL') : ''}
-                        </Text>
-                    )}
-                </View>
-                <View style={styles.actionsContainer}>
-                    <AnimatedIconButton icon="refresh-ccw" size={22} color={theme.colors.primary} onPress={async () => { try { await Haptics.selectionAsync(); } catch { }; await handleRestoreTask(item.id); }} style={styles.actionButton as any} accessibilityLabel="Przywróć zadanie" />
-                    <AnimatedIconButton icon="trash-2" size={22} color={theme.colors.danger} onPress={async () => { try { await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning); } catch { }; handlePermanentDelete(item.id); }} style={[styles.actionButton as any, { marginLeft: Spacing.medium }]} accessibilityLabel="Usuń na stałe" />
-                </View>
-            </Animated.View>
-        );
-    };
 
     return (
         <View style={[GlobalStyles.container, { backgroundColor: theme.colors.background }]}>
@@ -497,8 +516,16 @@ const ArchiveScreen = () => {
             <Animated.FlatList
                 style={styles.list}
                 data={processedAndSortedArchivedTasks}
-                renderItem={(args) => (
-                    <Animated.View layout={Layout.springify()}>{renderArchivedTask(args)}</Animated.View>
+                renderItem={({ item }) => (
+                    <ArchivedTaskItem
+                        item={item}
+                        categories={categories}
+                        userProfile={userProfile}
+                        theme={theme}
+                        isCompact={isCompact}
+                        onRestore={handleRestoreTask}
+                        onDelete={handlePermanentDelete}
+                    />
                 )}
                 keyExtractor={item => item.id}
                 initialNumToRender={12}

@@ -4,7 +4,7 @@ import React, { useState } from 'react';
 import { View, Text, Modal, StyleSheet, TextInput, TouchableOpacity, ActivityIndicator } from 'react-native';
 import LabeledInput from './LabeledInput';
 import ActionModal from './ActionModal';
-import type { FirebaseAuthTypes } from '@react-native-firebase/auth';
+import type { FirebaseAuthTypes } from '../utils/authCompat';
 import { useToast } from '../contexts/ToastContext';
 import { createNewUserInFirestore } from '../utils/authUtils';
 import { Colors, Spacing, Typography, GlobalStyles } from '../styles/AppStyles';

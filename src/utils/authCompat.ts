@@ -1,70 +1,40 @@
-import { MockAuth } from './mockFirebase';
+import auth, { FirebaseAuthTypes } from '@react-native-firebase/auth';
 
-let authModule: any;
-
-try {
-    authModule = require('@react-native-firebase/auth').default;
-} catch (e) {
-    console.log('Native Auth not found, using Mock implementation.');
-    authModule = (() => MockAuth) as any;
-}
+const authModule = auth;
 
 export const getAuth = () => {
-    try {
-        if (authModule === MockAuth) return MockAuth;
-        return authModule();
-    } catch {
-        return MockAuth;
-    }
+    return auth();
 };
 
-// Export other auth functions safely
-export const signInWithEmailAndPassword = (authInstance: any, email: string, val: string) => {
-    if (authInstance === MockAuth) return MockAuth.signInWithEmailAndPassword(email, val);
-    return authModule.signInWithEmailAndPassword(authInstance, email, val);
+export const signInWithEmailAndPassword = (authInstance: FirebaseAuthTypes.Module, email: string, val: string) => {
+    return authInstance.signInWithEmailAndPassword(email, val);
 };
 
-export const createUserWithEmailAndPassword = (authInstance: any, email: string, val: string) => {
-    if (authInstance === MockAuth) return MockAuth.createUserWithEmailAndPassword(email, val);
-    return authModule.createUserWithEmailAndPassword(authInstance, email, val);
+export const createUserWithEmailAndPassword = (authInstance: FirebaseAuthTypes.Module, email: string, val: string) => {
+    return authInstance.createUserWithEmailAndPassword(email, val);
 };
 
-export const onAuthStateChanged = (authInstance: any, callback: any) => {
-    if (authInstance === MockAuth) return MockAuth.onAuthStateChanged(callback);
-    return authModule.onAuthStateChanged(authInstance, callback);
+export const onAuthStateChanged = (authInstance: FirebaseAuthTypes.Module, callback: any) => {
+    return authInstance.onAuthStateChanged(callback);
 };
 
-export const sendPasswordResetEmail = (authInstance: any, email: string) => {
-    if (authInstance === MockAuth) return Promise.resolve();
-    return authModule.sendPasswordResetEmail(authInstance, email);
+export const sendPasswordResetEmail = (authInstance: FirebaseAuthTypes.Module, email: string) => {
+    return authInstance.sendPasswordResetEmail(email);
 };
 
-export const signInWithCredential = (authInstance: any, credential: any) => {
-    if (authInstance === MockAuth) return Promise.resolve({ user: MockAuth.currentUser });
-    return authModule.signInWithCredential(authInstance, credential);
+export const signInWithCredential = (authInstance: FirebaseAuthTypes.Module, credential: any) => {
+    return authInstance.signInWithCredential(credential);
 };
 
-export const GoogleAuthProvider = {
-    credential: (token: string) => ({ token, providerId: 'google.com' })
-};
-export const EmailAuthProvider = {
-    credential: (email: string, pass: string) => ({ email, pass, providerId: 'password' })
-};
+export const GoogleAuthProvider = auth.GoogleAuthProvider;
+export const EmailAuthProvider = auth.EmailAuthProvider;
 
 const defaultAuth = () => {
     return getAuth();
 };
-// Attach statics if native module has them, or mock them
-Object.assign(defaultAuth, authModule || MockAuth);
+// Attach statics safely
+Object.assign(defaultAuth, auth);
 
-// Basic mock types for FirebaseAuthTypes
-export namespace FirebaseAuthTypes {
-    export interface User {
-        uid: string;
-        email: string | null;
-        [key: string]: any;
-    }
-}
-
+export { FirebaseAuthTypes };
 export default defaultAuth;
 

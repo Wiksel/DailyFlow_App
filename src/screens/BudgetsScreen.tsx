@@ -7,7 +7,7 @@ import { densityScale } from '../styles/AppStyles';
 import * as Haptics from 'expo-haptics';
 import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import { getAuth } from '@react-native-firebase/auth';
+import { getAuth } from '../utils/authCompat';
 import { db } from '../utils/firestoreCompat';
 import { collection, query, where, onSnapshot, addDoc, doc, getDoc, QuerySnapshotCompat } from '../utils/firestoreCompat';
 import { enqueueAdd } from '../utils/offlineQueue';

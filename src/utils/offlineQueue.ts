@@ -1,7 +1,7 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { addDoc, collection, doc, updateDoc, deleteDoc, increment } from './firestoreCompat';
 import { db } from './firestoreCompat';
-import { getAuth } from '@react-native-firebase/auth';
+import { getAuth } from '../utils/authCompat';
 
 type QueueAction = 'add' | 'update' | 'delete';
 
@@ -47,7 +47,7 @@ async function writeQueue(uid: string, ops: PendingOp[]) {
     await AsyncStorage.setItem(tmpKey, payload);
     await AsyncStorage.setItem(OUTBOX_KEY(uid), payload);
     await AsyncStorage.removeItem(tmpKey);
-  } catch {}
+  } catch { }
 }
 
 function genId() { return `${Date.now()}_${Math.random().toString(36).slice(2, 8)}`; }

@@ -2,7 +2,7 @@ import React, { useMemo, useState } from 'react';
 import { View, Text, StyleSheet, TextInput, TouchableOpacity, ActivityIndicator, KeyboardAvoidingView, Platform, ScrollView, Image } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import LabeledInput from '../components/LabeledInput';
-import { getAuth } from '@react-native-firebase/auth';
+import { getAuth } from '../utils/authCompat';
 import { useToast } from '../contexts/ToastContext';
 import { createNewUserInFirestore } from '../utils/authUtils';
 import { Colors, Spacing, Typography, GlobalStyles } from '../styles/AppStyles';
@@ -104,44 +104,44 @@ const NicknameScreen = ({ onProfileCreated }: NicknameScreenProps) => {
   };
 
   return (
-    <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : "height"} style={[styles.container, { backgroundColor: theme.colors.background }]}> 
+    <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : "height"} style={[styles.container, { backgroundColor: theme.colors.background }]}>
       <ScrollView contentContainerStyle={styles.scrollContentContainer} keyboardShouldPersistTaps="handled">
         <View style={styles.content}>
-            <View style={styles.heroContainer}>
-              <View style={styles.heroCircle}>
-                {sphereConfigs.map((s, i) => (
-                  <View key={i} style={[styles.sphere, { backgroundColor: s.color, top: s.top, left: s.left, width: s.size, height: s.size, borderRadius: s.size / 2 }]}>
-                    <LinearGradient
-                      pointerEvents="none"
-                      colors={[ 'rgba(255,255,255,0.55)', 'rgba(0,0,0,0.28)' ]}
-                      start={{ x: 0.05, y: 0.95 }}
-                      end={{ x: 0.95, y: 0.05 }}
-                      style={[StyleSheet.absoluteFillObject as any, { borderRadius: s.size / 2 }]}
-                    />
-                    <View style={styles.sphereHighlight} />
-                  </View>
-                ))}
-                <LinearGradient
-                  pointerEvents="none"
-                  colors={[ 'rgba(255,255,255,0.08)', 'rgba(255,255,255,0.02)', 'rgba(0,0,0,0.00)' ]}
-                  start={{ x: 0.0, y: 1.0 }}
-                  end={{ x: 1.0, y: 0.0 }}
-                  style={StyleSheet.absoluteFillObject as any}
-                />
-              </View>
-              <View style={styles.heroTextWrap}>
-                <Text style={[styles.modalTitle, { color: theme.colors.textPrimary }]}>Witaj w DailyFlow!</Text>
-                <Text style={[styles.modalSubtitle, { color: theme.colors.textSecondary }]}>Wybierz swój nick, który będzie widoczny w aplikacji.</Text>
-              </View>
+          <View style={styles.heroContainer}>
+            <View style={styles.heroCircle}>
+              {sphereConfigs.map((s, i) => (
+                <View key={i} style={[styles.sphere, { backgroundColor: s.color, top: s.top, left: s.left, width: s.size, height: s.size, borderRadius: s.size / 2 }]}>
+                  <LinearGradient
+                    pointerEvents="none"
+                    colors={['rgba(255,255,255,0.55)', 'rgba(0,0,0,0.28)']}
+                    start={{ x: 0.05, y: 0.95 }}
+                    end={{ x: 0.95, y: 0.05 }}
+                    style={[StyleSheet.absoluteFillObject as any, { borderRadius: s.size / 2 }]}
+                  />
+                  <View style={styles.sphereHighlight} />
+                </View>
+              ))}
+              <LinearGradient
+                pointerEvents="none"
+                colors={['rgba(255,255,255,0.08)', 'rgba(255,255,255,0.02)', 'rgba(0,0,0,0.00)']}
+                start={{ x: 0.0, y: 1.0 }}
+                end={{ x: 1.0, y: 0.0 }}
+                style={StyleSheet.absoluteFillObject as any}
+              />
             </View>
-            <LabeledInput label="Nick" placeholder="Twój Nick" value={nickname} onChangeText={setNickname} editable={!isLoading} containerStyle={{ width: '100%' }} />
-            <TouchableOpacity
-                style={[GlobalStyles.button, { marginTop: Spacing.medium, width: '100%', backgroundColor: theme.colors.primary }]}
-                onPress={async () => { try { const m = await import('expo-haptics'); await m.impactAsync(m.ImpactFeedbackStyle.Medium); } catch {}; handleFinish(); }}
-                disabled={isLoading}
-            >
-                {isLoading ? <ActivityIndicator color="white" /> : <Text style={GlobalStyles.buttonText}>Zaczynajmy!</Text>}
-            </TouchableOpacity>
+            <View style={styles.heroTextWrap}>
+              <Text style={[styles.modalTitle, { color: theme.colors.textPrimary }]}>Witaj w DailyFlow!</Text>
+              <Text style={[styles.modalSubtitle, { color: theme.colors.textSecondary }]}>Wybierz swój nick, który będzie widoczny w aplikacji.</Text>
+            </View>
+          </View>
+          <LabeledInput label="Nick" placeholder="Twój Nick" value={nickname} onChangeText={setNickname} editable={!isLoading} containerStyle={{ width: '100%' }} />
+          <TouchableOpacity
+            style={[GlobalStyles.button, { marginTop: Spacing.medium, width: '100%', backgroundColor: theme.colors.primary }]}
+            onPress={async () => { try { const m = await import('expo-haptics'); await m.impactAsync(m.ImpactFeedbackStyle.Medium); } catch { }; handleFinish(); }}
+            disabled={isLoading}
+          >
+            {isLoading ? <ActivityIndicator color="white" /> : <Text style={GlobalStyles.buttonText}>Zaczynajmy!</Text>}
+          </TouchableOpacity>
         </View>
       </ScrollView>
     </KeyboardAvoidingView>
@@ -149,17 +149,17 @@ const NicknameScreen = ({ onProfileCreated }: NicknameScreenProps) => {
 };
 
 const styles = StyleSheet.create({
-    container: { flex: 1, backgroundColor: Colors.backgroundLight },
-    scrollContentContainer: { flexGrow: 1, justifyContent: 'center' },
-    content: { alignItems: 'center', padding: Spacing.xLarge, gap: Spacing.medium },
-    heroContainer: { alignItems: 'center', justifyContent: 'center' },
-    heroCircle: { width: 140, height: 140, borderRadius: 70, alignItems: 'center', justifyContent: 'center', marginBottom: Spacing.small, position: 'relative', overflow: 'hidden', borderWidth: StyleSheet.hairlineWidth, borderColor: 'rgba(255,255,255,0.06)' },
-    heroIcon: { width: 80, height: 80 },
-    sphere: { position: 'absolute', shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.08, shadowRadius: 2, elevation: 2 },
-    sphereHighlight: { position: 'absolute', bottom: 2, left: 2, width: '40%', height: '40%', borderRadius: 100, opacity: 0.5, backgroundColor: 'rgba(255,255,255,0.2)' },
-    heroTextWrap: { alignItems: 'center' },
-    modalTitle: { ...Typography.h2, textAlign: 'center', marginBottom: Spacing.small },
-    modalSubtitle: { ...Typography.body, color: Colors.textSecondary, textAlign: 'center', marginBottom: Spacing.large },
+  container: { flex: 1, backgroundColor: Colors.backgroundLight },
+  scrollContentContainer: { flexGrow: 1, justifyContent: 'center' },
+  content: { alignItems: 'center', padding: Spacing.xLarge, gap: Spacing.medium },
+  heroContainer: { alignItems: 'center', justifyContent: 'center' },
+  heroCircle: { width: 140, height: 140, borderRadius: 70, alignItems: 'center', justifyContent: 'center', marginBottom: Spacing.small, position: 'relative', overflow: 'hidden', borderWidth: StyleSheet.hairlineWidth, borderColor: 'rgba(255,255,255,0.06)' },
+  heroIcon: { width: 80, height: 80 },
+  sphere: { position: 'absolute', shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.08, shadowRadius: 2, elevation: 2 },
+  sphereHighlight: { position: 'absolute', bottom: 2, left: 2, width: '40%', height: '40%', borderRadius: 100, opacity: 0.5, backgroundColor: 'rgba(255,255,255,0.2)' },
+  heroTextWrap: { alignItems: 'center' },
+  modalTitle: { ...Typography.h2, textAlign: 'center', marginBottom: Spacing.small },
+  modalSubtitle: { ...Typography.body, color: Colors.textSecondary, textAlign: 'center', marginBottom: Spacing.large },
 });
 
 export default NicknameScreen;

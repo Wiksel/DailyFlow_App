@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { View, Text, StyleSheet, FlatList, TextInput, TouchableOpacity, ActivityIndicator } from 'react-native';
 import LabeledInput from '../components/LabeledInput';
-import { getAuth } from '@react-native-firebase/auth';
+import { getAuth } from '../utils/authCompat';
 import { collection, query, where, onSnapshot, addDoc, doc, updateDoc, deleteDoc, Timestamp, QuerySnapshotCompat } from '../utils/firestoreCompat';
 import { enqueueAdd, enqueueDelete } from '../utils/offlineQueue';
 import { db } from '../utils/firestoreCompat';

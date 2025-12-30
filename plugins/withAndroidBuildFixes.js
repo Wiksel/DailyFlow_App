@@ -4,11 +4,11 @@ module.exports = function withAndroidBuildFixes(config) {
     return withProjectBuildGradle(config, (config) => {
         if (config.modResults.language === 'groovy') {
             config.modResults.contents += `
-// Fix for Windows sqlite-jdbc AccessDeniedException and other dependency conflicts
+// Fix for dependency conflicts (Firebase/Guava)
 allprojects {
     configurations.all {
         resolutionStrategy {
-            force 'org.xerial:sqlite-jdbc:3.41.2.1'
+            // Force safe versions for Firebase and Guava
             force 'com.google.firebase:firebase-bom:33.1.0'
             force 'com.google.guava:guava:31.1-android'
         }

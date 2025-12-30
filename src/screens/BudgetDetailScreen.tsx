@@ -4,7 +4,7 @@ import LabeledInput from '../components/LabeledInput';
 import { useRoute } from '@react-navigation/native';
 import { doc, onSnapshot, collection, addDoc, query, orderBy, getDoc, writeBatch, increment, where, Timestamp, updateDoc, QuerySnapshotCompat } from '../utils/firestoreCompat';
 import { enqueueAdd, enqueueUpdate } from '../utils/offlineQueue';
-import { getAuth } from '@react-native-firebase/auth';
+import { getAuth } from '../utils/authCompat';
 import { db } from '../utils/firestoreCompat';
 import { Feather } from '@expo/vector-icons';
 import { useToast } from '../contexts/ToastContext';

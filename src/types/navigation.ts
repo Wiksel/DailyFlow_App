@@ -1,7 +1,7 @@
 import type { CompositeNavigationProp, NavigatorScreenParams } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import type { BottomTabNavigationProp } from '@react-navigation/bottom-tabs';
-import type { FirebaseAuthTypes } from '@react-native-firebase/auth';
+import type { FirebaseAuthTypes } from '../utils/authCompat';
 
 export type AuthStackParamList = {
   Login: undefined;
@@ -15,7 +15,7 @@ export type TaskStackParamList = {
   ChoreTemplates: { templateId?: string };
   Settings: undefined;
   AccountSettings: { openDeleteConfirm?: boolean } | undefined;
-  Categories: undefined; 
+  Categories: undefined;
   Archive: undefined;
   WeekPlan: undefined;
   RecurringSeries: undefined;
@@ -41,6 +41,6 @@ export type TaskStackNavigationProp = CompositeNavigationProp<
 
 declare global {
   namespace ReactNavigation {
-    interface RootParamList extends RootTabParamList {}
+    interface RootParamList extends RootTabParamList { }
   }
 }

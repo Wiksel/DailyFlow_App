@@ -4,7 +4,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import LabeledInput from '../components/LabeledInput';
 import PasswordInput from '../components/PasswordInput';
 import { useNavigation } from '@react-navigation/native';
-import auth, { FirebaseAuthTypes, getAuth, signInWithEmailAndPassword, createUserWithEmailAndPassword, GoogleAuthProvider, signInWithCredential } from '@react-native-firebase/auth';
+import auth, { FirebaseAuthTypes, getAuth, signInWithEmailAndPassword, createUserWithEmailAndPassword, GoogleAuthProvider, signInWithCredential } from '../utils/authCompat';
 import { GoogleSignin } from '@react-native-google-signin/google-signin';
 import { useToast } from '../contexts/ToastContext';
 import { Colors, Spacing, Typography, GlobalStyles } from '../styles/AppStyles';
@@ -35,35 +35,35 @@ const SPRING_CONFIG = { damping: 20, stiffness: 150, mass: 1 };
 const LoginForm = React.memo(({ identifier, setIdentifier, loginPassword, setLoginPassword, isLoading, handleLogin, setForgotPasswordModalVisible, onGoogleButtonPress, theme }: any) => (
     <View style={styles.formInnerContainer}>
         <View style={styles.inputWrapper}>
-        <LabeledInput 
-            testID="login-identifier-input"
-            placeholder="E-mail lub telefon (9 cyfr)" 
-            value={identifier} 
-            onChangeText={setIdentifier} 
-            autoCapitalize="none" 
-            editable={!isLoading} 
-        />
+            <LabeledInput
+                testID="login-identifier-input"
+                placeholder="E-mail lub telefon (9 cyfr)"
+                value={identifier}
+                onChangeText={setIdentifier}
+                autoCapitalize="none"
+                editable={!isLoading}
+            />
         </View>
         <View style={styles.inputWrapper}>
             <PasswordInput
-              testID="login-password-input"
-              placeholder="Hasło"
-              value={loginPassword}
-              onChangeText={setLoginPassword}
-              editable={!isLoading}
+                testID="login-password-input"
+                placeholder="Hasło"
+                value={loginPassword}
+                onChangeText={setLoginPassword}
+                editable={!isLoading}
             />
         </View>
-        <TouchableOpacity 
+        <TouchableOpacity
             testID="forgot-password-button"
-            style={styles.forgotPasswordButton} 
+            style={styles.forgotPasswordButton}
             onPress={() => setForgotPasswordModalVisible(true)}
         >
             <Text style={[styles.forgotPasswordText, { color: Colors.primary }]}>Zapomniałem hasła</Text>
         </TouchableOpacity>
-            <TouchableOpacity 
+        <TouchableOpacity
             testID="login-button"
-            style={[GlobalStyles.button, styles.buttonMarginTop]} 
-            onPress={async () => { try { const m = await import('expo-haptics'); await m.impactAsync(m.ImpactFeedbackStyle.Medium); } catch {}; handleLogin(); }} 
+            style={[GlobalStyles.button, styles.buttonMarginTop]}
+            onPress={async () => { try { const m = await import('expo-haptics'); await m.impactAsync(m.ImpactFeedbackStyle.Medium); } catch { }; handleLogin(); }}
             disabled={isLoading}
         >
             {isLoading ? <ActivityIndicator color="white" /> : <Text style={GlobalStyles.buttonText}>Zaloguj się</Text>}
@@ -71,11 +71,11 @@ const LoginForm = React.memo(({ identifier, setIdentifier, loginPassword, setLog
         <View style={styles.dividerContainer}>
             <View style={[styles.dividerLine, { backgroundColor: theme.colors.border }]} /><Text style={[styles.dividerText, { color: theme.colors.textSecondary }]}>lub</Text><View style={[styles.dividerLine, { backgroundColor: theme.colors.border }]} />
         </View>
-        <TouchableOpacity 
+        <TouchableOpacity
             testID="google-login-button"
-            style={[styles.socialButton, isLoading && styles.disabledGoogleButton, { borderColor: theme.colors.border, backgroundColor: theme.colors.card }]} 
-            onPress={onGoogleButtonPress} 
-            disabled={isLoading} 
+            style={[styles.socialButton, isLoading && styles.disabledGoogleButton, { borderColor: theme.colors.border, backgroundColor: theme.colors.card }]}
+            onPress={onGoogleButtonPress}
+            disabled={isLoading}
         >
             {isLoading ? <ActivityIndicator color={Colors.primary} /> : (
                 <>
@@ -90,12 +90,12 @@ const LoginForm = React.memo(({ identifier, setIdentifier, loginPassword, setLog
 const RegisterForm = React.memo(({ registerData, handleRegisterDataChange, emailError, passwordError, validateEmail, validatePassword, isLoading, isRegisterFormValid, handleRegister, onGoogleButtonPress, setPhoneModalVisible, theme }: any) => (
     <View style={styles.formInnerContainer}>
         <View style={styles.inputWrapper}>
-            <LabeledInput 
+            <LabeledInput
                 testID="register-nickname-input"
-                placeholder="Nick" 
-                value={registerData.nickname} 
-                onChangeText={(val: string) => handleRegisterDataChange('nickname', val)} 
-                editable={!isLoading} 
+                placeholder="Nick"
+                value={registerData.nickname}
+                onChangeText={(val: string) => handleRegisterDataChange('nickname', val)}
+                editable={!isLoading}
             />
         </View>
         <View style={styles.inputWrapper}>
@@ -114,20 +114,20 @@ const RegisterForm = React.memo(({ registerData, handleRegisterDataChange, email
         </View>
         <View style={styles.inputWrapper}>
             <PasswordInput
-              testID="register-password-input"
-              value={registerData.password}
-              onChangeText={(val: string) => handleRegisterDataChange('password', val)}
-              editable={!isLoading}
-              placeholder="Hasło (min. 6, litera, cyfra)"
-              onBlur={() => validatePassword(registerData.password)}
-              inputStyle={passwordError ? (styles.inputError as any) : undefined}
+                testID="register-password-input"
+                value={registerData.password}
+                onChangeText={(val: string) => handleRegisterDataChange('password', val)}
+                editable={!isLoading}
+                placeholder="Hasło (min. 6, litera, cyfra)"
+                onBlur={() => validatePassword(registerData.password)}
+                inputStyle={passwordError ? (styles.inputError as any) : undefined}
             />
             {!!passwordError && <Text style={styles.errorText}>{passwordError}</Text>}
         </View>
-            <TouchableOpacity
+        <TouchableOpacity
             testID="register-button"
             style={[GlobalStyles.button, styles.buttonMarginTop, (isLoading || !isRegisterFormValid) && GlobalStyles.disabledButton]}
-              onPress={async () => { if (isLoading || !isRegisterFormValid) return; try { const m = await import('expo-haptics'); await m.selectionAsync(); } catch {}; handleRegister(); }}
+            onPress={async () => { if (isLoading || !isRegisterFormValid) return; try { const m = await import('expo-haptics'); await m.selectionAsync(); } catch { }; handleRegister(); }}
             disabled={isLoading || !isRegisterFormValid}
         >
             {isLoading ? <ActivityIndicator color="white" /> : <Text style={[(isLoading || !isRegisterFormValid) ? GlobalStyles.disabledButtonText : GlobalStyles.buttonText]}>Stwórz konto</Text>}
@@ -136,11 +136,11 @@ const RegisterForm = React.memo(({ registerData, handleRegisterDataChange, email
             <View style={[styles.dividerLine, { backgroundColor: theme.colors.border }]} /><Text style={[styles.dividerText, { color: theme.colors.textSecondary }]}>lub</Text><View style={[styles.dividerLine, { backgroundColor: theme.colors.border }]} />
         </View>
         <View style={styles.socialButtonsContainer}>
-            <TouchableOpacity 
+            <TouchableOpacity
                 testID="google-register-button"
-                style={[styles.socialButton, styles.socialButtonHalf, isLoading && styles.disabledGoogleButton, { borderColor: theme.colors.border, backgroundColor: theme.colors.card }]} 
-                onPress={onGoogleButtonPress} 
-                disabled={isLoading} 
+                style={[styles.socialButton, styles.socialButtonHalf, isLoading && styles.disabledGoogleButton, { borderColor: theme.colors.border, backgroundColor: theme.colors.card }]}
+                onPress={onGoogleButtonPress}
+                disabled={isLoading}
             >
                 {isLoading ? <ActivityIndicator color={Colors.primary} /> : (
                     <>
@@ -149,10 +149,10 @@ const RegisterForm = React.memo(({ registerData, handleRegisterDataChange, email
                     </>
                 )}
             </TouchableOpacity>
-            <TouchableOpacity 
+            <TouchableOpacity
                 testID="phone-login-button"
-                style={[styles.socialButton, styles.socialButtonHalf, isLoading && styles.disabledGoogleButton, { borderColor: theme.colors.border, backgroundColor: theme.colors.card }]} 
-                onPress={() => setPhoneModalVisible(true)} 
+                style={[styles.socialButton, styles.socialButtonHalf, isLoading && styles.disabledGoogleButton, { borderColor: theme.colors.border, backgroundColor: theme.colors.card }]}
+                onPress={() => setPhoneModalVisible(true)}
                 disabled={isLoading}
             >
                 {isLoading ? <ActivityIndicator color={theme.colors.primary} /> : (
@@ -170,7 +170,7 @@ const RegisterForm = React.memo(({ registerData, handleRegisterDataChange, email
 const LoginScreen = () => {
     const navigation = useNavigation<LoginNavigationProp>();
     const theme = useTheme();
-    
+
     const [identifier, setIdentifier] = useState('');
     const [loginPassword, setLoginPassword] = useState('');
     const [registerData, setRegisterData] = useState({ nickname: '', email: '', password: '' });
@@ -178,7 +178,7 @@ const LoginScreen = () => {
     const [passwordError, setPasswordError] = useState('');
     const [isLoading, setIsLoading] = useState(false);
     const { showToast } = useToast();
-    
+
     const [unverifiedDialogVisible, setUnverifiedDialogVisible] = useState(false);
     const [pendingVerificationUserEmail, setPendingVerificationUserEmail] = useState<string | null>(null);
     const [emailVerificationDialogVisible, setEmailVerificationDialogVisible] = useState(false);
@@ -193,7 +193,7 @@ const LoginScreen = () => {
     const [loginSuggestionHasGoogle, setLoginSuggestionHasGoogle] = useState(false);
     const [loginSuggestionHasPhone, setLoginSuggestionHasPhone] = useState(false);
     const [forgotPasswordModalVisible, setForgotPasswordModalVisible] = useState(false);
-    
+
     const progress = useSharedValue(0);
     const swipeDirection = useSharedValue(1);
     const targetProgress = useSharedValue(0);
@@ -203,7 +203,7 @@ const LoginScreen = () => {
     const [dynamicTopPadding, setDynamicTopPadding] = useState(0);
     const [topLocked, setTopLocked] = useState(false);
     const [logoDiameterState, setLogoDiameterState] = useState(LOGO_DIAMETER);
-    
+
     const KEYBOARD_UP_TRANSLATE_Y = -120; // Lekko słabsze podniesienie treści przy otwartej klawiaturze
     const HEADER_HEIGHT_ESTIMATE = 130;
     const HEADER_MARGIN_BOTTOM = Spacing.xLarge;
@@ -339,7 +339,7 @@ const LoginScreen = () => {
                 if (current?.user?.email?.toLowerCase() === normalizedEmail && !resolvedMethods.includes('google.com')) {
                     resolvedMethods.push('google.com');
                 }
-            } catch {}
+            } catch { }
         }
         let hasPassword = !!resolvedMethods?.includes('password');
         let hasGoogle = !!resolvedMethods?.includes('google.com');
@@ -366,35 +366,35 @@ const LoginScreen = () => {
         const code = String(error?.code || '');
         if (code === 'auth/email-already-in-use') {
             const email = registerData.email || identifier;
-            openLoginSuggestion(email, null).catch(() => {});
+            openLoginSuggestion(email, null).catch(() => { });
             return;
         }
         const { message, level } = mapFirebaseAuthErrorToMessage(code);
         showToast(message, level);
     };
     const handleResendVerification = async (user: FirebaseAuthTypes.User) => { try { await user.sendEmailVerification(); showToast('Nowy link weryfikacyjny został wysłany.\nSprawdź skrzynkę (także spam).', 'success'); } catch (error: any) { handleAuthError(error); } };
-    const handleLogin = async () => { 
+    const handleLogin = async () => {
         if (isLoading) return; // Zapobiegaj wielokrotnemu wywoływaniu
-        if (!identifier.trim() || !loginPassword.trim()) { 
-            showToast('Wszystkie pola są wymagane.', 'error'); 
-            return; 
-        } 
-        setIsLoading(true); 
-        try { 
-            const resolvedIdentifier = await findUserEmailByIdentifier(identifier); 
-            const userCredentials = await signInWithEmailAndPassword(getAuth(), resolvedIdentifier || identifier, loginPassword); 
-            await userCredentials.user.reload(); 
-            const freshUser = getAuth().currentUser; 
+        if (!identifier.trim() || !loginPassword.trim()) {
+            showToast('Wszystkie pola są wymagane.', 'error');
+            return;
+        }
+        setIsLoading(true);
+        try {
+            const resolvedIdentifier = await findUserEmailByIdentifier(identifier);
+            const userCredentials = await signInWithEmailAndPassword(getAuth(), resolvedIdentifier || identifier, loginPassword);
+            await userCredentials.user.reload();
+            const freshUser = getAuth().currentUser;
             const hasGoogleProvider = !!freshUser?.providerData?.some(p => p.providerId === 'google.com');
             if (freshUser && !freshUser.emailVerified && !freshUser.phoneNumber && !(freshUser.email || '').endsWith('@dailyflow.app') && !hasGoogleProvider) {
                 setUnverifiedDialogVisible(true);
                 setPendingVerificationUserEmail(freshUser.email || null);
             }
-        } catch (error: any) { 
-            handleAuthError(error); 
-        } finally { 
-            setIsLoading(false); 
-        } 
+        } catch (error: any) {
+            handleAuthError(error);
+        } finally {
+            setIsLoading(false);
+        }
     };
     const handleRegister = async () => {
         const { nickname, email, password } = registerData;
@@ -412,13 +412,13 @@ const LoginScreen = () => {
                     setIsLoading(false);
                     return;
                 }
-            } catch {}
+            } catch { }
             const userCredentials = await createUserWithEmailAndPassword(getAuth(), email, password);
             await createNewUserInFirestore(userCredentials.user, nickname);
             await userCredentials.user.sendEmailVerification();
             setEmailVerificationUser(userCredentials.user);
             setEmailVerificationDialogVisible(true);
-            try { await setSuggestedLoginIdentifier(email); } catch {}
+            try { await setSuggestedLoginIdentifier(email); } catch { }
         } catch (error: any) {
             const code = String(error?.code || '');
             if (code === 'auth/email-already-in-use') {
@@ -427,7 +427,7 @@ const LoginScreen = () => {
                     const methods = email ? await auth().fetchSignInMethodsForEmail(email) : [];
                     await openLoginSuggestion(email, methods);
                     return;
-                } catch {}
+                } catch { }
             }
             handleAuthError(error);
         } finally {
@@ -438,14 +438,14 @@ const LoginScreen = () => {
         setIsLoading(true);
         try {
             await GoogleSignin.hasPlayServices({ showPlayServicesUpdateDialog: true });
-            await GoogleSignin.signOut().catch(() => {});
+            await GoogleSignin.signOut().catch(() => { });
             const signInResp: any = await GoogleSignin.signIn();
             let idToken = signInResp?.idToken || signInResp?.data?.idToken;
             if (!idToken) {
-                try { const tokens = await GoogleSignin.getTokens(); idToken = tokens?.idToken || null; } catch {}
+                try { const tokens = await GoogleSignin.getTokens(); idToken = tokens?.idToken || null; } catch { }
             }
             if (!idToken) {
-                try { const silent: any = await GoogleSignin.signInSilently(); idToken = silent?.idToken || silent?.data?.idToken || null; } catch {}
+                try { const silent: any = await GoogleSignin.signInSilently(); idToken = silent?.idToken || silent?.data?.idToken || null; } catch { }
             }
             if (!idToken) { showToast('Logowanie anulowane.', 'info'); return; }
             if (!idToken) {
@@ -481,12 +481,12 @@ const LoginScreen = () => {
                         setLinkModalVisible(true);
                         return;
                     }
-                } catch {}
+                } catch { }
             }
 
             const userCredential = await signInWithCredential(getAuth(), googleCredential);
             const user = userCredential.user;
-            try { await upsertAuthProvidersForUser(user); } catch {}
+            try { await upsertAuthProvidersForUser(user); } catch { }
             const userDoc = await getDoc(doc(db, 'users', user.uid));
             if (!userDoc.exists()) {
                 navigation.navigate('Nickname');
@@ -497,7 +497,7 @@ const LoginScreen = () => {
                     if (!data?.nickname || String(data.nickname).trim().length === 0) {
                         navigation.navigate('Nickname');
                     }
-                } catch {}
+                } catch { }
             }
         } catch (error: any) {
             const code = String(error?.code || '')
@@ -589,7 +589,7 @@ const LoginScreen = () => {
                 }
             }
         });
-        
+
 
 
     const loginFormAnimatedStyle = useAnimatedStyle(() => ({
@@ -635,12 +635,12 @@ const LoginScreen = () => {
                                 if (top !== dynamicTopPadding) setDynamicTopPadding(top);
                                 setTopLocked(true);
                             }
-                        } catch {}
+                        } catch { }
                     }}
                 >
                     <Animated.View style={animatedHeaderStyle}>
                         <View style={styles.headerContainer}>
-                            <View style={[styles.logoBackground, { width: logoDiameterState, height: logoDiameterState, marginBottom: Spacing.large }]}> 
+                            <View style={[styles.logoBackground, { width: logoDiameterState, height: logoDiameterState, marginBottom: Spacing.large }]}>
                                 <View style={[
                                     styles.logoContainer,
                                     {
@@ -649,9 +649,9 @@ const LoginScreen = () => {
                                         borderRadius: logoDiameterState / 2,
                                         overflow: 'hidden',
                                     }
-                                ]}> 
+                                ]}>
                                     {sphereConfigs.map((s, idx) => (
-                                        <View key={idx} style={[styles.sphere, { backgroundColor: s.color, top: s.top, left: s.left, width: s.size, height: s.size, borderRadius: s.size / 2 }]}> 
+                                        <View key={idx} style={[styles.sphere, { backgroundColor: s.color, top: s.top, left: s.left, width: s.size, height: s.size, borderRadius: s.size / 2 }]}>
                                             <LinearGradient
                                                 pointerEvents="none"
                                                 colors={['rgba(255,255,255,0.55)', 'rgba(0,0,0,0.28)']}
@@ -664,8 +664,8 @@ const LoginScreen = () => {
                                         </View>
                                     ))}
                                 </View>
-                                <View style={[styles.textOverlay, { transform: [{ translateY: Spacing.small }], backgroundColor: 'transparent' }]}> 
-                                    <View onLayout={() => {}}>
+                                <View style={[styles.textOverlay, { transform: [{ translateY: Spacing.small }], backgroundColor: 'transparent' }]}>
+                                    <View onLayout={() => { }}>
                                         <Text style={[styles.header, { color: theme.colors.textPrimary, fontFamily: 'DancingScript_700Bold' as any, fontSize: 68 }]}>Daily Flow</Text>
                                         <Text style={[styles.subtitle, { color: theme.colors.textSecondary, fontFamily: 'DancingScript_400Regular' as any, fontSize: 28 }]}>Twoje centrum organizacji</Text>
                                     </View>
@@ -675,26 +675,26 @@ const LoginScreen = () => {
                     </Animated.View>
 
                     <GestureDetector gesture={gesture}>
-                        <View style={[styles.formContainer, { marginTop: Spacing.xxLarge + Spacing.xxLarge }] }>
-                            <View style={[styles.modeSwitcher, { backgroundColor: theme.colors.inputBackground, borderWidth: 1, borderColor: theme.colors.border }]}> 
-                                <TouchableOpacity 
+                        <View style={[styles.formContainer, { marginTop: Spacing.xxLarge + Spacing.xxLarge }]}>
+                            <View style={[styles.modeSwitcher, { backgroundColor: theme.colors.inputBackground, borderWidth: 1, borderColor: theme.colors.border }]}>
+                                <TouchableOpacity
                                     testID="login-mode-button"
-                                    style={[styles.modeButton, { backgroundColor: currentTab === 0 ? Colors.primary : 'transparent' }]} 
-                                    onPress={() => { 
+                                    style={[styles.modeButton, { backgroundColor: currentTab === 0 ? Colors.primary : 'transparent' }]}
+                                    onPress={() => {
                                         setCurrentTab(0);
-                                        swipeDirection.value = -1; 
-                                        targetProgress.value = 0; 
+                                        swipeDirection.value = -1;
+                                        targetProgress.value = 0;
                                     }}
                                 >
                                     <Animated.Text style={[styles.modeButtonText, { color: currentTab === 0 ? 'white' : theme.colors.textSecondary }]}>Zaloguj się</Animated.Text>
                                 </TouchableOpacity>
-                                <TouchableOpacity 
+                                <TouchableOpacity
                                     testID="register-mode-button"
-                                    style={[styles.modeButton, { backgroundColor: currentTab === 1 ? Colors.primary : 'transparent' }]} 
-                                    onPress={() => { 
+                                    style={[styles.modeButton, { backgroundColor: currentTab === 1 ? Colors.primary : 'transparent' }]}
+                                    onPress={() => {
                                         setCurrentTab(1);
-                                        swipeDirection.value = 1; 
-                                        targetProgress.value = 1; 
+                                        swipeDirection.value = 1;
+                                        targetProgress.value = 1;
                                     }}
                                 >
                                     <Animated.Text style={[styles.modeButtonText, { color: currentTab === 1 ? 'white' : theme.colors.textSecondary }]}>Zarejestruj się</Animated.Text>
@@ -713,7 +713,7 @@ const LoginScreen = () => {
                     </GestureDetector>
                 </Animated.View>
             </ScrollView>
-            <PhoneAuthModal visible={phoneModalVisible} onClose={() => setPhoneModalVisible(false)} onRegistered={() => { swipeDirection.value = -1; targetProgress.value = 0; try { runOnJS(setCurrentTab)(0); } catch {} }} />
+            <PhoneAuthModal visible={phoneModalVisible} onClose={() => setPhoneModalVisible(false)} onRegistered={() => { swipeDirection.value = -1; targetProgress.value = 0; try { runOnJS(setCurrentTab)(0); } catch { } }} />
             <ForgotPasswordModal visible={forgotPasswordModalVisible} onClose={() => setForgotPasswordModalVisible(false)} />
             {/* Dialog: konto niezweryfikowane */}
             <ActionModal
@@ -722,7 +722,7 @@ const LoginScreen = () => {
                 message={pendingVerificationUserEmail ? `Wygląda na to, że nie kliknąłeś jeszcze w link aktywacyjny wysłany na ${pendingVerificationUserEmail}.` : 'Wygląda na to, że nie kliknąłeś jeszcze w link aktywacyjny.'}
                 actions={[
                     { text: 'Wyślij link ponownie', onPress: () => { const u = getAuth().currentUser; if (u) handleResendVerification(u); setUnverifiedDialogVisible(false); } },
-                    { text: 'OK', onPress: () => { getAuth().signOut(); setUnverifiedDialogVisible(false); } , variant: 'secondary' },
+                    { text: 'OK', onPress: () => { getAuth().signOut(); setUnverifiedDialogVisible(false); }, variant: 'secondary' },
                 ]}
                 onRequestClose={() => setUnverifiedDialogVisible(false)}
             />
@@ -732,7 +732,7 @@ const LoginScreen = () => {
                 title={'Prawie gotowe! Sprawdź e‑mail'}
                 message={registerData.email ? `Wysłaliśmy link weryfikacyjny na adres ${registerData.email}. Kliknij go, aby dokończyć rejestrację.` : 'Wysłaliśmy link weryfikacyjny na Twój adres e‑mail.'}
                 actions={[
-                    { text: 'Wyślij ponownie', onPress: async () => { if (emailVerificationUser) { try { await emailVerificationUser.sendEmailVerification(); showToast('Link wysłany ponownie.', 'success'); } catch (e:any) { handleAuthError(e); } } } },
+                    { text: 'Wyślij ponownie', onPress: async () => { if (emailVerificationUser) { try { await emailVerificationUser.sendEmailVerification(); showToast('Link wysłany ponownie.', 'success'); } catch (e: any) { handleAuthError(e); } } } },
                     { text: 'Rozumiem', onPress: async () => { setEmailVerificationDialogVisible(false); await getAuth().signOut(); targetProgress.value = 0; }, variant: 'secondary' },
                 ]}
                 onRequestClose={() => setEmailVerificationDialogVisible(false)}
@@ -755,12 +755,12 @@ const LoginScreen = () => {
                                 await createNewUserInFirestore(user, user.displayName || user.email || '');
                             } else {
                                 // Zapisz, że Google jest połączony, by nie pytać ponownie przy kolejnych logowaniach
-                                try { await upsertAuthProvidersForUser(user); } catch {}
+                                try { await upsertAuthProvidersForUser(user); } catch { }
                             }
                         }
                         setLinkModalVisible(false);
                         showToast('Konta połączone. Zalogowano.', 'success');
-                    } catch (e:any) {
+                    } catch (e: any) {
                         handleAuthError(e);
                     }
                 }}
@@ -772,7 +772,7 @@ const LoginScreen = () => {
                 actions={[
                     ...(loginSuggestionHasPassword ? [{ text: 'Zaloguj hasłem', onPress: () => { setIdentifier(loginSuggestionEmail); swipeDirection.value = -1; targetProgress.value = 0; runOnJS(setCurrentTab)(0); setLoginSuggestionVisible(false); } }] as any : []),
                     { text: 'Anuluj', onPress: () => setLoginSuggestionVisible(false), variant: 'secondary' },
-                    ...(loginSuggestionHasGoogle ? [{ text: 'Zaloguj Google', onPress: async () => { setLoginSuggestionVisible(false); try { await onGoogleButtonPress(); } catch {} } }] as any : []),
+                    ...(loginSuggestionHasGoogle ? [{ text: 'Zaloguj Google', onPress: async () => { setLoginSuggestionVisible(false); try { await onGoogleButtonPress(); } catch { } } }] as any : []),
                     ...(loginSuggestionHasPhone ? [{ text: 'Zaloguj telefonem', onPress: () => { setLoginSuggestionVisible(false); setPhoneModalVisible(true); } }] as any : []),
                 ]}
                 onRequestClose={() => setLoginSuggestionVisible(false)}

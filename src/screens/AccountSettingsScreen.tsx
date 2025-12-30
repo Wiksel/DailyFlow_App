@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, ActivityIndicator, Alert, TextInput } from 'react-native';
 import LabeledInput from '../components/LabeledInput';
-import { getAuth, GoogleAuthProvider, EmailAuthProvider } from '@react-native-firebase/auth';
+import { getAuth, GoogleAuthProvider, EmailAuthProvider } from '../utils/authCompat';
 import { collection, deleteDoc, doc, getDoc, getDocs, query, updateDoc, where, writeBatch, deleteField } from '../utils/firestoreCompat';
 import { db } from '../utils/firestoreCompat';
 import { useToast } from '../contexts/ToastContext';
@@ -80,11 +80,11 @@ const AccountSettingsScreen = () => {
           setPendingEmail(pending);
           // Jeśli pendingEmail już stał się aktywnym e‑mailem – wyczyść go
           if (pending && user?.email && pending.toLowerCase() === user.email.toLowerCase()) {
-            try { await updateDoc(userDocRef, { pendingEmail: deleteField() }); } catch {}
+            try { await updateDoc(userDocRef, { pendingEmail: deleteField() }); } catch { }
             setPendingEmail(null);
           }
         }
-      } catch {}
+      } catch { }
     })();
 
     return () => { isMounted = false; };
@@ -115,7 +115,7 @@ const AccountSettingsScreen = () => {
     await GoogleSignin.hasPlayServices({ showPlayServicesUpdateDialog: true });
     // spróbuj bez dialogu najpierw
     let idToken: string | null = null;
-    try { idToken = (await GoogleSignin.getTokens())?.idToken ?? null; } catch {}
+    try { idToken = (await GoogleSignin.getTokens())?.idToken ?? null; } catch { }
     if (!idToken) {
       await GoogleSignin.signIn();
       idToken = (await GoogleSignin.getTokens())?.idToken ?? null;
@@ -136,22 +136,22 @@ const AccountSettingsScreen = () => {
       if (!idToken) throw new Error('Brak tokena Google');
       const googleCredential = GoogleAuthProvider.credential(idToken);
       await user.linkWithCredential(googleCredential);
-      try { const { upsertAuthProvidersForUser } = await import('../utils/authUtils'); await upsertAuthProvidersForUser(getAuth().currentUser!); } catch {}
+      try { const { upsertAuthProvidersForUser } = await import('../utils/authUtils'); await upsertAuthProvidersForUser(getAuth().currentUser!); } catch { }
       showToast('Konto Google zostało połączone.', 'success');
       await user.reload();
       setProviders((getAuth().currentUser?.providerData || []).map(p => p.providerId));
-      } catch (e: any) {
-        const code = String(e?.code || '');
-        if (code === 'auth/credential-already-in-use') {
-          showToast('To konto Google jest już używane.', 'error');
-        } else if (code === '12501' || e?.message?.includes('Sign in action cancelled')) {
-          showToast('Anulowano logowanie Google.', 'info');
-        } else if (code === 'DEVELOPER_ERROR' || code === '10' || code === '12500' || code === 'sign_in_failed') {
-          showToast('Logowanie Google nie powiodło się. Sprawdź konfigurację i spróbuj ponownie.', 'error');
-        } else {
-          const { message, level } = mapFirebaseAuthErrorToMessage(code);
-          showToast(message, level);
-        }
+    } catch (e: any) {
+      const code = String(e?.code || '');
+      if (code === 'auth/credential-already-in-use') {
+        showToast('To konto Google jest już używane.', 'error');
+      } else if (code === '12501' || e?.message?.includes('Sign in action cancelled')) {
+        showToast('Anulowano logowanie Google.', 'info');
+      } else if (code === 'DEVELOPER_ERROR' || code === '10' || code === '12500' || code === 'sign_in_failed') {
+        showToast('Logowanie Google nie powiodło się. Sprawdź konfigurację i spróbuj ponownie.', 'error');
+      } else {
+        const { message, level } = mapFirebaseAuthErrorToMessage(code);
+        showToast(message, level);
+      }
     } finally {
       setIsBusy(false);
     }
@@ -166,7 +166,7 @@ const AccountSettingsScreen = () => {
     setIsBusy(true);
     try {
       await user.unlink(providerId);
-      try { const { upsertAuthProvidersForUser } = await import('../utils/authUtils'); await upsertAuthProvidersForUser(getAuth().currentUser!); } catch {}
+      try { const { upsertAuthProvidersForUser } = await import('../utils/authUtils'); await upsertAuthProvidersForUser(getAuth().currentUser!); } catch { }
       showToast('Metoda logowania została odłączona.', 'success');
       await user.reload();
       setProviders((getAuth().currentUser?.providerData || []).map(p => p.providerId));
@@ -187,7 +187,7 @@ const AccountSettingsScreen = () => {
         await anyUser.verifyBeforeUpdateEmail(pendingEmail);
       } else {
         await user.updateEmail(pendingEmail);
-        try { await user.sendEmailVerification(); } catch {}
+        try { await user.sendEmailVerification(); } catch { }
       }
       showToast('Link weryfikacyjny został wysłany ponownie.', 'success');
     } catch (e: any) {
@@ -201,7 +201,7 @@ const AccountSettingsScreen = () => {
               await anyUser.verifyBeforeUpdateEmail(pendingEmail);
             } else {
               await user.updateEmail(pendingEmail);
-              try { await user.sendEmailVerification(); } catch {}
+              try { await user.sendEmailVerification(); } catch { }
             }
             showToast('Link weryfikacyjny został wysłany ponownie.', 'success');
           } else {
@@ -301,7 +301,7 @@ const AccountSettingsScreen = () => {
       // Usuń konto w Auth
       await user.delete();
       showToast('Konto zostało usunięte.', 'success');
-      try { await getAuth().signOut(); } catch {}
+      try { await getAuth().signOut(); } catch { }
     } catch (e: any) {
       if (e?.code === 'auth/requires-recent-login') {
         showToast('Ta operacja wymaga ponownego logowania.', 'error');
@@ -318,14 +318,15 @@ const AccountSettingsScreen = () => {
   }
 
   return (
-    <ScrollView style={[GlobalStyles.container, { backgroundColor: theme.colors.background }] }>
+    <ScrollView style={[GlobalStyles.container, { backgroundColor: theme.colors.background }]}>
       {/* Modal: Zmień hasło */}
       <ActionModal
         visible={changePasswordVisible}
         title="Zmień hasło"
         actions={[
           { text: 'Anuluj', onPress: () => setChangePasswordVisible(false), variant: 'primary' },
-          { text: 'Zapisz', onPress: async () => {
+          {
+            text: 'Zapisz', onPress: async () => {
               if (!user) return;
               if (!isStrongPassword(newPassword)) { showToast('Hasło jest za słabe.', 'error'); return; }
               setIsBusy(true);
@@ -376,10 +377,10 @@ const AccountSettingsScreen = () => {
           <Text style={styles.label}>E‑mail i hasło</Text>
           {hasPassword ? (
             <>
-        <TouchableOpacity style={[GlobalStyles.button, { backgroundColor: theme.colors.secondary }]} onPress={async () => { try { const m = await import('expo-haptics'); await m.selectionAsync(); } catch {}; setChangePasswordVisible(true); }} disabled={isBusy}>
+              <TouchableOpacity style={[GlobalStyles.button, { backgroundColor: theme.colors.secondary }]} onPress={async () => { try { const m = await import('expo-haptics'); await m.selectionAsync(); } catch { }; setChangePasswordVisible(true); }} disabled={isBusy}>
                 <Text style={GlobalStyles.buttonText}>Zmień hasło</Text>
               </TouchableOpacity>
-        <TouchableOpacity style={[GlobalStyles.button, { backgroundColor: theme.colors.danger }, { marginTop: Spacing.small }]} onPress={async () => { try { const m = await import('expo-haptics'); await m.notificationAsync(m.NotificationFeedbackType.Warning); } catch {}; setConfirmUnlink('password'); }} disabled={isBusy || requireAtLeastOneProvider()}>
+              <TouchableOpacity style={[GlobalStyles.button, { backgroundColor: theme.colors.danger }, { marginTop: Spacing.small }]} onPress={async () => { try { const m = await import('expo-haptics'); await m.notificationAsync(m.NotificationFeedbackType.Warning); } catch { }; setConfirmUnlink('password'); }} disabled={isBusy || requireAtLeastOneProvider()}>
                 <Text style={GlobalStyles.buttonText}>Odłącz</Text>
               </TouchableOpacity>
             </>
@@ -454,11 +455,11 @@ const AccountSettingsScreen = () => {
         <View style={styles.row}>
           <Text style={styles.label}>Google</Text>
           {hasGoogle ? (
-            <TouchableOpacity style={[GlobalStyles.button, { backgroundColor: theme.colors.danger }]} onPress={async () => { try { const m = await import('expo-haptics'); await m.notificationAsync(m.NotificationFeedbackType.Warning); } catch {}; setConfirmUnlink('google.com'); }} disabled={isBusy || requireAtLeastOneProvider()}>
+            <TouchableOpacity style={[GlobalStyles.button, { backgroundColor: theme.colors.danger }]} onPress={async () => { try { const m = await import('expo-haptics'); await m.notificationAsync(m.NotificationFeedbackType.Warning); } catch { }; setConfirmUnlink('google.com'); }} disabled={isBusy || requireAtLeastOneProvider()}>
               <Text style={GlobalStyles.buttonText}>Odłącz Google</Text>
             </TouchableOpacity>
           ) : (
-            <TouchableOpacity style={GlobalStyles.button} onPress={async () => { try { const m = await import('expo-haptics'); await m.selectionAsync(); } catch {}; linkGoogle(); }} disabled={isBusy}>
+            <TouchableOpacity style={GlobalStyles.button} onPress={async () => { try { const m = await import('expo-haptics'); await m.selectionAsync(); } catch { }; linkGoogle(); }} disabled={isBusy}>
               <Text style={GlobalStyles.buttonText}>Połącz z Google</Text>
             </TouchableOpacity>
           )}
@@ -467,11 +468,11 @@ const AccountSettingsScreen = () => {
         <View style={styles.row}>
           <Text style={styles.label}>Telefon</Text>
           {hasPhone ? (
-            <TouchableOpacity style={[GlobalStyles.button, { backgroundColor: theme.colors.danger }]} onPress={async () => { try { const m = await import('expo-haptics'); await m.notificationAsync(m.NotificationFeedbackType.Warning); } catch {}; unlinkProvider('phone'); }} disabled={isBusy || requireAtLeastOneProvider()}>
+            <TouchableOpacity style={[GlobalStyles.button, { backgroundColor: theme.colors.danger }]} onPress={async () => { try { const m = await import('expo-haptics'); await m.notificationAsync(m.NotificationFeedbackType.Warning); } catch { }; unlinkProvider('phone'); }} disabled={isBusy || requireAtLeastOneProvider()}>
               <Text style={GlobalStyles.buttonText}>Odłącz telefon</Text>
             </TouchableOpacity>
           ) : (
-            <TouchableOpacity style={GlobalStyles.button} onPress={async () => { try { const m = await import('expo-haptics'); await m.selectionAsync(); } catch {}; showToast('Dodaj telefon przy logowaniu/rejestracji.', 'info'); }} disabled={isBusy}>
+            <TouchableOpacity style={GlobalStyles.button} onPress={async () => { try { const m = await import('expo-haptics'); await m.selectionAsync(); } catch { }; showToast('Dodaj telefon przy logowaniu/rejestracji.', 'info'); }} disabled={isBusy}>
               <Text style={GlobalStyles.buttonText}>Brak – dodaj</Text>
             </TouchableOpacity>
           )}
@@ -481,23 +482,23 @@ const AccountSettingsScreen = () => {
       <View style={[GlobalStyles.section, { backgroundColor: theme.colors.card, borderColor: theme.colors.border }]}>
         <Text style={[styles.sectionTitle, { color: theme.colors.textPrimary }]}>Zmień e‑mail</Text>
         <LabeledInput label="E‑mail" placeholder="Nowy adres e‑mail" autoCapitalize="none" value={newEmail} onChangeText={setNewEmail} editable={!emailChanging} />
-          {pendingEmail && pendingEmail !== user?.email ? (
-            <View style={{ marginTop: Spacing.small }}>
-              <Text style={[styles.label, { color: theme.colors.textSecondary }]}>Oczekuje na weryfikację: {pendingEmail}</Text>
-              <View style={styles.pendingActions}>
-                <TouchableOpacity style={[GlobalStyles.button, styles.compactButton, { backgroundColor: theme.colors.secondary }]} onPress={resendPendingEmail} disabled={emailChanging || isResendingPending}>
-                  <Text style={[GlobalStyles.buttonText, styles.compactButtonText]} numberOfLines={1} ellipsizeMode="tail">{isResendingPending ? 'Wysyłanie…' : 'Wyślij ponownie'}</Text>
-                </TouchableOpacity>
-                <TouchableOpacity style={[GlobalStyles.button, styles.compactButton]} onPress={checkPendingStatus} disabled={emailChanging}>
-                  <Text style={[GlobalStyles.buttonText, styles.compactButtonText]} numberOfLines={1} ellipsizeMode="tail">Sprawdź status</Text>
-                </TouchableOpacity>
-                <TouchableOpacity style={[GlobalStyles.button, styles.compactButton, { backgroundColor: theme.colors.danger }]} onPress={cancelPending} disabled={emailChanging}>
-                  <Text style={[GlobalStyles.buttonText, styles.compactButtonText]} numberOfLines={1} ellipsizeMode="tail">Anuluj</Text>
-                </TouchableOpacity>
-              </View>
+        {pendingEmail && pendingEmail !== user?.email ? (
+          <View style={{ marginTop: Spacing.small }}>
+            <Text style={[styles.label, { color: theme.colors.textSecondary }]}>Oczekuje na weryfikację: {pendingEmail}</Text>
+            <View style={styles.pendingActions}>
+              <TouchableOpacity style={[GlobalStyles.button, styles.compactButton, { backgroundColor: theme.colors.secondary }]} onPress={resendPendingEmail} disabled={emailChanging || isResendingPending}>
+                <Text style={[GlobalStyles.buttonText, styles.compactButtonText]} numberOfLines={1} ellipsizeMode="tail">{isResendingPending ? 'Wysyłanie…' : 'Wyślij ponownie'}</Text>
+              </TouchableOpacity>
+              <TouchableOpacity style={[GlobalStyles.button, styles.compactButton]} onPress={checkPendingStatus} disabled={emailChanging}>
+                <Text style={[GlobalStyles.buttonText, styles.compactButtonText]} numberOfLines={1} ellipsizeMode="tail">Sprawdź status</Text>
+              </TouchableOpacity>
+              <TouchableOpacity style={[GlobalStyles.button, styles.compactButton, { backgroundColor: theme.colors.danger }]} onPress={cancelPending} disabled={emailChanging}>
+                <Text style={[GlobalStyles.buttonText, styles.compactButtonText]} numberOfLines={1} ellipsizeMode="tail">Anuluj</Text>
+              </TouchableOpacity>
             </View>
-          ) : null}
-          <TouchableOpacity style={[GlobalStyles.button, { marginTop: Spacing.small }]} disabled={emailChanging} onPress={async () => {
+          </View>
+        ) : null}
+        <TouchableOpacity style={[GlobalStyles.button, { marginTop: Spacing.small }]} disabled={emailChanging} onPress={async () => {
           if (!user) return;
           if (!/\S+@\S+\.\S+/.test(newEmail)) { showToast('Podaj poprawny e‑mail.', 'error'); return; }
           setEmailChanging(true);
@@ -509,46 +510,46 @@ const AccountSettingsScreen = () => {
               setEmailChanging(false);
               return;
             }
-              try {
-                const anyUser: any = user as any;
-                if (typeof anyUser.verifyBeforeUpdateEmail === 'function') {
-                  await anyUser.verifyBeforeUpdateEmail(newEmail);
-                } else {
-                  await user.updateEmail(newEmail);
-                  try { await user.sendEmailVerification(); } catch {}
-                }
+            try {
+              const anyUser: any = user as any;
+              if (typeof anyUser.verifyBeforeUpdateEmail === 'function') {
+                await anyUser.verifyBeforeUpdateEmail(newEmail);
+              } else {
+                await user.updateEmail(newEmail);
+                try { await user.sendEmailVerification(); } catch { }
+              }
             } catch (err: any) {
-                if (err?.code === 'auth/requires-recent-login') {
-                  const hasGoogleProvider = (user.providerData || []).some(p => p.providerId === 'google.com');
-                  if (hasGoogleProvider) {
-                    await reauthenticateWithGoogle();
-                    const anyUser2: any = user as any;
-                    if (typeof anyUser2.verifyBeforeUpdateEmail === 'function') {
-                      await anyUser2.verifyBeforeUpdateEmail(newEmail);
-                    } else {
-                      await user.updateEmail(newEmail);
-                      try { await user.sendEmailVerification(); } catch {}
-                    }
+              if (err?.code === 'auth/requires-recent-login') {
+                const hasGoogleProvider = (user.providerData || []).some(p => p.providerId === 'google.com');
+                if (hasGoogleProvider) {
+                  await reauthenticateWithGoogle();
+                  const anyUser2: any = user as any;
+                  if (typeof anyUser2.verifyBeforeUpdateEmail === 'function') {
+                    await anyUser2.verifyBeforeUpdateEmail(newEmail);
                   } else {
-                    const { message, level } = mapFirebaseAuthErrorToMessage(String(err?.code || ''));
-                    showToast(message, level);
-                    throw err;
+                    await user.updateEmail(newEmail);
+                    try { await user.sendEmailVerification(); } catch { }
                   }
                 } else {
                   const { message, level } = mapFirebaseAuthErrorToMessage(String(err?.code || ''));
                   showToast(message, level);
                   throw err;
                 }
+              } else {
+                const { message, level } = mapFirebaseAuthErrorToMessage(String(err?.code || ''));
+                showToast(message, level);
+                throw err;
               }
-              try { await updateDoc(doc(db, 'users', user.uid), { pendingEmail: newEmail }); setPendingEmail(newEmail); } catch {}
-              showToast('Wysłaliśmy link weryfikacyjny. Zmiana e‑maila nastąpi po potwierdzeniu.', 'success');
-            } catch (e: any) {
-               if (e?.code === 'auth/requires-recent-login') {
-                 setPasswordPromptVisible(true);
-               } else {
-                 const { message, level } = mapFirebaseAuthErrorToMessage(String(e?.code || ''));
-                 showToast(message, level);
-               }
+            }
+            try { await updateDoc(doc(db, 'users', user.uid), { pendingEmail: newEmail }); setPendingEmail(newEmail); } catch { }
+            showToast('Wysłaliśmy link weryfikacyjny. Zmiana e‑maila nastąpi po potwierdzeniu.', 'success');
+          } catch (e: any) {
+            if (e?.code === 'auth/requires-recent-login') {
+              setPasswordPromptVisible(true);
+            } else {
+              const { message, level } = mapFirebaseAuthErrorToMessage(String(e?.code || ''));
+              showToast(message, level);
+            }
           } finally {
             setEmailChanging(false);
           }
@@ -562,7 +563,8 @@ const AccountSettingsScreen = () => {
         title="Wymagana ponowna autoryzacja"
         actions={[
           { text: 'Anuluj', onPress: () => setPasswordPromptVisible(false), variant: 'primary' },
-          { text: 'Potwierdź', onPress: async () => {
+          {
+            text: 'Potwierdź', onPress: async () => {
               if (!user || !user.email) return;
               try {
                 await reauthenticateWithPassword(passwordForReauth);
@@ -571,9 +573,9 @@ const AccountSettingsScreen = () => {
                   await anyUser3.verifyBeforeUpdateEmail(newEmail);
                 } else {
                   await user.updateEmail(newEmail);
-                  try { await user.sendEmailVerification(); } catch {}
+                  try { await user.sendEmailVerification(); } catch { }
                 }
-                try { await updateDoc(doc(db, 'users', user.uid), { pendingEmail: newEmail }); setPendingEmail(newEmail); } catch {}
+                try { await updateDoc(doc(db, 'users', user.uid), { pendingEmail: newEmail }); setPendingEmail(newEmail); } catch { }
                 showToast('Wysłaliśmy link weryfikacyjny. Zmiana e‑maila nastąpi po potwierdzeniu.', 'success');
                 setPasswordPromptVisible(false);
                 setPasswordForReauth('');
@@ -593,11 +595,11 @@ const AccountSettingsScreen = () => {
         <Text style={[styles.sectionTitle, { color: theme.colors.textPrimary }]}>Preferencje</Text>
         <Text style={styles.label}>Motyw</Text>
         <View style={styles.actionsRow}>
-          {(['system','light','dark'] as const).map(mode => (
+          {(['system', 'light', 'dark'] as const).map(mode => (
             <TouchableOpacity key={mode} style={[GlobalStyles.button, preferences.theme === mode && styles.secondary]} onPress={async () => {
               setPreferences(prev => ({ ...prev, theme: mode }));
-              try { const m = await import('expo-haptics'); await m.selectionAsync(); } catch {}
-              if (user) await updateDoc(doc(db, 'users', user.uid), { preferences: { ...(preferences||{}), theme: mode } });
+              try { const m = await import('expo-haptics'); await m.selectionAsync(); } catch { }
+              if (user) await updateDoc(doc(db, 'users', user.uid), { preferences: { ...(preferences || {}), theme: mode } });
             }}>
               <Text style={GlobalStyles.buttonText}>{mode === 'system' ? 'System' : mode === 'light' ? 'Jasny' : 'Ciemny'}</Text>
             </TouchableOpacity>
@@ -605,11 +607,11 @@ const AccountSettingsScreen = () => {
         </View>
         <Text style={[styles.label, { marginTop: Spacing.medium }]}>Język</Text>
         <View style={styles.actionsRow}>
-          {(['pl','en'] as const).map(lng => (
+          {(['pl', 'en'] as const).map(lng => (
             <TouchableOpacity key={lng} style={[GlobalStyles.button, preferences.language === lng && styles.secondary]} onPress={async () => {
               setPreferences(prev => ({ ...prev, language: lng }));
-              try { const m = await import('expo-haptics'); await m.selectionAsync(); } catch {}
-              if (user) await updateDoc(doc(db, 'users', user.uid), { preferences: { ...(preferences||{}), language: lng } });
+              try { const m = await import('expo-haptics'); await m.selectionAsync(); } catch { }
+              if (user) await updateDoc(doc(db, 'users', user.uid), { preferences: { ...(preferences || {}), language: lng } });
             }}>
               <Text style={GlobalStyles.buttonText}>{lng === 'pl' ? 'Polski' : 'English'}</Text>
             </TouchableOpacity>
@@ -624,7 +626,7 @@ const AccountSettingsScreen = () => {
         <TouchableOpacity style={[GlobalStyles.button, { marginTop: Spacing.small }]} onPress={async () => { try { const mod = await import('../utils/offlineQueue'); await mod.processOutbox(); showToast('Wymuszono przetwarzanie kolejki.', 'success'); } catch { showToast('Nie udało się przetworzyć kolejki.', 'error'); } }}>
           <Text style={GlobalStyles.buttonText}>Przetwórz kolejkę teraz</Text>
         </TouchableOpacity>
-        <TouchableOpacity style={[GlobalStyles.button, styles.secondary, { marginTop: Spacing.small }]} onPress={async () => { try { const mod = await import('../utils/offlineQueue'); const list = await mod.listOutbox(); const msg = list.length ? list.map((o:any)=>`${o.action} ${o.collectionPath||o.docPath}`).slice(0,10).join('\n') : 'Kolejka jest pusta.'; showToast(msg, 'info'); } catch { showToast('Nie udało się odczytać kolejki.', 'error'); } }}>
+        <TouchableOpacity style={[GlobalStyles.button, styles.secondary, { marginTop: Spacing.small }]} onPress={async () => { try { const mod = await import('../utils/offlineQueue'); const list = await mod.listOutbox(); const msg = list.length ? list.map((o: any) => `${o.action} ${o.collectionPath || o.docPath}`).slice(0, 10).join('\n') : 'Kolejka jest pusta.'; showToast(msg, 'info'); } catch { showToast('Nie udało się odczytać kolejki.', 'error'); } }}>
           <Text style={GlobalStyles.buttonText}>Podgląd 10 ostatnich</Text>
         </TouchableOpacity>
         <TouchableOpacity style={[GlobalStyles.button, styles.danger, { marginTop: Spacing.small }]} onPress={async () => { try { const mod = await import('../utils/offlineQueue'); await mod.clearOutbox(); showToast('Wyczyszczono kolejkę.', 'success'); } catch { showToast('Nie udało się wyczyścić kolejki.', 'error'); } }}>
@@ -634,7 +636,7 @@ const AccountSettingsScreen = () => {
 
       <View style={[GlobalStyles.section, { backgroundColor: theme.colors.card, borderColor: theme.colors.border }]}>
         <Text style={[styles.sectionTitle, { color: theme.colors.textPrimary }]}>Zarządzanie kontem</Text>
-            <TouchableOpacity style={[GlobalStyles.button, { backgroundColor: theme.colors.danger }]} onPress={async () => { try { const m = await import('expo-haptics'); await m.notificationAsync(m.NotificationFeedbackType.Warning); } catch {}; setConfirmDeleteVisible(true); }} disabled={isBusy}>
+        <TouchableOpacity style={[GlobalStyles.button, { backgroundColor: theme.colors.danger }]} onPress={async () => { try { const m = await import('expo-haptics'); await m.notificationAsync(m.NotificationFeedbackType.Warning); } catch { }; setConfirmDeleteVisible(true); }} disabled={isBusy}>
           <Text style={GlobalStyles.buttonText}>Usuń konto</Text>
         </TouchableOpacity>
       </View>

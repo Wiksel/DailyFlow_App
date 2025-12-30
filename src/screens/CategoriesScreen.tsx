@@ -4,7 +4,7 @@ import React, { useState } from 'react';
 import { View, Text, StyleSheet, FlatList, TextInput, TouchableOpacity, ActivityIndicator, ScrollView } from 'react-native';
 import LabeledInput from '../components/LabeledInput';
 import Animated, { FadeInUp, Layout } from 'react-native-reanimated';
-import { getAuth } from '@react-native-firebase/auth'; // ZMIANA
+import { getAuth } from '../utils/authCompat'; // ZMIANA
 import { db } from '../utils/firestoreCompat'; // <--- TEN IMPORT ZOSTAJE
 import { collection, addDoc, deleteDoc, doc, updateDoc, query, where, getDocs, writeBatch } from '../utils/firestoreCompat';
 import { enqueueAdd, enqueueUpdate, enqueueDelete } from '../utils/offlineQueue';
@@ -113,7 +113,7 @@ const CategoriesScreen = () => {
     return (
         <View style={[GlobalStyles.container, { backgroundColor: theme.colors.background }]}>
             <AppHeader title="Kategorie" />
-            <View style={[styles.addSection, { backgroundColor: theme.colors.card, borderColor: theme.colors.border, borderRadius: 12, marginHorizontal: Spacing.medium }] }>
+            <View style={[styles.addSection, { backgroundColor: theme.colors.card, borderColor: theme.colors.border, borderRadius: 12, marginHorizontal: Spacing.medium }]}>
                 <Text style={styles.sectionTitle}>{editingCategory ? 'Edytuj kategorię' : 'Dodaj nową kategorię'}</Text>
                 <LabeledInput
                     label="Nazwa kategorii"
@@ -130,7 +130,7 @@ const CategoriesScreen = () => {
                             style={[styles.colorButton, { backgroundColor: color }, selectedColor === color && [styles.colorSelected, { borderColor: theme.colors.primary }]]}
                             onPress={() => setSelectedColor(color)}
                             disabled={isSubmitting}
-                            accessibilityLabel={`Kolor ${color}${selectedColor===color ? ' wybrany' : ''}`}
+                            accessibilityLabel={`Kolor ${color}${selectedColor === color ? ' wybrany' : ''}`}
                             accessibilityRole="button"
                             accessibilityState={{ selected: selectedColor === color }}
                         />
@@ -148,9 +148,9 @@ const CategoriesScreen = () => {
             <Animated.FlatList
                 data={categories}
                 renderItem={(args) => (
-                  <Animated.View layout={Layout.springify()}>
-                    {renderCategory(args)}
-                  </Animated.View>
+                    <Animated.View layout={Layout.springify()}>
+                        {renderCategory(args)}
+                    </Animated.View>
                 )}
                 keyExtractor={item => item.id}
                 ListHeaderComponent={<Text style={[styles.listHeader, { color: theme.colors.textPrimary, marginTop: Spacing.medium }]}>Twoje kategorie</Text>}
@@ -165,37 +165,39 @@ const CategoriesScreen = () => {
                     onRequestClose={() => setConfirmDeleteCategory(null)}
                     actions={[
                         { text: 'Anuluj', variant: 'secondary', onPress: () => setConfirmDeleteCategory(null) },
-                         { text: 'Usuń', onPress: async () => {
-                            if (!confirmDeleteCategory) return;
-                            setIsSubmitting(true);
-                            try {
-                                if (!currentUser) {
-                                    showToast('Użytkownik nie jest zalogowany.', 'error');
-                                    return;
+                        {
+                            text: 'Usuń', onPress: async () => {
+                                if (!confirmDeleteCategory) return;
+                                setIsSubmitting(true);
+                                try {
+                                    if (!currentUser) {
+                                        showToast('Użytkownik nie jest zalogowany.', 'error');
+                                        return;
+                                    }
+                                    const otherCategory = categories.find(cat => cat.name === 'Inne');
+                                    const defaultCategoryId = otherCategory?.id;
+                                    if (!defaultCategoryId) {
+                                        showToast("Błąd: Nie znaleziono domyślnej kategorii 'Inne'. Upewnij się, że istnieje.", 'error');
+                                        return;
+                                    }
+                                    const tasksRef = collection(db, 'tasks');
+                                    const tasksToUpdateQuery = query(tasksRef, where('category', '==', confirmDeleteCategory.id), where('userId', '==', currentUser.uid));
+                                    const tasksSnapshot = await getDocs(tasksToUpdateQuery);
+                                    const batch = writeBatch(db);
+                                    tasksSnapshot.docs.forEach(taskDoc => { batch.update(taskDoc.ref, { category: defaultCategoryId }); });
+                                    batch.delete(doc(db, 'categories', confirmDeleteCategory.id));
+                                    await batch.commit();
+                                    showToast('Kategoria i powiązane zadania zaktualizowane!', 'success');
+                                } catch (error: any) {
+                                    // fallback do kolejki dla samego usunięcia kategorii (aktualizacja zadań offline pomijamy)
+                                    try { await enqueueDelete(`categories/${confirmDeleteCategory.id}`); showToast('Kategoria zostanie usunięta po powrocie online.', 'info'); }
+                                    catch { showToast('Błąd podczas usuwania kategorii.', 'error'); }
+                                } finally {
+                                    setIsSubmitting(false);
+                                    setConfirmDeleteCategory(null);
                                 }
-                                const otherCategory = categories.find(cat => cat.name === 'Inne');
-                                const defaultCategoryId = otherCategory?.id;
-                                if (!defaultCategoryId) {
-                                    showToast("Błąd: Nie znaleziono domyślnej kategorii 'Inne'. Upewnij się, że istnieje.", 'error');
-                                    return;
-                                }
-                                const tasksRef = collection(db, 'tasks');
-                                const tasksToUpdateQuery = query(tasksRef, where('category', '==', confirmDeleteCategory.id), where('userId', '==', currentUser.uid));
-                                const tasksSnapshot = await getDocs(tasksToUpdateQuery);
-                                const batch = writeBatch(db);
-                                tasksSnapshot.docs.forEach(taskDoc => { batch.update(taskDoc.ref, { category: defaultCategoryId }); });
-                                batch.delete(doc(db, 'categories', confirmDeleteCategory.id));
-                                await batch.commit();
-                                showToast('Kategoria i powiązane zadania zaktualizowane!', 'success');
-                             } catch (error: any) {
-                                 // fallback do kolejki dla samego usunięcia kategorii (aktualizacja zadań offline pomijamy)
-                                 try { await enqueueDelete(`categories/${confirmDeleteCategory.id}`); showToast('Kategoria zostanie usunięta po powrocie online.', 'info'); }
-                                 catch { showToast('Błąd podczas usuwania kategorii.', 'error'); }
-                            } finally {
-                                setIsSubmitting(false);
-                                setConfirmDeleteCategory(null);
                             }
-                        } },
+                        },
                     ]}
                 />
             )}
