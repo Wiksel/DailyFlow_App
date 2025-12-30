@@ -85,7 +85,7 @@ export async function setDoc(ref: CompatDocRef, data: Record<string, unknown>, o
 }
 
 export function writeBatch(_db?: unknown) {
-  const batch = firestore().batch();
+  const batch = getFirestore().batch();
   return {
     set(ref: CompatDocRef, data: Record<string, unknown>, options?: { merge?: boolean }) {
       return options && options.merge ? batch.set(ref, data as any, { merge: true }) : batch.set(ref, data as any);
@@ -130,7 +130,7 @@ export type QueryDocCompat = { id: string; data: () => any; ref: CompatDocRef };
 export type QuerySnapshotCompat = { empty: boolean; docs: QueryDocCompat[]; forEach: (cb: (d: QueryDocCompat) => void) => void };
 export async function getDocs(q: CompatQuery): Promise<QuerySnapshotCompat> {
   const snap = await q.get();
-  const docs: QueryDocCompat[] = snap.docs.map((d) => ({ id: d.id, data: () => (d.data() as any), ref: d.ref }));
+  const docs: QueryDocCompat[] = snap.docs.map((d: any) => ({ id: d.id, data: () => (d.data() as any), ref: d.ref }));
   return { empty: snap.empty, docs, forEach: (cb) => docs.forEach(cb) };
 }
 
@@ -144,7 +144,7 @@ export function onSnapshot(
   const isDocRef = (ref: any) => typeof ref?.id === 'string' && typeof ref?.path === 'string' && typeof ref?.parent !== 'undefined' && typeof (ref as any).get === 'function';
   if (isDocRef(source)) {
     const unsubscribe = (source as CompatDocRef).onSnapshot(
-      (snap) => (next as any)({ exists: () => snap.exists, data: () => (snap.data() as any) }),
+      (snap: any) => (next as any)({ exists: () => snap.exists, data: () => (snap.data() as any) }),
       error,
     );
     return unsubscribe;

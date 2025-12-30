@@ -57,5 +57,14 @@ const defaultAuth = () => {
 // Attach statics if native module has them, or mock them
 Object.assign(defaultAuth, authModule || MockAuth);
 
+// Basic mock types for FirebaseAuthTypes
+export namespace FirebaseAuthTypes {
+    export interface User {
+        uid: string;
+        email: string | null;
+        [key: string]: any;
+    }
+}
+
 export default defaultAuth;
 

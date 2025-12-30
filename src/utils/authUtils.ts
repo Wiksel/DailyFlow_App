@@ -52,7 +52,7 @@ export const createNewUserInFirestore = async (user: FirebaseAuthTypes.User, dis
         }
         // Aktualizuj flagi providerów
         try {
-            const providers = (user.providerData || []).map(p => p?.providerId);
+            const providers = (user.providerData || []).map((p: any) => p?.providerId);
             updateData.authProviders = {
                 password: providers.includes('password'),
                 google: providers.includes('google.com'),
@@ -79,8 +79,8 @@ export const createNewUserInFirestore = async (user: FirebaseAuthTypes.User, dis
         nickname: finalNickname,
         completedTasksCount: 0,
         authProviders: {
-            password: (user.providerData || []).some(p => p?.providerId === 'password'),
-            google: (user.providerData || []).some(p => p?.providerId === 'google.com'),
+            password: (user.providerData || []).some((p: any) => p?.providerId === 'password'),
+            google: (user.providerData || []).some((p: any) => p?.providerId === 'google.com'),
             phone: !!user.phoneNumber,
         },
         prioritySettings: {
@@ -98,8 +98,8 @@ export const createNewUserInFirestore = async (user: FirebaseAuthTypes.User, dis
         // Keep lower-cased email only if present
         emailLower: user.email ? user.email.toLowerCase() : null,
         // Optional basic flags for UX
-        hasGoogle: (user.providerData || []).some(p => p?.providerId === 'google.com'),
-        hasPassword: (user.providerData || []).some(p => p?.providerId === 'password'),
+        hasGoogle: (user.providerData || []).some((p: any) => p?.providerId === 'google.com'),
+        hasPassword: (user.providerData || []).some((p: any) => p?.providerId === 'password'),
     });
 
     DEFAULT_CATEGORIES.forEach(category => {
@@ -114,7 +114,7 @@ export const upsertAuthProvidersForUser = async (user: FirebaseAuthTypes.User) =
     try {
         const userRef = doc(db, 'users', user.uid);
         const snap = await getDoc(userRef);
-        const providers = (user.providerData || []).map(p => p?.providerId);
+        const providers = (user.providerData || []).map((p: any) => p?.providerId);
         const update: any = {
             authProviders: {
                 password: providers.includes('password'),
@@ -139,8 +139,8 @@ export const upsertAuthProvidersForUser = async (user: FirebaseAuthTypes.User) =
             nickname: (user.displayName || null),
             photoURL: user.photoURL || null,
             emailLower: user.email ? user.email.toLowerCase() : null,
-            hasGoogle: (user.providerData || []).some(p => p?.providerId === 'google.com'),
-            hasPassword: (user.providerData || []).some(p => p?.providerId === 'password'),
+            hasGoogle: (user.providerData || []).some((p: any) => p?.providerId === 'google.com'),
+            hasPassword: (user.providerData || []).some((p: any) => p?.providerId === 'password'),
         };
         await setDoc(publicRef as any, pubUpdate, { merge: true });
     } catch { }

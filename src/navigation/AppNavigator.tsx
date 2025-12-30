@@ -115,7 +115,7 @@ const AppNavigator = () => {
       Logger.warn('[GoogleSignin] Brak googleWebClientId w app config. Logowanie Google może nie działać.');
     }
 
-    const subscriber = onAuthStateChanged(getAuth(), async (user) => {
+    const subscriber = onAuthStateChanged(getAuth(), async (user: FirebaseAuthTypes.User | null) => {
       setUser(user);
       if (user) {
         try {
@@ -151,7 +151,7 @@ const AppNavigator = () => {
 
   // Dopuszczamy logowanie także użytkowników telefonicznych i Google (nie wymagamy weryfikacji e‑maila dla Google)
   const hasDummyEmail = !!user?.email && user!.email!.endsWith('@dailyflow.app');
-  const hasGoogleProvider = !!user?.providerData?.some((p) => p.providerId === 'google.com');
+  const hasGoogleProvider = !!user?.providerData?.some((p: any) => p.providerId === 'google.com');
   const requiresEmailVerification = !!user?.email && !hasDummyEmail && !user?.phoneNumber && !hasGoogleProvider;
   const isVerified = requiresEmailVerification ? !!user?.emailVerified : true;
   const suppressAppTabs = isPasswordResetInProgress();
