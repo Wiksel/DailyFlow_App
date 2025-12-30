@@ -67,11 +67,20 @@ const AddTaskModal = ({ visible, onClose, onAddTask, initialCategory }: AddTaskM
     };
 
     return (
-        <Modal visible={visible} animationType="slide" onRequestClose={onClose}>
+        <Modal
+            visible={visible}
+            animationType="slide"
+            onRequestClose={onClose}
+            accessibilityViewIsModal={true}
+        >
             <View style={styles.container}>
                 <View style={styles.header}>
-                    <Text style={styles.headerTitle}>Nowe zadanie</Text>
-                    <TouchableOpacity onPress={onClose}>
+                    <Text style={styles.headerTitle} accessibilityRole="header">Nowe zadanie</Text>
+                    <TouchableOpacity
+                        onPress={onClose}
+                        accessibilityRole="button"
+                        accessibilityLabel="Anuluj dodawanie zadania"
+                    >
                         <Text style={styles.closeButtonText}>Anuluj</Text>
                     </TouchableOpacity>
                 </View>
@@ -84,7 +93,12 @@ const AddTaskModal = ({ visible, onClose, onAddTask, initialCategory }: AddTaskM
                         onShowDatePicker={() => setShowDatePicker(true)}
                         onDatePickerChange={onDateChange}
                     />
-                    <TouchableOpacity style={styles.saveButton} onPress={handleSave}>
+                    <TouchableOpacity
+                        style={styles.saveButton}
+                        onPress={handleSave}
+                        accessibilityRole="button"
+                        accessibilityLabel="Zapisz zadanie"
+                    >
                         <Text style={styles.saveButtonText}>Dodaj zadanie</Text>
                     </TouchableOpacity>
                 </View>

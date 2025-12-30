@@ -16,7 +16,14 @@ const PrioritySelector = ({ value, onSelect }: PrioritySelectorProps) => {
         <View style={styles.priorityContainer}>
             {priorities.map(p => {
                 return (
-                    <TouchableOpacity key={p} onPress={() => onSelect(p)} style={styles.priorityButton}>
+                    <TouchableOpacity
+                        key={p}
+                        onPress={() => onSelect(p)}
+                        style={styles.priorityButton}
+                        accessibilityRole="button"
+                        accessibilityLabel={`Priorytet ${p}`}
+                        accessibilityState={{ selected: p === value }}
+                    >
                         <View style={[
                             styles.priorityBar,
                             {
