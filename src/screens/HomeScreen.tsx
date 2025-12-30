@@ -1,11 +1,12 @@
 import React, { useState, useRef, useCallback, useEffect, useMemo } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, FlatList, TextInput, ScrollView, Vibration } from 'react-native';
-import * as Haptics from 'expo-haptics';
+import * as Haptics from 'expo-haptics'; // Fixed import
 import { LinearGradient } from 'expo-linear-gradient';
+import { isOnboardingDone, setOnboardingDone } from '../utils/authUtils'; // Fixed import
 import { Swipeable } from 'react-native-gesture-handler';
 import { useNavigation } from '@react-navigation/native';
 import { getAuth } from '../utils/authCompat';
-import { doc, getDoc, onSnapshot, collection, query, where, orderBy, limit, getDocs, Timestamp, db } from '../utils/firestoreCompat';
+import { doc, getDoc, onSnapshot, collection, query, where, orderBy, limit, getDocs, Timestamp, db, addDoc } from '../utils/firestoreCompat';
 import { Feather } from '@expo/vector-icons';
 import { TaskStackNavigationProp } from '../types/navigation';
 import { Task, UserProfile, ChoreTemplate, Category } from '../types';
@@ -104,13 +105,11 @@ const HomeScreen = () => {
 
     useEffect(() => {
         if (!currentUser) return;
-        import('../utils/firestoreCompat').then(({ query, collection, where }) => {
-            const q = query(collection(db, 'choreTemplates'), where("userId", "==", currentUser.uid));
-            const unsubscribe = onSnapshot(q, (snapshot: any) => {
-                setTemplates(snapshot.docs.map((doc: any) => ({ ...doc.data(), id: doc.id } as ChoreTemplate)));
-            });
-            return () => unsubscribe();
+        const q = query(collection(db, 'choreTemplates'), where("userId", "==", currentUser.uid));
+        const unsubscribe = onSnapshot(q, (snapshot: any) => {
+            setTemplates(snapshot.docs.map((doc: any) => ({ ...doc.data(), id: doc.id } as ChoreTemplate)));
         });
+        return () => unsubscribe();
     }, [currentUser]);
 
     // --- Hooks ---
@@ -293,10 +292,7 @@ const HomeScreen = () => {
                     { icon: density === 'compact' ? 'maximize-2' : 'minimize-2', onPress: async () => { try { await Haptics.selectionAsync(); } catch { }; setDensity(density === 'compact' ? 'standard' : 'compact'); }, accessibilityLabel: density === 'compact' ? 'Tryb komfortowy' : 'Tryb kompaktowy' },
                     { icon: globalSearchVisible ? 'x' : 'search', onPress: async () => { try { await Haptics.selectionAsync(); } catch { }; setGlobalSearchVisible(v => !v); if (globalSearchVisible) setGlobalSearchQuery(''); }, accessibilityLabel: 'Szukaj' },
                     { icon: 'archive', onPress: () => navigation.navigate('Archive'), accessibilityLabel: 'Archiwum zadań' },
-                    { icon: 'file-text', onPress: () => navigation.navigate('ChoreTemplates', {}), accessibilityLabel: 'Szablony obowiązków' },
-                    { icon: 'calendar', onPress: () => navigation.navigate('WeekPlan'), accessibilityLabel: 'Plan tygodnia' },
-                    { icon: 'repeat', onPress: () => navigation.navigate('RecurringSeries'), accessibilityLabel: 'Zadania cykliczne' },
-                    { icon: 'bell', onPress: () => navigation.navigate('Notifications'), accessibilityLabel: 'Powiadomienia' },
+                    { icon: 'settings', onPress: () => navigation.navigate('Profile'), accessibilityLabel: 'Ustawienia' }, // Changed to settings icon for clarity
                 ]}
                 avatarUrl={userProfile?.photoURL || null}
                 onAvatarPress={() => navigation.navigate('Profile')}
@@ -414,13 +410,7 @@ const HomeScreen = () => {
                 })}
             />
 
-            <BottomQuickAdd
-                value={quickTaskText}
-                onChangeText={setQuickTaskText}
-                placeholder={filters.taskType === 'shared' && !userProfile?.pairId ? 'Dołącz do pary...' : 'Dodaj zadanie...'}
-                onSubmit={handleQuickAdd}
-                disabled={!quickTaskText.trim() || (filters.taskType === 'shared' && !userProfile?.pairId)}
-            />
+            {/* BottomQuickAdd REMOVED as requested */}
 
             {showFilters && (
                 <InlineFilters
@@ -453,7 +443,9 @@ const HomeScreen = () => {
 
             {tasksLoading ? <TaskListSkeleton rows={8} /> : (
                 processedAndSortedTasks.length === 0 ? (
-                    <HomeEmptyState onAddTask={() => setAddTaskModalVisible(true)} onOpenTemplates={() => navigation.navigate('ChoreTemplates' as any)} />
+                    <View style={GlobalStyles.centered}>
+                        <HomeEmptyState onAddTask={() => setAddTaskModalVisible(true)} onOpenTemplates={() => navigation.navigate('ChoreTemplates' as any)} />
+                    </View>
                 ) : (
                     <TaskSectionList
                         tasks={processedAndSortedTasks}
@@ -1116,7 +1108,7 @@ export default HomeScreen;
 const HomeEmptyState = ({ onAddTask, onOpenTemplates }: { onAddTask: () => void; onOpenTemplates: () => void }) => {
     const theme = useTheme();
     const [done, setDone] = React.useState<boolean | null>(null);
-    React.useEffect(() => { (async () => setDone(await (await import('../utils/authUtils')).isOnboardingDone()))(); }, []);
+    React.useEffect(() => { (async () => setDone(await isOnboardingDone()))(); }, []);
     if (done === null) return null;
     if (done) {
         return (
@@ -1138,8 +1130,8 @@ const HomeEmptyState = ({ onAddTask, onOpenTemplates }: { onAddTask: () => void;
             title="Zacznijmy!"
             subtitle="Szybki start: dodaj pierwsze zadanie lub wybierz gotowy szablon."
             actions={[
-                { title: 'Dodaj zadanie', onPress: async () => { try { const h = await import('expo-haptics'); await h.default.impactAsync(h.default.ImpactFeedbackStyle.Medium); } catch { }; onAddTask(); (await import('../utils/authUtils')).setOnboardingDone(); } },
-                { title: 'Otwórz szablony', onPress: async () => { onOpenTemplates(); (await import('../utils/authUtils')).setOnboardingDone(); }, variant: 'secondary' },
+                { title: 'Dodaj zadanie', onPress: async () => { try { await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium); } catch { }; onAddTask(); setOnboardingDone(); } },
+                { title: 'Otwórz szablony', onPress: async () => { onOpenTemplates(); setOnboardingDone(); }, variant: 'secondary' },
             ]}
             illustration={require('../../assets/icon.png')}
         />
@@ -1154,7 +1146,6 @@ const UndoLastDeleted = () => {
     React.useEffect(() => {
         (async () => {
             try {
-                const { getAuth } = await import('@react-native-firebase/auth');
                 const uid = getAuth().currentUser?.uid || 'anon';
                 const raw = await AsyncStorage.getItem(`undo_last_task_${uid}`);
                 if (raw) { setPayload(JSON.parse(raw)); setVisible(true); }
@@ -1167,16 +1158,14 @@ const UndoLastDeleted = () => {
             <Text style={{ color: theme.colors.textPrimary, flex: 1 }} numberOfLines={1}>Cofnij usunięcie: {String(payload?.text || '')}</Text>
             <TouchableOpacity onPress={async () => {
                 try {
-                    const { db } = await import('../utils/firestoreCompat');
-                    const { collection, addDoc } = await import('../utils/firestoreCompat');
-                    await addDoc(collection(db as any, 'tasks'), payload);
+                    await addDoc(collection(db, 'tasks'), payload);
                 } catch { }
-                try { const { getAuth } = await import('@react-native-firebase/auth'); const uid = getAuth().currentUser?.uid || 'anon'; await AsyncStorage.removeItem(`undo_last_task_${uid}`); } catch { }
+                try { const uid = getAuth().currentUser?.uid || 'anon'; await AsyncStorage.removeItem(`undo_last_task_${uid}`); } catch { }
                 setVisible(false); setPayload(null);
             }} style={{ paddingHorizontal: 10, paddingVertical: 6 }}>
                 <Text style={{ color: theme.colors.primary, fontWeight: '700' }}>COFNIJ</Text>
             </TouchableOpacity>
-            <TouchableOpacity onPress={async () => { try { const { getAuth } = await import('@react-native-firebase/auth'); const uid = getAuth().currentUser?.uid || 'anon'; await AsyncStorage.removeItem(`undo_last_task_${uid}`); } catch { }; setVisible(false); setPayload(null); }} style={{ paddingHorizontal: 6, paddingVertical: 6 }}>
+            <TouchableOpacity onPress={async () => { try { const uid = getAuth().currentUser?.uid || 'anon'; await AsyncStorage.removeItem(`undo_last_task_${uid}`); } catch { }; setVisible(false); setPayload(null); }} style={{ paddingHorizontal: 6, paddingVertical: 6 }}>
                 <Feather name="x" size={18} color={theme.colors.textSecondary} />
             </TouchableOpacity>
         </View>

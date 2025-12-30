@@ -3,7 +3,7 @@ import { View, Text, StyleSheet, TouchableOpacity, TextInput, Alert, ActivityInd
 import { useNavigation } from '@react-navigation/native';
 import { getAuth } from '@react-native-firebase/auth';
 import { db } from '../utils/firestoreCompat';
-import { doc, getDoc, onSnapshot, collection, query, where, getDocs, writeBatch, updateDoc, deleteDoc, addDoc } from '../utils/firestoreCompat';
+import { doc, getDoc, onSnapshot, collection, query, where, getDocs, writeBatch, updateDoc, deleteDoc, addDoc, QuerySnapshotCompat } from '../utils/firestoreCompat';
 import { TaskStackNavigationProp } from '../types/navigation';
 import { UserProfile, Pair } from '../types';
 import { useToast } from '../contexts/ToastContext';
@@ -54,14 +54,14 @@ const ProfileScreen = () => {
         });
 
         const invitesQuery = query(collection(db, 'pairs'), where('members', 'array-contains', currentUser.uid), where('status', '==', 'pending'));
-        const invitesUnsubscribe = onSnapshot(invitesQuery, async (snapshot) => {
-             const invitesPromises = snapshot.docs
+        const invitesUnsubscribe = onSnapshot(invitesQuery, async (snapshot: QuerySnapshotCompat) => {
+            const invitesPromises = snapshot.docs
                 .map(doc => ({ ...doc.data(), id: doc.id } as Pair))
                 .filter(pair => pair.requesterId !== currentUser.uid)
                 .map(async (pair) => {
                     const requesterDoc = await getDoc(doc(db, 'users', pair.requesterId));
                     const requesterNickname = requesterDoc.data()?.nickname || 'Nieznany użytkownik';
-                    return { ...pair, requesterNickname }; 
+                    return { ...pair, requesterNickname };
                 });
             const populatedInvites = await Promise.all(invitesPromises);
             setIncomingInvites(populatedInvites);
@@ -169,10 +169,10 @@ const ProfileScreen = () => {
             const batch = writeBatch(db);
             const pairRef = doc(db, 'pairs', userProfile.pairId);
             const pairDoc = await getDoc(pairRef);
-            if(pairDoc.exists()) {
+            if (pairDoc.exists()) {
                 const pairData2 = pairDoc.data() as any;
                 const members = Array.isArray(pairData2?.members) ? pairData2.members : undefined;
-                 if (members) {
+                if (members) {
                     for (const uid of members) {
                         batch.update(doc(db, 'users', uid), { pairId: null });
                     }
@@ -227,7 +227,7 @@ const ProfileScreen = () => {
             await deleteAccountData(currentUser.uid);
             await currentUser.delete();
             showToast('Konto zostało usunięte.', 'success');
-            try { await getAuth().signOut(); } catch {}
+            try { await getAuth().signOut(); } catch { }
         } catch (e: any) {
             if (e?.code === 'auth/requires-recent-login') {
                 showToast('Ta operacja wymaga ponownego logowania.', 'error');
@@ -248,9 +248,9 @@ const ProfileScreen = () => {
     }
 
     return (
-        <ScrollView style={[GlobalStyles.container, { backgroundColor: theme.colors.background }] }>
+        <ScrollView style={[GlobalStyles.container, { backgroundColor: theme.colors.background }]}>
             <AppHeader title="Profil i para" />
-            <Animated.View layout={Layout.springify()} style={[GlobalStyles.card, styles.profileSection, { backgroundColor: theme.colors.card, borderColor: theme.colors.border }] }>
+            <Animated.View layout={Layout.springify()} style={[GlobalStyles.card, styles.profileSection, { backgroundColor: theme.colors.card, borderColor: theme.colors.border }]}>
                 <View style={styles.avatarContainer}>
                     {userProfile?.photoURL ? (
                         <Image source={{ uri: userProfile.photoURL }} style={styles.avatarImage} />
@@ -266,7 +266,7 @@ const ProfileScreen = () => {
                 <Text style={[styles.emailText, { color: theme.colors.textSecondary }]}>{currentUser?.email}</Text>
             </Animated.View>
 
-            <Animated.View layout={Layout.springify()} style={[GlobalStyles.card, styles.statsContainer, { backgroundColor: theme.colors.card, borderColor: theme.colors.border }]}> 
+            <Animated.View layout={Layout.springify()} style={[GlobalStyles.card, styles.statsContainer, { backgroundColor: theme.colors.card, borderColor: theme.colors.border }]}>
                 <View style={styles.statCard}>
                     <Feather name="star" size={24} color={Colors.warning} />
                     <Text style={styles.statValue}>{userProfile?.points ?? 0}</Text>
@@ -281,7 +281,7 @@ const ProfileScreen = () => {
 
             {/* Sekcja zmiany nicku przeniesiona do Ustawień konta – usunięta z Profilu */}
 
-            <Animated.View layout={Layout.springify()} style={[GlobalStyles.card, { backgroundColor: theme.colors.card, borderColor: theme.colors.border }] }>
+            <Animated.View layout={Layout.springify()} style={[GlobalStyles.card, { backgroundColor: theme.colors.card, borderColor: theme.colors.border }]}>
                 <Text style={styles.sectionTitle}>Zaproś do pary</Text>
                 <TextInput
                     style={[GlobalStyles.input, { backgroundColor: theme.colors.inputBackground, borderColor: theme.colors.border, color: theme.colors.textPrimary }]}
@@ -299,7 +299,7 @@ const ProfileScreen = () => {
                 />
             </Animated.View>
 
-            <Animated.View layout={Layout.springify()} style={[GlobalStyles.card, { backgroundColor: theme.colors.card, borderColor: theme.colors.border }] }>
+            <Animated.View layout={Layout.springify()} style={[GlobalStyles.card, { backgroundColor: theme.colors.card, borderColor: theme.colors.border }]}>
                 <Text style={styles.sectionTitle}>Zarządzanie</Text>
                 <ActionButton title="Zarządzaj kategoriami" onPress={() => navigation.navigate('Categories')} style={[styles.manageButton, { backgroundColor: theme.colors.primary }]} />
                 <ActionButton title="Szablony obowiązków" onPress={() => navigation.navigate('ChoreTemplates', {})} style={[styles.manageButton, { backgroundColor: theme.colors.primary }]} />
@@ -311,7 +311,7 @@ const ProfileScreen = () => {
             </Animated.View>
 
             {userProfile?.pairId ? (
-                <Animated.View layout={Layout.springify()} style={[GlobalStyles.card, { backgroundColor: theme.colors.card, borderColor: theme.colors.border }] }>
+                <Animated.View layout={Layout.springify()} style={[GlobalStyles.card, { backgroundColor: theme.colors.card, borderColor: theme.colors.border }]}>
                     <Text style={styles.sectionTitle}>Twoja para</Text>
                     <Text style={styles.pairInfo}>Jesteś w parze z: <Text style={Typography.bold}>{partnerEmail}</Text></Text>
                     <ActionButton
@@ -322,25 +322,25 @@ const ProfileScreen = () => {
                     />
                 </Animated.View>
             ) : (
-                 <>
+                <>
                     {incomingInvites.length > 0 && (
-                        <Animated.View entering={FadeInUp.delay(240)} layout={Layout.springify()} style={[GlobalStyles.card, { backgroundColor: theme.colors.card, borderColor: theme.colors.border }] }>
+                        <Animated.View entering={FadeInUp.delay(240)} layout={Layout.springify()} style={[GlobalStyles.card, { backgroundColor: theme.colors.card, borderColor: theme.colors.border }]}>
                             <Text style={styles.sectionTitle}>Oczekujące zaproszenia</Text>
                             {incomingInvites.map(invite => (
                                 <View key={invite.id} style={styles.inviteContainer}>
                                     <Text style={styles.inviteText}>Zaproszenie od: <Text style={Typography.semiBold}>{invite.requesterNickname}</Text></Text>
                                     <View style={styles.inviteActions}>
-                        <ActionButton
+                                        <ActionButton
                                             title="Akceptuj"
                                             onPress={() => handleAcceptInvite(invite)}
                                             isLoading={isPairActionLoading}
-                            style={[styles.inviteActionButton, { backgroundColor: theme.colors.success }]}
+                                            style={[styles.inviteActionButton, { backgroundColor: theme.colors.success }]}
                                         />
-                        <ActionButton
+                                        <ActionButton
                                             title="Odrzuć"
                                             onPress={() => handleDeclineInvite(invite.id)}
                                             isLoading={isPairActionLoading}
-                            style={[styles.inviteActionButton, { backgroundColor: theme.colors.danger }]}
+                                            style={[styles.inviteActionButton, { backgroundColor: theme.colors.danger }]}
                                         />
                                     </View>
                                 </View>

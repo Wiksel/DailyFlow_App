@@ -36,7 +36,7 @@ const PhoneNumberField = ({
   const focusTimer3Ref = useRef<any>(null);
 
   const handlePickerClose = () => {
-    try { Keyboard.dismiss(); } catch {}
+    try { Keyboard.dismiss(); } catch { }
   };
 
   return (
@@ -51,8 +51,8 @@ const PhoneNumberField = ({
         onSelect={onSelectCountry}
         containerButtonStyle={styles.countryPickerButton}
         // Autofocusuj pole wyszukiwarki po otwarciu modala
-        filterProps={{ autoFocus: true, ref: filterInputRef as any }}
-        
+        filterProps={{ autoFocus: true, ref: filterInputRef } as any}
+
         onClose={handlePickerClose}
         modalProps={{
           presentationStyle: 'fullScreen',
@@ -60,17 +60,17 @@ const PhoneNumberField = ({
           animationType: Platform.OS === 'android' ? 'none' : 'slide',
           statusBarTranslucent: false,
           onShow: () => {
-            try { if (focusTimer1Ref.current) clearTimeout(focusTimer1Ref.current); } catch {}
-            try { if (focusTimer2Ref.current) clearTimeout(focusTimer2Ref.current); } catch {}
-            try { if (focusTimer3Ref.current) clearTimeout(focusTimer3Ref.current); } catch {}
-            focusTimer1Ref.current = setTimeout(() => { try { filterInputRef.current?.focus(); } catch {} }, 260);
-            focusTimer2Ref.current = setTimeout(() => { try { filterInputRef.current?.focus(); } catch {} }, 520);
-            focusTimer3Ref.current = setTimeout(() => { try { filterInputRef.current?.focus(); } catch {} }, 820);
+            try { if (focusTimer1Ref.current) clearTimeout(focusTimer1Ref.current); } catch { }
+            try { if (focusTimer2Ref.current) clearTimeout(focusTimer2Ref.current); } catch { }
+            try { if (focusTimer3Ref.current) clearTimeout(focusTimer3Ref.current); } catch { }
+            focusTimer1Ref.current = setTimeout(() => { try { filterInputRef.current?.focus(); } catch { } }, 260);
+            focusTimer2Ref.current = setTimeout(() => { try { filterInputRef.current?.focus(); } catch { } }, 520);
+            focusTimer3Ref.current = setTimeout(() => { try { filterInputRef.current?.focus(); } catch { } }, 820);
           },
         } as any}
         onOpen={() => {
-          try { if (focusTimer1Ref.current) clearTimeout(focusTimer1Ref.current); } catch {}
-          focusTimer1Ref.current = setTimeout(() => { try { filterInputRef.current?.focus(); } catch {} }, 120);
+          try { if (focusTimer1Ref.current) clearTimeout(focusTimer1Ref.current); } catch { }
+          focusTimer1Ref.current = setTimeout(() => { try { filterInputRef.current?.focus(); } catch { } }, 120);
         }}
         theme={{
           backgroundColor: '#111',

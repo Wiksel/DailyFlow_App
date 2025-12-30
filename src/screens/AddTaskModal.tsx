@@ -30,7 +30,7 @@ const AddTaskModal = ({ visible, onClose, onAddTask, initialCategory, initialDea
         difficulty: 1,
         deadline: initialDeadline ?? null,
     });
-    
+
     const [showDatePicker, setShowDatePicker] = useState(false);
 
     useEffect(() => {
@@ -43,7 +43,7 @@ const AddTaskModal = ({ visible, onClose, onAddTask, initialCategory, initialDea
     }, [initialCategory, initialDeadline, categories, visible]);
 
     const resetForm = () => {
-         setTaskData({
+        setTaskData({
             text: '',
             description: '',
             category: initialCategory,
@@ -62,7 +62,7 @@ const AddTaskModal = ({ visible, onClose, onAddTask, initialCategory, initialDea
         resetForm();
         onClose();
     };
-    
+
     const handleDataChange = <K extends keyof TaskFormData>(key: K, value: TaskFormData[K]) => {
         setTaskData(prev => ({ ...prev, [key]: value }));
     };
@@ -84,10 +84,10 @@ const AddTaskModal = ({ visible, onClose, onAddTask, initialCategory, initialDea
                 { text: 'Dodaj zadanie', variant: 'primary', onPress: handleSave },
             ]}
         >
-            <View style={[styles.form, { backgroundColor: theme.colors.card, paddingHorizontal: 0, paddingBottom: 0 }]}> 
+            <View style={[styles.form, { backgroundColor: theme.colors.card }]}>
                 {loading && <Text style={{ color: theme.colors.textSecondary, padding: 8 }}>Ładowanie kategorii…</Text>}
                 {!loading && (
-                    <TaskForm 
+                    <TaskForm
                         taskData={taskData}
                         onDataChange={handleDataChange}
                         showDatePicker={showDatePicker}
@@ -101,7 +101,12 @@ const AddTaskModal = ({ visible, onClose, onAddTask, initialCategory, initialDea
 };
 
 const styles = StyleSheet.create({
-    form: { paddingHorizontal: 12, flex: 1, paddingBottom: 12 },
+    form: {
+        paddingHorizontal: 0,
+        width: '100%',
+        minHeight: 400, // Force height to prevent collapse
+        paddingBottom: 12
+    },
 });
 
 export default AddTaskModal;

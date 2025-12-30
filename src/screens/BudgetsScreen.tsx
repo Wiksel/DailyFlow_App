@@ -9,7 +9,7 @@ import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { getAuth } from '@react-native-firebase/auth';
 import { db } from '../utils/firestoreCompat';
-import { collection, query, where, onSnapshot, addDoc, doc, getDoc } from '../utils/firestoreCompat';
+import { collection, query, where, onSnapshot, addDoc, doc, getDoc, QuerySnapshotCompat } from '../utils/firestoreCompat';
 import { enqueueAdd } from '../utils/offlineQueue';
 import { Feather } from '@expo/vector-icons';
 import { BudgetStackParamList } from '../types/navigation';
@@ -65,7 +65,7 @@ const BudgetsScreen = () => {
         const budgetsRef = collection(db, 'budgets');
         const q = query(budgetsRef, where('members', 'array-contains', currentUser.uid));
 
-        const unsubscribe = onSnapshot(q, (snapshot) => {
+        const unsubscribe = onSnapshot(q, (snapshot: QuerySnapshotCompat) => {
             const budgetsData = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Budget));
             setBudgets(budgetsData);
             setLoading(false);
@@ -149,11 +149,11 @@ const BudgetsScreen = () => {
         const animatedStyle = useAnimatedStyle(() => ({ transform: [{ scale: scale.value }] }));
 
         return (
-             <Pressable
-              onPressIn={() => { scale.value = withSpring(0.98, { damping: 15 }); }}
-              onPressOut={() => { scale.value = withSpring(1, { damping: 15 }); }}
-              onPress={() => navigation.navigate('BudgetDetail', { budgetId: item.id })}
-              android_ripple={{ color: 'rgba(0,0,0,0.1)' }}
+            <Pressable
+                onPressIn={() => { scale.value = withSpring(0.98, { damping: 15 }); }}
+                onPressOut={() => { scale.value = withSpring(1, { damping: 15 }); }}
+                onPress={() => navigation.navigate('BudgetDetail', { budgetId: item.id })}
+                android_ripple={{ color: 'rgba(0,0,0,0.1)' }}
             >
                 <Animated.View layout={Layout.springify()} style={[
                     styles.budgetItem,
@@ -187,16 +187,16 @@ const BudgetsScreen = () => {
     return (
         <View style={[GlobalStyles.container, { backgroundColor: theme.colors.background }]}>
             <AppHeader
-              title="Twoje budżety"
-              rightActions={[{ icon: 'plus-circle', onPress: async () => { try { await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium); } catch {}; setModalVisible(true); }, accessibilityLabel: 'Dodaj budżet' }]}
+                title="Twoje budżety"
+                rightActions={[{ icon: 'plus-circle', onPress: async () => { try { await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium); } catch { }; setModalVisible(true); }, accessibilityLabel: 'Dodaj budżet' }]}
             />
 
             <Animated.FlatList
                 data={budgets}
                 renderItem={(args) => (
-                  <Animated.View layout={Layout.springify()}>
-                    {renderBudget(args)}
-                  </Animated.View>
+                    <Animated.View layout={Layout.springify()}>
+                        {renderBudget(args)}
+                    </Animated.View>
                 )}
                 keyExtractor={item => item.id}
                 contentContainerStyle={{ paddingBottom: Spacing.xLarge * 2 }}
@@ -215,36 +215,36 @@ const BudgetsScreen = () => {
             />
 
             <ActionModal
-              visible={modalVisible}
-              title="Nowy Budżet"
-              onRequestClose={() => setModalVisible(false)}
-              actions={[
-                { text: 'Anuluj', variant: 'secondary', onPress: () => { setModalVisible(false); setIsShared(false); setNewBudgetName(''); setNewBudgetAmount(''); } },
-                { text: isSubmittingBudget ? 'Dodawanie…' : 'Dodaj', onPress: handleAddBudget, variant: 'primary' },
-              ]}
+                visible={modalVisible}
+                title="Nowy Budżet"
+                onRequestClose={() => setModalVisible(false)}
+                actions={[
+                    { text: 'Anuluj', variant: 'secondary', onPress: () => { setModalVisible(false); setIsShared(false); setNewBudgetName(''); setNewBudgetAmount(''); } },
+                    { text: isSubmittingBudget ? 'Dodawanie…' : 'Dodaj', onPress: handleAddBudget, variant: 'primary' },
+                ]}
             >
-              <LabeledInput label="Nazwa" placeholder="Nazwa (np. Wydatki miesięczne)" value={newBudgetName} onChangeText={setNewBudgetName} editable={!isSubmittingBudget} />
-              <LabeledInput label="Kwota docelowa" placeholder="Kwota docelowa (np. 2000)" value={newBudgetAmount} onChangeText={setNewBudgetAmount} keyboardType="numeric" editable={!isSubmittingBudget} />
-              <View style={[styles.switchContainer, { marginTop: Spacing.medium, width: '100%' }]}>
-                <View>
-                  <Text style={[styles.switchLabel, { color: theme.colors.textPrimary }]}>Wspólny budżet?</Text>
-                  {!pairId && (
-                    <Text style={[styles.noPairInfo, { color: theme.colors.textSecondary }]}>Musisz być w parze, aby włączyć.</Text>
-                  )}
+                <LabeledInput label="Nazwa" placeholder="Nazwa (np. Wydatki miesięczne)" value={newBudgetName} onChangeText={setNewBudgetName} editable={!isSubmittingBudget} />
+                <LabeledInput label="Kwota docelowa" placeholder="Kwota docelowa (np. 2000)" value={newBudgetAmount} onChangeText={setNewBudgetAmount} keyboardType="numeric" editable={!isSubmittingBudget} />
+                <View style={[styles.switchContainer, { marginTop: Spacing.medium, width: '100%' }]}>
+                    <View>
+                        <Text style={[styles.switchLabel, { color: theme.colors.textPrimary }]}>Wspólny budżet?</Text>
+                        {!pairId && (
+                            <Text style={[styles.noPairInfo, { color: theme.colors.textSecondary }]}>Musisz być w parze, aby włączyć.</Text>
+                        )}
+                    </View>
+                    <Switch
+                        trackColor={{ false: theme.colors.border, true: theme.colors.primary }}
+                        thumbColor={Platform.OS === 'android' ? '#ffffff' : undefined}
+                        ios_backgroundColor={theme.colors.border}
+                        onValueChange={setIsShared}
+                        value={isShared}
+                        disabled={isSubmittingBudget || !pairId}
+                    />
                 </View>
-                <Switch
-                  trackColor={{ false: theme.colors.border, true: theme.colors.primary }}
-                  thumbColor={Platform.OS === 'android' ? '#ffffff' : undefined}
-                  ios_backgroundColor={theme.colors.border}
-                  onValueChange={setIsShared}
-                  value={isShared}
-                  disabled={isSubmittingBudget || !pairId}
-                />
-              </View>
-              {!pairId && isShared && (
-                <Text style={[styles.noPairWarning, { color: Colors.danger }]}>Aby utworzyć wspólny budżet, musisz być w parze. Przejdź do Profilu, aby zaprosić partnera.</Text>
-              )}
-              {isSubmittingBudget && <ActivityIndicator color="white" style={{ marginTop: Spacing.small }} />}
+                {!pairId && isShared && (
+                    <Text style={[styles.noPairWarning, { color: Colors.danger }]}>Aby utworzyć wspólny budżet, musisz być w parze. Przejdź do Profilu, aby zaprosić partnera.</Text>
+                )}
+                {isSubmittingBudget && <ActivityIndicator color="white" style={{ marginTop: Spacing.small }} />}
             </ActionModal>
         </View>
     );

@@ -32,7 +32,7 @@ export default function TaskListItem({ task, category, onPress, onToggleComplete
   const theme = useTheme();
   const [expanded, setExpanded] = useState(!isCompact);
   const toggleExpanded = useCallback(() => {
-    try { Haptics.selectionAsync(); } catch {}
+    try { Haptics.selectionAsync(); } catch { }
     setExpanded(v => !v);
   }, []);
 
@@ -72,16 +72,16 @@ export default function TaskListItem({ task, category, onPress, onToggleComplete
   };
 
   return (
-    <Animated.View layout={Layout.springify()} style={[styles.root, { backgroundColor: theme.colors.card, borderColor: selected ? theme.colors.primary : theme.colors.border, shadowColor: Colors.shadow, opacity: task.completed ? 0.7 : 1, padding: isCompact ? Spacing.xSmall : Spacing.small }]}> 
-      <LinearGradient colors={accentGradient} start={{ x: 0, y: 0 }} end={{ x: 0, y: 1 }} style={[styles.accent, { width: isCompact ? 2 : 3 }]} />
+    <Animated.View layout={Layout.springify()} style={[styles.root, { backgroundColor: theme.colors.card, borderColor: selected ? theme.colors.primary : theme.colors.border, shadowColor: Colors.shadow, opacity: task.completed ? 0.7 : 1, padding: isCompact ? Spacing.xSmall : Spacing.small }]}>
+      <LinearGradient colors={accentGradient as any} start={{ x: 0, y: 0 }} end={{ x: 0, y: 1 }} style={[styles.accent, { width: isCompact ? 2 : 3 }]} />
       {/* Checkbox */}
-      <TouchableOpacity 
+      <TouchableOpacity
         onPress={selectionMode ? onToggleSelect : onToggleComplete}
-        style={styles.checkboxTouchable} 
+        style={styles.checkboxTouchable}
         accessibilityLabel={selectionMode ? (selected ? 'Odznacz' : 'Zaznacz') : (task.completed ? 'Cofnij ukończenie' : 'Oznacz jako ukończone')}>
         <View style={[
-          styles.checkbox, 
-          { borderColor: theme.colors.primary }, 
+          styles.checkbox,
+          { borderColor: theme.colors.primary },
           (task.completed && !selectionMode) && { backgroundColor: theme.colors.success, borderColor: theme.colors.success },
           (selectionMode && selected) && { backgroundColor: theme.colors.primary }
         ]}>
@@ -96,12 +96,12 @@ export default function TaskListItem({ task, category, onPress, onToggleComplete
             {highlightText(task.text, highlightQuery, theme.colors.primary)}
           </Text>
           {category && (
-            <View style={[styles.categoryChipFilled, { backgroundColor: category.color, flexDirection: 'row', alignItems: 'center', gap: 6 }]}> 
+            <View style={[styles.categoryChipFilled, { backgroundColor: category.color, flexDirection: 'row', alignItems: 'center', gap: 6 }]}>
               <View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: 'rgba(255,255,255,0.9)' }} />
               <Text style={styles.categoryChipFilledText} numberOfLines={1}>{category.name}</Text>
             </View>
           )}
-          <View style={[styles.iconPill, { backgroundColor: theme.colors.inputBackground, borderColor: theme.colors.border, marginLeft: 6, paddingHorizontal: isCompact ? 6 : 6, paddingVertical: isCompact ? 3 : 4 }]}> 
+          <View style={[styles.iconPill, { backgroundColor: theme.colors.inputBackground, borderColor: theme.colors.border, marginLeft: 6, paddingHorizontal: isCompact ? 6 : 6, paddingVertical: isCompact ? 3 : 4 }]}>
             <AnimatedIconButton
               icon={expanded ? 'chevron-up' : 'chevron-down'}
               size={isCompact ? 14 : 16}
@@ -156,7 +156,7 @@ export default function TaskListItem({ task, category, onPress, onToggleComplete
             </View>
           )}
           {/* Difficulty */}
-          <View style={[styles.difficultyChip, { borderColor: theme.colors.border, paddingVertical: isCompact ? 3 : 4, paddingHorizontal: isCompact ? 8 : 10, flexDirection: 'row', alignItems: 'center', gap: 6 }]}> 
+          <View style={[styles.difficultyChip, { borderColor: theme.colors.border, paddingVertical: isCompact ? 3 : 4, paddingHorizontal: isCompact ? 8 : 10, flexDirection: 'row', alignItems: 'center', gap: 6 }]}>
             <Text style={[styles.metaLabel, { color: theme.colors.textSecondary }]}>Trudność</Text>
             <Text style={{ color: theme.colors.textSecondary, fontSize: Typography.small.fontSize }}>{Math.max(1, Math.min(10, Number(task.difficulty ?? 1)))}/10</Text>
           </View>
@@ -180,7 +180,7 @@ export default function TaskListItem({ task, category, onPress, onToggleComplete
               icon={'star'}
               size={isCompact ? 14 : 16}
               color={pinned ? '#f1c40f' : theme.colors.textSecondary}
-              onPress={onTogglePinned}
+              onPress={() => onTogglePinned && onTogglePinned()}
               accessibilityLabel={pinned ? 'Odepnij' : 'Przypnij'}
             />
           </View>
@@ -189,7 +189,7 @@ export default function TaskListItem({ task, category, onPress, onToggleComplete
               icon={'more-vertical'}
               size={isCompact ? 14 : 16}
               color={theme.colors.textSecondary}
-              onPress={onOpenMenu}
+              onPress={() => onOpenMenu && onOpenMenu()}
               accessibilityLabel={'Więcej akcji'}
             />
           </View>
@@ -204,7 +204,7 @@ export default function TaskListItem({ task, category, onPress, onToggleComplete
 
 function formatRelativePl(date: Date): string {
   const now = new Date();
-  const startOfDay = (d: Date) => { const x = new Date(d); x.setHours(0,0,0,0); return x; };
+  const startOfDay = (d: Date) => { const x = new Date(d); x.setHours(0, 0, 0, 0); return x; };
   const d = startOfDay(date).getTime();
   const n = startOfDay(now).getTime();
   const diffDays = Math.round((d - n) / (1000 * 60 * 60 * 24));

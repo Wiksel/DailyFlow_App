@@ -5,7 +5,7 @@ import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import { updateDoc, doc as fsDoc, Timestamp } from '../utils/firestoreCompat';
 import { useTheme } from '../contexts/ThemeContext';
 import { useToast } from '../contexts/ToastContext';
-import { doc, onSnapshot, collection, query, where, getDocs } from '../utils/firestoreCompat';
+import { doc, onSnapshot, collection, query, where, getDocs, QuerySnapshotCompat } from '../utils/firestoreCompat';
 import { getAuth } from '@react-native-firebase/auth';
 import { db } from '../utils/firestoreCompat';
 import { Colors, GlobalStyles, Spacing, Typography } from '../styles/AppStyles';
@@ -16,7 +16,7 @@ import { ensureInstancesForRange } from '../utils/recurrence';
 
 type DayKey = 'Mon' | 'Tue' | 'Wed' | 'Thu' | 'Fri' | 'Sat' | 'Sun';
 
-const dayOrder: DayKey[] = ['Mon','Tue','Wed','Thu','Fri','Sat','Sun'];
+const dayOrder: DayKey[] = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
 const dayLabels: Record<DayKey, string> = { Mon: 'Pon', Tue: 'Wt', Wed: 'Śr', Thu: 'Czw', Fri: 'Pt', Sat: 'Sob', Sun: 'Nd' };
 
 const WeekPlanScreen = () => {
@@ -35,7 +35,7 @@ const WeekPlanScreen = () => {
     });
     const tasksRef = collection(db, 'tasks');
     const q = query(tasksRef, where('userId', '==', currentUser.uid), where('status', '==', 'active'));
-    const unsubTasks = onSnapshot(q, (snapshot) => {
+    const unsubTasks = onSnapshot(q, (snapshot: QuerySnapshotCompat) => {
       setRawTasks(snapshot.docs.map(d => ({ ...(d.data() as any), id: d.id })) as Task[]);
       setLoading(false);
     }, () => setLoading(false));
@@ -46,10 +46,10 @@ const WeekPlanScreen = () => {
         const seriesSnap = await getDocs(query(collection(db, 'recurringSeries'), where('userId', '==', currentUser.uid)));
         const allSeries = seriesSnap.docs.map(d => ({ id: d.id, ...(d.data() as any) })) as RecurringSeries[];
         const start = new Date();
-        const day = (start.getDay() + 6) % 7; start.setDate(start.getDate() - day); start.setHours(0,0,0,0);
+        const day = (start.getDay() + 6) % 7; start.setDate(start.getDate() - day); start.setHours(0, 0, 0, 0);
         const end = new Date(start); end.setDate(end.getDate() + 7); end.setMilliseconds(-1);
         await Promise.all(allSeries.map(s => ensureInstancesForRange(s, start, end)));
-      } catch {}
+      } catch { }
     })();
     return () => { unsubUser(); unsubTasks(); };
   }, [currentUser]);
@@ -60,7 +60,7 @@ const WeekPlanScreen = () => {
       const day = (now.getDay() + 6) % 7; // 0..6, gdzie 0=pon
       const d = new Date(now);
       d.setDate(now.getDate() - day);
-      d.setHours(0,0,0,0);
+      d.setHours(0, 0, 0, 0);
       return d;
     })();
     const toKey = (date: Date | null | undefined): DayKey | null => {
@@ -122,7 +122,7 @@ const WeekPlanScreen = () => {
         renderItem={({ item: dayKey, index }) => {
           const tasks = grouped[dayKey];
           return (
-            <Animated.View layout={Layout.springify()} style={[styles.dayCard, { backgroundColor: theme.colors.card, borderColor: theme.colors.border }]}> 
+            <Animated.View layout={Layout.springify()} style={[styles.dayCard, { backgroundColor: theme.colors.card, borderColor: theme.colors.border }]}>
               <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
                 <Text style={[styles.dayLabel, { color: theme.colors.textPrimary }]}>{dayLabels[dayKey]}</Text>
                 <Text style={[styles.timeText, { color: theme.colors.textSecondary }]}>Obciążenie: {dayLoad[dayKey]}</Text>
@@ -176,7 +176,7 @@ const DraggableTaskRow = ({ task, dayKey, onMoved, onNotify }: { task: Task; day
           await updateDoc(fsDoc(db, 'tasks', task.id), { deadline: Timestamp.fromDate(now) });
           runOnJS(onMoved)({ taskId: task.id, from: dayKey, to: targetDay, prevDeadline: task.deadline?.toDate() ?? null });
           runOnJS(onNotify)('Przeniesiono zadanie. Cofnij?');
-        } catch {}
+        } catch { }
       }
       translateY.value = withTiming(0, { duration: 150 });
       isDragging.value = false;

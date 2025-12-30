@@ -8,7 +8,7 @@ import ActionModal from '../components/ActionModal';
 import { useToast } from '../contexts/ToastContext';
 import { getAuth } from '@react-native-firebase/auth';
 import { db } from '../utils/firestoreCompat'; // <--- TEN IMPORT ZOSTAJE
-import { collection, query, where, onSnapshot, orderBy, doc, updateDoc, deleteDoc, getDoc, addDoc, Timestamp } from '../utils/firestoreCompat';
+import { collection, query, where, onSnapshot, orderBy, doc, updateDoc, deleteDoc, getDoc, addDoc, Timestamp, QuerySnapshotCompat } from '../utils/firestoreCompat';
 import { enqueueAdd, enqueueUpdate, enqueueDelete } from '../utils/offlineQueue';
 import { Task, Category, UserProfile, Pair } from '../types';
 import { useCategories } from '../contexts/CategoryContext';
@@ -55,7 +55,7 @@ const ArchiveScreen = () => {
     const ARCHIVE_FILTERS_KEY = 'dailyflow_archive_filters';
 
     useEffect(() => {
-    if (!currentUser) {
+        if (!currentUser) {
             setLoading(false);
             return;
         }
@@ -106,7 +106,7 @@ const ArchiveScreen = () => {
             where("userId", "==", currentUser.uid),
             where("status", "==", "archived"),
             orderBy("completedAt", "desc")
-        ), (snapshot) => {
+        ), (snapshot: QuerySnapshotCompat) => {
             currentPersonalTasks = snapshot.docs.map(doc => ({ ...doc.data(), id: doc.id } as Task));
             updateRawTasks(currentPersonalTasks, currentSharedTasks);
         }, (error) => {
@@ -125,7 +125,7 @@ const ArchiveScreen = () => {
                     where("pairId", "==", pairId),
                     where("status", "==", "archived"),
                     orderBy("completedAt", "desc")
-                ), (snapshot) => {
+                ), (snapshot: QuerySnapshotCompat) => {
                     currentSharedTasks = snapshot.docs.map(doc => ({ ...doc.data(), id: doc.id } as Task));
                     updateRawTasks(currentPersonalTasks, currentSharedTasks);
                 }, (error) => {
@@ -164,7 +164,7 @@ const ArchiveScreen = () => {
                     if (parsed.filterCompletedFromDate) setFilterCompletedFromDate(new Date(parsed.filterCompletedFromDate));
                     if (parsed.filterCompletedToDate) setFilterCompletedToDate(new Date(parsed.filterCompletedToDate));
                 }
-            } catch {}
+            } catch { }
             finally { didLoadFiltersRef.current = true; }
         };
         loadFilters();
@@ -185,7 +185,7 @@ const ArchiveScreen = () => {
                     filterCompletedToDate: filterCompletedToDate ? filterCompletedToDate.toISOString() : null,
                 };
                 await AsyncStorage.setItem(key, JSON.stringify(payload));
-            } catch {}
+            } catch { }
         };
         const t = setTimeout(saveFilters, 300);
         return () => clearTimeout(t);
@@ -203,7 +203,7 @@ const ArchiveScreen = () => {
             if (searchQuery.trim() !== '') {
                 const lowerCaseQuery = searchQuery.toLowerCase();
                 const matchesSearch = task.text.toLowerCase().includes(lowerCaseQuery) ||
-                                   (task.description && task.description.toLowerCase().includes(lowerCaseQuery));
+                    (task.description && task.description.toLowerCase().includes(lowerCaseQuery));
                 if (!matchesSearch) return false;
             }
 
@@ -237,9 +237,9 @@ const ArchiveScreen = () => {
                 } else {
                     const targetPartnerNickname = partnerNicknames.find(p => p.id === selectedPartnerId)?.nickname;
                     if (targetPartnerNickname) {
-                         if (task.creatorNickname !== targetPartnerNickname && task.completedBy !== targetPartnerNickname) {
+                        if (task.creatorNickname !== targetPartnerNickname && task.completedBy !== targetPartnerNickname) {
                             return false;
-                         }
+                        }
                     }
                 }
             }
@@ -294,20 +294,20 @@ const ArchiveScreen = () => {
                     {!!item.description && <Text style={[styles.taskDescription, { color: theme.colors.textSecondary }]}>{item.description}</Text>}
 
                     <View style={styles.taskMetaContainer}>
-                        {category && <View style={[styles.categoryTag, {backgroundColor: category.color}]}><Text style={styles.categoryTagText}>{category.name}</Text></View>}
+                        {category && <View style={[styles.categoryTag, { backgroundColor: category.color }]}><Text style={styles.categoryTagText}>{category.name}</Text></View>}
                         {item.isShared && <Text style={[styles.creatorText, { color: theme.colors.textSecondary }]}>od: {item.creatorNickname}</Text>}
 
                         {sharedWithInfo ? <Text style={styles.sharedInfoText}>{sharedWithInfo}</Text> : null}
                     </View>
                     {item.completedBy && item.completedAt && (
                         <Text style={[styles.completedText, { color: theme.colors.textSecondary }]}>
-                            Wykonane przez: {item.completedBy} dnia {item.completedAt.toDate().toLocaleDateString('pl-PL')}
+                            Wykonane przez: {item.completedBy} dnia {item.completedAt?.toDate ? item.completedAt.toDate().toLocaleDateString('pl-PL') : ''}
                         </Text>
                     )}
                 </View>
                 <View style={styles.actionsContainer}>
-                    <AnimatedIconButton icon="refresh-ccw" size={22} color={theme.colors.primary} onPress={async () => { try { await Haptics.selectionAsync(); } catch {}; await handleRestoreTask(item.id); }} style={styles.actionButton as any} accessibilityLabel="Przywróć zadanie" />
-                    <AnimatedIconButton icon="trash-2" size={22} color={theme.colors.danger} onPress={async () => { try { await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning); } catch {}; handlePermanentDelete(item.id); }} style={[styles.actionButton as any, { marginLeft: Spacing.medium }]} accessibilityLabel="Usuń na stałe" />
+                    <AnimatedIconButton icon="refresh-ccw" size={22} color={theme.colors.primary} onPress={async () => { try { await Haptics.selectionAsync(); } catch { }; await handleRestoreTask(item.id); }} style={styles.actionButton as any} accessibilityLabel="Przywróć zadanie" />
+                    <AnimatedIconButton icon="trash-2" size={22} color={theme.colors.danger} onPress={async () => { try { await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning); } catch { }; handlePermanentDelete(item.id); }} style={[styles.actionButton as any, { marginLeft: Spacing.medium }]} accessibilityLabel="Usuń na stałe" />
                 </View>
             </Animated.View>
         );
@@ -317,7 +317,7 @@ const ArchiveScreen = () => {
         <View style={[GlobalStyles.container, { backgroundColor: theme.colors.background }]}>
             <AppHeader title="Archiwum" />
             {/* Pasek akcji eksportu */}
-            <Animated.View layout={Layout.springify()} style={[GlobalStyles.card, styles.exportBar, { backgroundColor: theme.colors.card, borderColor: theme.colors.border }]}> 
+            <Animated.View layout={Layout.springify()} style={[GlobalStyles.card, styles.exportBar, { backgroundColor: theme.colors.card, borderColor: theme.colors.border }]}>
                 <ActionButton
                     leftIcon="download"
                     leftIconSize={20}
@@ -327,7 +327,7 @@ const ArchiveScreen = () => {
                     onPress={async () => {
                         try {
                             await Haptics.selectionAsync();
-                        } catch {}
+                        } catch { }
                         try {
                             // Przygotuj dane CSV
                             const rows = processedAndSortedArchivedTasks.map(t => ({
@@ -343,11 +343,11 @@ const ArchiveScreen = () => {
                                 deadline: t.deadline?.toDate().toISOString() || '',
                             }));
                             const csv = toCsv(rows);
-                            const dir = FileSystem.cacheDirectory || FileSystem.documentDirectory || FileSystem.cacheDirectory!;
+                            const dir = (FileSystem as any).cacheDirectory || (FileSystem as any).documentDirectory || (FileSystem as any).cacheDirectory!;
                             const filePath = `${dir}archive_export_${Date.now()}.csv`;
-                            await FileSystem.writeAsStringAsync(filePath, csv, { encoding: FileSystem.EncodingType.UTF8 });
+                            await FileSystem.writeAsStringAsync(filePath, csv, { encoding: (FileSystem as any).EncodingType.UTF8 });
                             // W Android/Expo można użyć shareSheet – ale brak expo-sharing, więc podamy ścieżkę i log
-                            try { console.debug('CSV saved at:', filePath); } catch {}
+                            try { console.debug('CSV saved at:', filePath); } catch { }
                             showToast('Wyeksportowano CSV. Plik zapisany w: ' + filePath, 'success');
                         } catch (e) {
                             console.error('Export CSV failed', e);
@@ -362,12 +362,12 @@ const ArchiveScreen = () => {
                     haptic="light"
                     style={[styles.exportButton, { backgroundColor: theme.colors.secondary, marginLeft: Spacing.small }]}
                     onPress={async () => {
-                        try { await Haptics.selectionAsync(); } catch {}
+                        try { await Haptics.selectionAsync(); } catch { }
                         try {
                             const res = await DocumentPicker.getDocumentAsync({ type: 'text/*', multiple: false });
                             if (res.canceled || !res.assets?.[0]) return;
                             const uri = res.assets[0].uri;
-                            const csv = await FileSystem.readAsStringAsync(uri, { encoding: FileSystem.EncodingType.UTF8 });
+                            const csv = await FileSystem.readAsStringAsync(uri, { encoding: (FileSystem as any).EncodingType.UTF8 });
                             const rows = fromCsv(csv);
                             // Import minimalny: tylko tekst i kategoria
                             let imported = 0;
@@ -376,24 +376,24 @@ const ArchiveScreen = () => {
                                 if (!text) continue;
                                 const catName = (r['category'] || '').trim();
                                 const category = categories.find(c => c.name === catName)?.id || activeCategoryArchive !== 'all' ? activeCategoryArchive as string : (categories[0]?.id || 'default');
-                                    const payload = {
-                                      text,
-                                      description: r['description'] || '',
-                                      category,
-                                      basePriority: Number(r['basePriority'] || 3),
-                                      difficulty: Number(r['difficulty'] || 2),
-                                      deadline: r['deadline'] ? new Date(r['deadline']) : null,
-                                      completed: true,
-                                      status: 'archived',
-                                      userId: currentUser?.uid,
-                                      creatorNickname: userProfile?.nickname || 'Użytkownik',
-                                      isShared: false,
-                                      pairId: null,
-                                      createdAt: Timestamp.now(),
-                                      completedAt: Timestamp.now(),
-                                    };
-                                    try { await addDoc(collection(db, 'tasks'), payload); imported++; }
-                                    catch { await enqueueAdd('tasks', payload); imported++; }
+                                const payload = {
+                                    text,
+                                    description: r['description'] || '',
+                                    category,
+                                    basePriority: Number(r['basePriority'] || 3),
+                                    difficulty: Number(r['difficulty'] || 2),
+                                    deadline: r['deadline'] ? new Date(r['deadline']) : null,
+                                    completed: true,
+                                    status: 'archived',
+                                    userId: currentUser?.uid,
+                                    creatorNickname: userProfile?.nickname || 'Użytkownik',
+                                    isShared: false,
+                                    pairId: null,
+                                    createdAt: Timestamp.now(),
+                                    completedAt: Timestamp.now(),
+                                };
+                                try { await addDoc(collection(db, 'tasks'), payload); imported++; }
+                                catch { await enqueueAdd('tasks', payload); imported++; }
                             }
                             showToast(`Zaimportowano ${imported} pozycji.`, 'success');
                         } catch (e) {
@@ -404,7 +404,7 @@ const ArchiveScreen = () => {
                 />
             </Animated.View>
             {/* Przełącznik typu zadań (osobiste/wspólne/wszystkie) */}
-            <Animated.View layout={Layout.springify()} style={[GlobalStyles.card, styles.taskTypeSwitchContainer, { backgroundColor: theme.colors.card, borderColor: theme.colors.border }]}> 
+            <Animated.View layout={Layout.springify()} style={[GlobalStyles.card, styles.taskTypeSwitchContainer, { backgroundColor: theme.colors.card, borderColor: theme.colors.border }]}>
                 <ActionButton
                     title="Osobiste"
                     onPress={() => { setArchivedTaskType('personal'); setSelectedPartnerId('all'); }}
@@ -417,7 +417,7 @@ const ArchiveScreen = () => {
                     style={[styles.taskTypeButton, archivedTaskType === 'shared' ? { backgroundColor: theme.colors.primary } : { backgroundColor: theme.colors.inputBackground }]}
                     textStyle={[styles.taskTypeButtonText, archivedTaskType === 'shared' ? { color: '#fff' } : { color: theme.colors.textSecondary }]}
                 />
-                 <ActionButton
+                <ActionButton
                     title="Wszystkie"
                     onPress={() => { setArchivedTaskType('all'); setSelectedPartnerId('all'); }}
                     style={[styles.taskTypeButton, archivedTaskType === 'all' ? { backgroundColor: theme.colors.primary } : { backgroundColor: theme.colors.inputBackground }]}
@@ -427,7 +427,7 @@ const ArchiveScreen = () => {
 
             {/* Filtr po osobach, tylko jeśli wybrano "Wspólne" i użytkownik jest w parze */}
             {archivedTaskType === 'shared' && userProfile?.pairId && partnerNicknames.length > 0 && (
-                <Animated.View layout={Layout.springify()} style={[GlobalStyles.card, styles.partnerFilterContainer, { backgroundColor: theme.colors.card, borderColor: theme.colors.border }]}> 
+                <Animated.View layout={Layout.springify()} style={[GlobalStyles.card, styles.partnerFilterContainer, { backgroundColor: theme.colors.card, borderColor: theme.colors.border }]}>
                     <Text style={[styles.partnerFilterLabel, { color: theme.colors.textSecondary }]}>Filtruj wg partnera:</Text>
                     <View style={[styles.pickerWrapper, { borderColor: theme.colors.border }]}>
                         <Picker
@@ -443,8 +443,8 @@ const ArchiveScreen = () => {
                             {partnerNicknames
                                 .filter(p => p.id !== currentUser?.uid)
                                 .map(p => (
-                                <Picker.Item key={p.id} label={p.nickname} value={p.id} />
-                            ))}
+                                    <Picker.Item key={p.id} label={p.nickname} value={p.id} />
+                                ))}
                         </Picker>
                     </View>
                     <View style={{ height: 1, backgroundColor: theme.colors.border }} />
@@ -456,7 +456,7 @@ const ArchiveScreen = () => {
                 value={searchQuery}
                 onChangeText={setSearchQuery}
                 debounceMs={200}
-              inputStyle={{}}
+                inputStyle={{}}
             />
 
             <FilterPresets
@@ -498,7 +498,7 @@ const ArchiveScreen = () => {
                 style={styles.list}
                 data={processedAndSortedArchivedTasks}
                 renderItem={(args) => (
-                  <Animated.View layout={Layout.springify()}>{renderArchivedTask(args)}</Animated.View>
+                    <Animated.View layout={Layout.springify()}>{renderArchivedTask(args)}</Animated.View>
                 )}
                 keyExtractor={item => item.id}
                 initialNumToRender={12}
@@ -511,8 +511,8 @@ const ArchiveScreen = () => {
                         icon={searchQuery || filterCompletedFromDate || filterCompletedToDate || activeCategoryArchive !== 'all' || archivedTaskType !== 'all' || selectedPartnerId !== 'all' ? "search" : "archive"}
                         title={searchQuery || filterCompletedFromDate || filterCompletedToDate || activeCategoryArchive !== 'all' || archivedTaskType !== 'all' || selectedPartnerId !== 'all' ? "Brak wyników" : "Archiwum jest puste"}
                         subtitle={searchQuery ? `Nie znaleziono zarchiwizowanych zadań dla frazy "${searchQuery}"` : "Ukończone zadania, które zarchiwizujesz, pojawią się tutaj."}
-                        actions={[{ title: 'Przejdź do zadań', onPress: () => { try { (require('@react-navigation/native') as any).useNavigation?.().navigate('TasksTab' as any); } catch {} } }]}
-                        illustration={ require('../../assets/icon.png') }
+                        actions={[{ title: 'Przejdź do zadań', onPress: () => { try { (require('@react-navigation/native') as any).useNavigation?.().navigate('TasksTab' as any); } catch { } } }]}
+                        illustration={require('../../assets/icon.png')}
                     />
                 }
             />
@@ -523,7 +523,7 @@ const ArchiveScreen = () => {
                 onRequestClose={() => setConfirmDeleteTaskId(null)}
                 actions={[
                     { text: 'Anuluj', variant: 'secondary', onPress: () => setConfirmDeleteTaskId(null) },
-                     { text: 'Usuń', onPress: async () => { if (!confirmDeleteTaskId) return; try { await deleteDoc(doc(db, 'tasks', confirmDeleteTaskId)); } catch { await enqueueDelete(`tasks/${confirmDeleteTaskId}`); } setConfirmDeleteTaskId(null); showToast('Zadanie usunięte.', 'success'); } },
+                    { text: 'Usuń', onPress: async () => { if (!confirmDeleteTaskId) return; try { await deleteDoc(doc(db, 'tasks', confirmDeleteTaskId)); } catch { await enqueueDelete(`tasks/${confirmDeleteTaskId}`); } setConfirmDeleteTaskId(null); showToast('Zadanie usunięte.', 'success'); } },
                 ]}
             />
         </View>

@@ -31,6 +31,7 @@ export const getFirestore = () => {
 
 // Timestamp & FieldValue helpers
 export const Timestamp = firestoreModule?.Timestamp || MockFirestore.Timestamp;
+export type Timestamp = FirebaseFirestoreTypes.Timestamp;
 export const increment = (n: number) => (firestoreModule?.FieldValue || MockFirestore.FieldValue).increment(n);
 export const deleteField = () => (firestoreModule?.FieldValue || MockFirestore.FieldValue).delete();
 
@@ -155,7 +156,7 @@ export function onSnapshot(
       // but also includes the original docs mapped to our compat format.
       const compatSnapshot = {
         ...snap,
-        docs: snap.docs.map((d) => ({
+        docs: (snap.docs || []).map((d) => ({
           id: d.id,
           data: () => (d.data() as any),
           ref: d.ref

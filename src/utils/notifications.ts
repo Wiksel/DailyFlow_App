@@ -23,6 +23,15 @@ const DAILY_REMINDER_KEY = (uid: string) => `dailyflow_notif_daily_${uid}`;
 export async function initNotifications() {
   const Notifications = await getNotifications();
   if (!Notifications) return; // unavailable (e.g., Expo Go)
+
+  // Extra safeguard for Expo Go SDK 53+ where module might import but methods throw
+  try {
+    const permissions = await Notifications.getPermissionsAsync();
+    if (!permissions) return;
+  } catch (e) {
+    return; // Likely Expo Go or environment without notifications support
+  }
+
   // Android channel
   try {
     await Notifications.setNotificationChannelAsync('default', {
@@ -47,7 +56,7 @@ export async function initNotifications() {
 
 export async function registerNotificationResponseListener() {
   const Notifications = await getNotifications();
-  if (!Notifications) return { remove: () => {} } as any;
+  if (!Notifications) return { remove: () => { } } as any;
   return Notifications.addNotificationResponseReceivedListener(async (response: any) => {
     try {
       const actionId = response.actionIdentifier;
@@ -63,7 +72,7 @@ export async function registerNotificationResponseListener() {
           try {
             const userDoc = await getDoc(doc(db, 'users', uid));
             completedBy = (userDoc.data() as any)?.nickname || null;
-          } catch {}
+          } catch { }
         }
         await updateDoc(doc(db, 'tasks', taskId), {
           completed: true,
@@ -76,7 +85,7 @@ export async function registerNotificationResponseListener() {
               points: increment(10),
               completedTasksCount: increment(1),
             });
-          } catch {}
+          } catch { }
         }
       } else if (actionId === 'SNOOZE_15') {
         const nextDate = new Date(Date.now() + 15 * 60 * 1000);
@@ -115,7 +124,7 @@ export async function ensureDailyMorningReminderScheduled() {
       trigger: { hour: 9, minute: 0, repeats: true },
     });
     await AsyncStorage.setItem(key, '1');
-  } catch {}
+  } catch { }
 }
 
 export async function scheduleTaskNotifications(tasks: Task[], userProfile: UserProfile | null) {
@@ -127,7 +136,7 @@ export async function scheduleTaskNotifications(tasks: Task[], userProfile: User
   try {
     const raw = await AsyncStorage.getItem(SCHEDULED_MAP_KEY(uid));
     if (raw) map = JSON.parse(raw);
-  } catch {}
+  } catch { }
 
   const now = Date.now();
   const oneDayMs = 24 * 60 * 60 * 1000;
@@ -157,9 +166,9 @@ export async function scheduleTaskNotifications(tasks: Task[], userProfile: User
         trigger: triggerDate,
       });
       map[key] = id;
-    } catch {}
+    } catch { }
   }
-  try { await AsyncStorage.setItem(SCHEDULED_MAP_KEY(uid), JSON.stringify(map)); } catch {}
+  try { await AsyncStorage.setItem(SCHEDULED_MAP_KEY(uid), JSON.stringify(map)); } catch { }
 }
 
 

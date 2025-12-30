@@ -10,25 +10,32 @@ export const Colors = {
     info: '#17a2b8',         // Niebiesko-zielony
     light: '#f8f9fa',        // Bardzo jasny szary
     dark: '#343a40',         // Ciemny szary
-    textPrimary: '#333',     // Ciemny tekst
+    // Colors update for better dark mode support
+    textPrimary: '#333',     // Ciemny tekst (will be inverted in ThemeContext usually, but here is base)
     textSecondary: '#6c757d', // Szary tekst
-    backgroundLight: '#f5f5f5', // Jasne tło aplikacji
-    border: '#2b2b2b1a',          // Kolor obramowań (neutralny z alfą)
-    inputBackground: '#f1f3f5', // Tło pól input
-    activeTab: '#0782F9',    // Kolor aktywnej zakładki
-    inactiveTab: 'gray',     // Kolor nieaktywnej zakładki
-    shadow: '#000',          // Kolor cienia
-    placeholder: '#adb5bd',  // Kolor placeholderów
-    disabled: '#a9d4ff',     // Kolor dla wyłączonych elementów (jasny niebieski)
-    error: '#dc3545',        // Czerwony dla błędów (toast, itp.)
+    backgroundLight: '#f5f5f5',
+    border: '#2b2b2b33',      // Increased contrast for border
+    inputBackground: '#e9ecef', // Slightly darker for better visibility in light, valid in dark if handled
+    activeTab: '#0782F9',
+    inactiveTab: 'gray',
+    shadow: '#000',
+    placeholder: '#adb5bd',
+    disabled: '#a9d4ff',
+    error: '#dc3545',
+
+    // Explicit Dark Mode Palette (used via ThemeContext usually, but defining standards here)
+    darkBackground: '#121212',
+    darkCard: '#1e1e1e',
+    darkText: '#f8f9fa',
+    darkBorder: '#404040',
 };
 
 export const Typography = {
-    h1: { fontSize: 28, fontWeight: '700' as '700', color: Colors.textPrimary },
-    h2: { fontSize: 22, fontWeight: '700' as '700', color: Colors.textPrimary },
-    h3: { fontSize: 18, fontWeight: '700' as '700', color: Colors.textPrimary },
-    body: { fontSize: 16, color: Colors.textPrimary },
-    small: { fontSize: 12, color: Colors.textSecondary },
+    h1: { fontSize: 28, fontWeight: '700' as '700' }, // Removed rigid color
+    h2: { fontSize: 22, fontWeight: '700' as '700' },
+    h3: { fontSize: 18, fontWeight: '700' as '700' },
+    body: { fontSize: 16 },
+    small: { fontSize: 12 },
     bold: { fontWeight: '700' as '700' },
     semiBold: { fontWeight: '600' as '600' },
 };

@@ -1,4 +1,4 @@
-import type { Timestamp as FirestoreTimestamp } from "../utils/firestoreCompat";
+import { Timestamp as FirestoreTimestamp } from "../utils/firestoreCompat";
 
 // Użytkownicy i Pary
 export interface UserProfile {
@@ -9,7 +9,7 @@ export interface UserProfile {
     photoURL?: string; // <-- DODANA NOWA WŁAŚCIWOŚĆ
     prioritySettings?: PrioritySettings;
     partnerNickname?: string;
-    completedTasksCount?: number; 
+    completedTasksCount?: number;
 }
 
 export interface Pair {
@@ -29,7 +29,7 @@ export interface Category {
 
 // Zadania i Szablony
 export interface Task {
-    id:string;
+    id: string;
     text: string;
     description: string;
     status: 'active' | 'archived';

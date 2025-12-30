@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, FlatList, TouchableOpacity, Modal, TextInput, ActivityIndicator } from 'react-native';
 import LabeledInput from '../components/LabeledInput';
 import { useRoute } from '@react-navigation/native';
-import { doc, onSnapshot, collection, addDoc, query, orderBy, getDoc, writeBatch, increment, where, Timestamp, updateDoc } from '../utils/firestoreCompat';
+import { doc, onSnapshot, collection, addDoc, query, orderBy, getDoc, writeBatch, increment, where, Timestamp, updateDoc, QuerySnapshotCompat } from '../utils/firestoreCompat';
 import { enqueueAdd, enqueueUpdate } from '../utils/offlineQueue';
 import { getAuth } from '@react-native-firebase/auth';
 import { db } from '../utils/firestoreCompat';
@@ -48,7 +48,7 @@ const BudgetDetailScreen = () => {
         const expensesRef = collection(db, 'expenses');
         const q = query(expensesRef, where('budgetId', '==', budgetId), orderBy('date', 'desc'));
 
-        const expensesUnsubscribe = onSnapshot(q, (snapshot) => {
+        const expensesUnsubscribe = onSnapshot(q, (snapshot: QuerySnapshotCompat) => {
             const expensesData = snapshot.docs.map(docSnapshot => {
                 return { id: docSnapshot.id, ...docSnapshot.data() } as Expense;
             });
@@ -143,7 +143,7 @@ const BudgetDetailScreen = () => {
     return (
         <View style={[GlobalStyles.container, { backgroundColor: theme.colors.background }]}>
             <AppHeader title="Szczegóły budżetu" />
-            <Animated.View layout={Layout.springify()} style={[GlobalStyles.card, styles.summaryContainer, { backgroundColor: theme.colors.card, borderColor: theme.colors.border }]}> 
+            <Animated.View layout={Layout.springify()} style={[GlobalStyles.card, styles.summaryContainer, { backgroundColor: theme.colors.card, borderColor: theme.colors.border }]}>
                 <Text style={[styles.budgetName, { color: theme.colors.textPrimary }]}>{budget.name}</Text>
                 <Text style={[styles.budgetAmount, { color: theme.colors.textSecondary }]}>{budget.currentAmount.toFixed(2)} zł / {budget.targetAmount.toFixed(2)} zł</Text>
                 <View style={[styles.progressBarContainer, { backgroundColor: theme.colors.border }]}>
@@ -165,17 +165,17 @@ const BudgetDetailScreen = () => {
             </TouchableOpacity>
 
             <ActionModal
-              visible={modalVisible}
-              title="Nowy Wydatek"
-              onRequestClose={() => setModalVisible(false)}
-              actions={[
-                { text: 'Anuluj', variant: 'secondary', onPress: () => { setModalVisible(false); setNewExpenseName(''); setNewExpenseAmount(''); } },
-                { text: isSubmittingExpense ? 'Dodawanie…' : 'Dodaj', onPress: handleAddExpense, variant: 'primary' },
-              ]}
+                visible={modalVisible}
+                title="Nowy Wydatek"
+                onRequestClose={() => setModalVisible(false)}
+                actions={[
+                    { text: 'Anuluj', variant: 'secondary', onPress: () => { setModalVisible(false); setNewExpenseName(''); setNewExpenseAmount(''); } },
+                    { text: isSubmittingExpense ? 'Dodawanie…' : 'Dodaj', onPress: handleAddExpense, variant: 'primary' },
+                ]}
             >
-              <LabeledInput label="Nazwa" placeholder="Nazwa (np. Zakupy spożywcze)" value={newExpenseName} onChangeText={setNewExpenseName} editable={!isSubmittingExpense} />
-              <LabeledInput label="Kwota" placeholder="Kwota" value={newExpenseAmount} onChangeText={setNewExpenseAmount} keyboardType="numeric" editable={!isSubmittingExpense} />
-              {isSubmittingExpense && <ActivityIndicator color="white" style={{ marginTop: Spacing.small }} />}
+                <LabeledInput label="Nazwa" placeholder="Nazwa (np. Zakupy spożywcze)" value={newExpenseName} onChangeText={setNewExpenseName} editable={!isSubmittingExpense} />
+                <LabeledInput label="Kwota" placeholder="Kwota" value={newExpenseAmount} onChangeText={setNewExpenseAmount} keyboardType="numeric" editable={!isSubmittingExpense} />
+                {isSubmittingExpense && <ActivityIndicator color="white" style={{ marginTop: Spacing.small }} />}
             </ActionModal>
         </View>
     );

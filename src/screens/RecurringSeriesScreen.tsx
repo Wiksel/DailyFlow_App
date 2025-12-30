@@ -2,7 +2,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { View, Text, StyleSheet, FlatList, TextInput, TouchableOpacity, ActivityIndicator } from 'react-native';
 import LabeledInput from '../components/LabeledInput';
 import { getAuth } from '@react-native-firebase/auth';
-import { collection, query, where, onSnapshot, addDoc, doc, updateDoc, deleteDoc, Timestamp } from '../utils/firestoreCompat';
+import { collection, query, where, onSnapshot, addDoc, doc, updateDoc, deleteDoc, Timestamp, QuerySnapshotCompat } from '../utils/firestoreCompat';
 import { enqueueAdd, enqueueDelete } from '../utils/offlineQueue';
 import { db } from '../utils/firestoreCompat';
 import { Colors, GlobalStyles, Spacing, Typography } from '../styles/AppStyles';
@@ -32,7 +32,7 @@ const RecurringSeriesScreen = () => {
   useEffect(() => {
     if (!currentUser) { setLoading(false); return; }
     const q = query(collection(db, 'recurringSeries'), where('userId', '==', currentUser.uid));
-    const unsub = onSnapshot(q, (snap) => {
+    const unsub = onSnapshot(q, (snap: QuerySnapshotCompat) => {
       setSeries(snap.docs.map(d => ({ id: d.id, ...(d.data() as any) })) as RecurringSeries[]);
       setLoading(false);
     }, () => setLoading(false));
@@ -85,9 +85,9 @@ const RecurringSeriesScreen = () => {
   );
 
   return (
-    <View style={[GlobalStyles.container, { backgroundColor: theme.colors.background }]}> 
+    <View style={[GlobalStyles.container, { backgroundColor: theme.colors.background }]}>
       <AppHeader title="Zadania cykliczne" />
-      <Animated.View entering={FadeInUp} layout={Layout.springify()} style={[GlobalStyles.section, { backgroundColor: theme.colors.card, borderColor: theme.colors.border }]}> 
+      <Animated.View entering={FadeInUp} layout={Layout.springify()} style={[GlobalStyles.section, { backgroundColor: theme.colors.card, borderColor: theme.colors.border }]}>
         <Text style={[styles.title, { color: theme.colors.textPrimary }]}>Nowa seria</Text>
         <LabeledInput label="Nazwa" placeholder="Nazwa" value={name} onChangeText={setName} />
         <LabeledInput label="Opis (opcjonalnie)" placeholder="Opis (opcjonalnie)" value={desc} onChangeText={setDesc} />
@@ -101,7 +101,7 @@ const RecurringSeriesScreen = () => {
         </View>
         <Text style={styles.label}>Częstotliwość</Text>
         <View style={styles.chipsRow}>
-          {(['daily','weekly','monthly'] as RecurrenceFrequency[]).map(f => (
+          {(['daily', 'weekly', 'monthly'] as RecurrenceFrequency[]).map(f => (
             <TouchableOpacity key={f} onPress={() => setFrequency(f)} style={[styles.chip, { backgroundColor: frequency === f ? theme.colors.primary : theme.colors.inputBackground }]}>
               <Text style={{ color: frequency === f ? 'white' : theme.colors.textPrimary }}>{f === 'daily' ? 'Codziennie' : f === 'weekly' ? 'Co tydzień' : 'Co miesiąc'}</Text>
             </TouchableOpacity>

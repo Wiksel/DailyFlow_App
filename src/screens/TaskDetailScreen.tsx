@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Platform, ActivityIndicator, Alert, FlatList, TextInput } from 'react-native';
 import { useRoute, useNavigation } from '@react-navigation/native';
-import { doc, getDoc, updateDoc, Timestamp, collection, query, where, getDocs, addDoc, onSnapshot, orderBy } from '../utils/firestoreCompat';
+import { doc, getDoc, updateDoc, Timestamp, collection, query, where, getDocs, addDoc, onSnapshot, orderBy, QuerySnapshotCompat } from '../utils/firestoreCompat';
 import { getAuth } from '@react-native-firebase/auth';
 import { db } from '../utils/firestoreCompat';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
@@ -79,7 +79,7 @@ const TaskDetailScreen = () => {
         const commentsRef = collection(db, 'tasks', taskId, 'comments');
         const q = query(commentsRef, orderBy('createdAt', 'asc'));
 
-        const commentsUnsubscribe = onSnapshot(q, (snapshot) => {
+        const commentsUnsubscribe = onSnapshot(q, (snapshot: QuerySnapshotCompat) => {
             const commentsData = snapshot.docs.map(doc => ({ ...doc.data(), id: doc.id } as Comment));
             setComments(commentsData);
             setTimeout(() => commentsFlatListRef.current?.scrollToEnd({ animated: true }), 100);
@@ -119,7 +119,7 @@ const TaskDetailScreen = () => {
             try {
                 await updateDoc(doc(db, 'tasks', taskId), { ...task });
             } catch {
-                try { const { enqueueUpdate } = await import('../utils/offlineQueue'); await enqueueUpdate(`tasks/${taskId}`, { ...task }); } catch {}
+                try { const { enqueueUpdate } = await import('../utils/offlineQueue'); await enqueueUpdate(`tasks/${taskId}`, { ...task }); } catch { }
             }
             showToast("Zadanie zaktualizowane.", 'success');
             navigation.goBack();
@@ -168,9 +168,9 @@ const TaskDetailScreen = () => {
         setShowDatePicker(Platform.OS === 'ios');
         if (event.type === 'set' && selectedDate) {
             const today = new Date();
-            today.setHours(0,0,0,0);
+            today.setHours(0, 0, 0, 0);
             const picked = new Date(selectedDate);
-            picked.setHours(0,0,0,0);
+            picked.setHours(0, 0, 0, 0);
             // prosta walidacja: nie pozwalaj na daty w przeszłości bez potwierdzenia; ustaw dzisiaj jeśli przeszłość
             const finalDate = picked.getTime() < today.getTime() ? today : picked;
             handleDataChange('deadline', Timestamp.fromDate(finalDate));
@@ -236,9 +236,9 @@ const TaskDetailScreen = () => {
             </ScrollView>
 
             <FormActionBar
-              containerStyle={{ paddingBottom: insets.bottom + Spacing.xSmall }}
-              primary={{ title: 'Zapisz zmiany', onPress: async () => { try { await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium); } catch {}; await handleUpdate(); }, loading: isSavingTask, backgroundColor: theme.colors.success }}
-              secondary={{ title: 'Zapisz jako szablon', onPress: async () => { try { await Haptics.selectionAsync(); } catch {}; await handleSaveAsTemplate(); }, loading: isSavingTemplate, backgroundColor: theme.colors.info }}
+                containerStyle={{ paddingBottom: insets.bottom + Spacing.xSmall }}
+                primary={{ title: 'Zapisz zmiany', onPress: async () => { try { await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium); } catch { }; await handleUpdate(); }, loading: isSavingTask, backgroundColor: theme.colors.success }}
+                secondary={{ title: 'Zapisz jako szablon', onPress: async () => { try { await Haptics.selectionAsync(); } catch { }; await handleSaveAsTemplate(); }, loading: isSavingTemplate, backgroundColor: theme.colors.info }}
             />
         </View>
     );

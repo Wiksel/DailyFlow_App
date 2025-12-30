@@ -5,7 +5,7 @@ import ActionModal from '../components/ActionModal';
 import { useRoute, RouteProp } from '@react-navigation/native';
 import { getAuth } from '@react-native-firebase/auth'; // ZMIANA
 import { db } from '../utils/firestoreCompat'; // <--- TEN IMPORT ZOSTAJE
-import { collection, query, where, onSnapshot, addDoc, deleteDoc, doc, updateDoc } from '../utils/firestoreCompat';
+import { collection, query, where, onSnapshot, addDoc, deleteDoc, doc, updateDoc, QuerySnapshotCompat } from '../utils/firestoreCompat';
 import { enqueueAdd, enqueueUpdate, enqueueDelete } from '../utils/offlineQueue';
 import Slider from '@react-native-community/slider';
 import { Feather } from '@expo/vector-icons';
@@ -49,7 +49,7 @@ const ChoreTemplatesScreen = () => {
         if (!currentUser) return;
         const templatesRef = collection(db, 'choreTemplates');
         const q = query(templatesRef, where("userId", "==", currentUser.uid));
-        const unsubscribe = onSnapshot(q, (snapshot) => {
+        const unsubscribe = onSnapshot(q, (snapshot: QuerySnapshotCompat) => {
             const templatesData = snapshot.docs.map(doc => ({ ...doc.data(), id: doc.id } as ChoreTemplate));
             setTemplates(templatesData);
             setLoading(false);
@@ -151,11 +151,11 @@ const ChoreTemplatesScreen = () => {
         const category = categories.find(c => c.id === item.category);
         return (
             <View style={[styles.templateItem, GlobalStyles.rowPress, isCompact && { paddingVertical: Spacing.medium, paddingHorizontal: Spacing.medium }, { backgroundColor: theme.colors.card, borderColor: theme.colors.border }]}>
-                <View style={{flex: 1}}>
+                <View style={{ flex: 1 }}>
                     <Text style={[styles.templateName, { color: theme.colors.textPrimary }, isCompact && { fontSize: densityScale(Typography.body.fontSize, true) }]}>{item.name}</Text>
                     <Text style={[styles.templateDifficulty, { color: theme.colors.textSecondary }, isCompact && { fontSize: densityScale(Typography.small.fontSize, true) }]}>Trudność: {item.difficulty}/10</Text>
                 </View>
-                {category && <View style={[styles.categoryTag, {backgroundColor: category.color}]}><Text style={styles.categoryTagText}>{category.name}</Text></View>}
+                {category && <View style={[styles.categoryTag, { backgroundColor: category.color }]}><Text style={styles.categoryTagText}>{category.name}</Text></View>}
                 <AnimatedIconButton icon="edit-2" size={22} color={theme.colors.primary} onPress={() => startEditing(item)} style={{ marginHorizontal: Spacing.medium }} accessibilityLabel="Edytuj szablon" />
                 <AnimatedIconButton icon="trash-2" size={22} color={theme.colors.danger} onPress={() => handleDeleteTemplate(item)} accessibilityLabel="Usuń szablon" />
             </View>
@@ -173,7 +173,7 @@ const ChoreTemplatesScreen = () => {
     return (
         <View style={[GlobalStyles.container, { backgroundColor: theme.colors.background }]}>
             <AppHeader title="Szablony" />
-            <Animated.View layout={Layout.springify()} style={[GlobalStyles.section, { backgroundColor: theme.colors.card, borderColor: theme.colors.border }]}> 
+            <Animated.View layout={Layout.springify()} style={[GlobalStyles.section, { backgroundColor: theme.colors.card, borderColor: theme.colors.border }]}>
                 <Text style={[styles.sectionTitle, { color: theme.colors.textPrimary }]}>{editingTemplate ? 'Edytuj szablon' : 'Dodaj nowy szablon'}</Text>
                 <LabeledInput label="Nazwa szablonu" placeholder="Np. Zmywanie naczyń" value={newTemplateName} onChangeText={setNewTemplateName} editable={!isSubmitting} />
                 <Text style={styles.label}>Kategoria</Text>
@@ -183,13 +183,13 @@ const ChoreTemplatesScreen = () => {
                             key={cat.id}
                             style={[
                                 styles.categoryButton,
-                                {backgroundColor: cat.color},
+                                { backgroundColor: cat.color },
                                 selectedCategory === cat.id && styles.categorySelected
                             ]}
                             onPress={() => setSelectedCategory(cat.id)}
                             disabled={isSubmitting}
                             accessibilityRole="button"
-                            accessibilityLabel={`Kategoria ${cat.name}${selectedCategory===cat.id ? ' wybrana' : ''}`}
+                            accessibilityLabel={`Kategoria ${cat.name}${selectedCategory === cat.id ? ' wybrana' : ''}`}
                             accessibilityState={{ selected: selectedCategory === cat.id }}
                         >
                             <Text style={[
@@ -226,14 +226,14 @@ const ChoreTemplatesScreen = () => {
 
             <CategoryFilter activeCategory={activeCategoryFilter} onSelectCategory={setActiveCategoryFilter} />
 
-            <View style={{flex: 1}}>
+            <View style={{ flex: 1 }}>
                 {loading ? <ActivityIndicator size="large" color={theme.colors.primary} /> : (
                     <Animated.FlatList
                         data={filteredTemplates}
                         renderItem={(args) => (
-                          <Animated.View layout={Layout.springify()}>
-                            {renderTemplate(args)}
-                          </Animated.View>
+                            <Animated.View layout={Layout.springify()}>
+                                {renderTemplate(args)}
+                            </Animated.View>
                         )}
                         keyExtractor={item => item.id}
                         ListHeaderComponent={<Text style={[styles.listHeader, { color: theme.colors.textPrimary }]}>Twoje szablony</Text>}
@@ -242,7 +242,7 @@ const ChoreTemplatesScreen = () => {
                         windowSize={10}
                         removeClippedSubviews
                         maxToRenderPerBatch={12}
-                        />
+                    />
                 )}
             </View>
             <ActionModal
@@ -252,7 +252,7 @@ const ChoreTemplatesScreen = () => {
                 onRequestClose={() => setConfirmDeleteTemplate(null)}
                 actions={[
                     { text: 'Anuluj', variant: 'secondary', onPress: () => setConfirmDeleteTemplate(null) },
-                     { text: 'Usuń', onPress: async () => { if (!confirmDeleteTemplate) return; setIsSubmitting(true); try { await deleteDoc(doc(db, 'choreTemplates', confirmDeleteTemplate.id)); showToast('Szablon usunięty!', 'success'); } catch (e:any) { try { await enqueueDelete(`choreTemplates/${confirmDeleteTemplate.id}`); showToast('Szablon zostanie usunięty po powrocie online.', 'info'); } catch {} } finally { setIsSubmitting(false); setConfirmDeleteTemplate(null); } } },
+                    { text: 'Usuń', onPress: async () => { if (!confirmDeleteTemplate) return; setIsSubmitting(true); try { await deleteDoc(doc(db, 'choreTemplates', confirmDeleteTemplate.id)); showToast('Szablon usunięty!', 'success'); } catch (e: any) { try { await enqueueDelete(`choreTemplates/${confirmDeleteTemplate.id}`); showToast('Szablon zostanie usunięty po powrocie online.', 'info'); } catch { } } finally { setIsSubmitting(false); setConfirmDeleteTemplate(null); } } },
                 ]}
             />
         </View>
