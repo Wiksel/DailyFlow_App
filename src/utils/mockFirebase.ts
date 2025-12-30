@@ -60,18 +60,17 @@ class MockFirestoreQuery {
         setTimeout(async () => {
             // Return empty or mock data
             const mockDocs = await this._getMockData() || [];
-            if (!mockDocs) {
-                console.error("MockFirestoreQuery: _getMockData returned undefined/null for", this._collection);
-            }
-            next({
+            const snapshot = {
                 docs: (mockDocs || []).map(d => ({
                     id: d.id,
                     data: () => d,
                     ref: { id: d.id, path: `${this._collection}/${d.id}` }
                 })),
-                empty: mockDocs.length === 0,
-                forEach: (cb: any) => mockDocs.forEach(d => cb({ id: d.id, data: () => d }))
-            });
+                empty: (mockDocs || []).length === 0,
+                forEach: (cb: any) => (mockDocs || []).forEach(d => cb({ id: d.id, data: () => d }))
+            };
+            next(snapshot);
+
         }, 100);
         return () => { };
     }

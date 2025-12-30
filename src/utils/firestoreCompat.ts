@@ -151,11 +151,29 @@ export function onSnapshot(
   }
   const unsubscribe = (source as any).onSnapshot(
     (snap: FirebaseFirestoreTypes.QuerySnapshot) => {
-      const docs: QueryDocCompat[] = snap.docs.map((d) => ({ id: d.id, data: () => (d.data() as any), ref: d.ref }));
-      (next as any)({ empty: snap.empty, docs, forEach: (cb: (d: QueryDocCompat) => void) => docs.forEach(cb) });
+      // Create a compatible snapshot object that matches what the context expects
+      // but also includes the original docs mapped to our compat format.
+      const compatSnapshot = {
+        ...snap,
+        docs: snap.docs.map((d) => ({
+          id: d.id,
+          data: () => (d.data() as any),
+          ref: d.ref
+        })),
+        empty: snap.empty,
+        forEach: (cb: (d: QueryDocCompat) => void) => {
+          snap.docs.forEach((d) => cb({
+            id: d.id,
+            data: () => (d.data() as any),
+            ref: d.ref
+          }));
+        }
+      };
+      (next as any)(compatSnapshot);
     },
     error,
   );
+
   return unsubscribe;
 }
 

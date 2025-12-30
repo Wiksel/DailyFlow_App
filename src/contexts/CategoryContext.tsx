@@ -53,6 +53,7 @@ export const CategoryProvider = ({ children }: CategoryProviderProps) => {
                             return;
                         }
                         const categoriesData = snapshot.docs.map((doc: any) => ({ ...doc.data(), id: doc.id } as Category));
+
                         setCategories(categoriesData);
                         setLoading(false);
                     },
