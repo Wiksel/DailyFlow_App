@@ -94,7 +94,15 @@ const AddTaskModal = ({ visible, onClose, onAddTask, initialCategory, initialDea
                         onShowDatePicker={() => setShowDatePicker(true)}
                         onDatePickerChange={onDateChange}
                     />
-                )}
+                    <TouchableOpacity
+                        style={styles.saveButton}
+                        onPress={handleSave}
+                        accessibilityRole="button"
+                        accessibilityLabel="Zapisz zadanie"
+                    >
+                        <Text style={styles.saveButtonText}>Dodaj zadanie</Text>
+                    </TouchableOpacity>
+                </View>
             </View>
         </ActionModal>
     );

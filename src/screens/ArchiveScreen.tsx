@@ -262,7 +262,18 @@ const ArchiveScreen = () => {
         catch { await enqueueUpdate(`tasks/${taskId}`, payload); }
     };
 
-    const handlePermanentDelete = (taskId: string) => setConfirmDeleteTaskId(taskId);
+    const handlePermanentDelete = (taskId: string) => {
+        Alert.alert(
+            "Trwałe usunięcie",
+            "Czy na pewno chcesz trwale usunąć\nto zadanie?\n\nTej operacji nie można cofnąć.",
+            [
+                { text: "Anuluj", style: "cancel" },
+                { text: "Usuń", style: "destructive", onPress: async () => {
+                    await deleteDoc(doc(db, 'tasks', taskId));
+                }}
+            ]
+        );
+    };
 
     const renderArchivedTask = ({ item }: { item: Task }) => {
         const category = categories.find((c: Category) => c.id === item.category);

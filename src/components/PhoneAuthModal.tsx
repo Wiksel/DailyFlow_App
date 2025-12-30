@@ -16,13 +16,15 @@ import { useResendTimer } from '../hooks/useResendTimer';
 interface PhoneAuthModalProps {
   visible: boolean;
   onClose: () => void;
-  onRegistered?: () => void;
+  onRegistrationSuccess?: () => void;
+  onLoginSuccess?: () => void;
+  mode?: 'register' | 'login'; // Tryb: rejestracja lub logowanie
 }
 
 type AuthStep = 'enter-phone' | 'enter-code' | 'enter-details';
 
-const PhoneAuthModal = ({ visible, onClose, onRegistered }: PhoneAuthModalProps) => {
-  const theme = useTheme();
+const PhoneAuthModal = ({ visible, onClose, onRegistrationSuccess, onLoginSuccess, mode = 'register' }: PhoneAuthModalProps) => {
+  const auth = getAuth();
   const [step, setStep] = useState<AuthStep>('enter-phone');
   const [isLoading, setIsLoading] = useState(false);
   const { showToast: showGlobalToast } = useToast();
@@ -45,11 +47,36 @@ const PhoneAuthModal = ({ visible, onClose, onRegistered }: PhoneAuthModalProps)
   const [password, setPassword] = useState('');
   const [passwordError, setPasswordError] = useState('');
   const [confirmation, setConfirmation] = useState<FirebaseAuthTypes.ConfirmationResult | null>(null);
-  const [isResending, setIsResending] = useState(false);
-  const verificationIdRef = useRef<string | null>(null);
-  const resendTokenRef = useRef<number | null>(null);
+  const [userExistsInDatabase, setUserExistsInDatabase] = useState<boolean>(false);
   
-  // Używamy wyłącznie globalnego toastu z kontekstu
+  const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' | 'info' } | null>(null);
+  const [isToastVisible, setIsToastVisible] = useState(false);
+  const fadeAnim = useRef(new Animated.Value(0)).current;
+  const animationRef = useRef<Animated.CompositeAnimation | null>(null);
+
+  const showToast = (message: string, type: 'success' | 'error' | 'info') => {
+    // Zatrzymaj poprzednią animację jeśli istnieje
+    if (animationRef.current) {
+      animationRef.current.stop();
+    }
+    
+    // Zawsze pokazuj nowy toast, niezależnie od tego czy poprzedni jest wyświetlany
+    setIsToastVisible(true);
+    setToast({ message, type });
+    
+    // Uruchom nową animację z pełnym czasem - zawsze zaczynaj od fade in
+    animationRef.current = Animated.sequence([
+      Animated.timing(fadeAnim, { toValue: 1, duration: 300, useNativeDriver: true }),
+      Animated.delay(2500),
+      Animated.timing(fadeAnim, { toValue: 0, duration: 300, useNativeDriver: true }),
+    ]);
+    
+    animationRef.current.start(() => {
+      setToast(null);
+      setIsToastVisible(false);
+      animationRef.current = null;
+    });
+  };
 
   const resetState = () => {
     setStep('enter-phone');
@@ -61,6 +88,7 @@ const PhoneAuthModal = ({ visible, onClose, onRegistered }: PhoneAuthModalProps)
     setPassword('');
     setPasswordError('');
     setConfirmation(null);
+    setUserExistsInDatabase(false);
   };
 
   const handleClose = () => {
@@ -103,6 +131,13 @@ const PhoneAuthModal = ({ visible, onClose, onRegistered }: PhoneAuthModalProps)
     if (isResend) { setIsResending(true); } else { setIsLoading(true); }
     const fullPhoneNumber = buildE164(country.callingCode[0], phoneNumber);
     
+    console.log('📱 [SMS DEBUG] Rozpoczynam wysyłanie SMS:', {
+      mode,
+      phoneNumber: phoneNumber,
+      fullPhoneNumber: fullPhoneNumber,
+      country: country.callingCode[0]
+    });
+    
     try {
       // Sprawdź czy konto już istnieje tylko przy pierwszym wysłaniu
       if (!isResend) {
@@ -139,11 +174,24 @@ const PhoneAuthModal = ({ visible, onClose, onRegistered }: PhoneAuthModalProps)
       showGlobalToast('Kod weryfikacyjny został wysłany!', 'success');
       startResendTimer(30_000);
     } catch (error: any) {
-      if (error?.message === 'timeout') {
-        showGlobalToast('Przekroczono czas wysyłki SMS. \nSpróbuj ponownie.', 'error');
+      console.log('❌ [SMS DEBUG] Błąd wysyłania kodu SMS:', {
+        code: error.code,
+        message: error.message,
+        fullError: error
+      });
+      
+      if (error.code === 'auth/too-many-requests') {
+        showToast('Zbyt wiele prób.\nDostęp został tymczasowo zablokowany.\n\nSpróbuj ponownie za kilka minut.', 'error');
+      } else if (error.code === 'auth/invalid-phone-number') {
+        showToast('Nieprawidłowy format numeru telefonu.\nSprawdź czy numer jest poprawny.', 'error');
+      } else if (error.code === 'auth/quota-exceeded') {
+        showToast('Przekroczono limit SMS. Spróbuj ponownie później.', 'error');
+      } else if (error.code === 'auth/captcha-check-failed') {
+        showToast('Weryfikacja reCAPTCHA nie powiodła się.\nSpróbuj ponownie.', 'error');
+      } else if (error.code === 'auth/app-not-authorized') {
+        showToast('Aplikacja nie jest autoryzowana do używania autentykacji SMS.\nSkontaktuj się z administratorem.', 'error');
       } else {
-        const { message, level } = mapFirebaseAuthErrorToMessage(String(error?.code || ''));
-        showGlobalToast(message, level);
+        showToast(`Wystąpił błąd: ${error.code}\nSprawdź numer telefonu i spróbuj ponownie.`, 'error');
       }
     } finally {
       if (isResend) { setIsResending(false); } else { setIsLoading(false); }
@@ -200,22 +248,71 @@ const PhoneAuthModal = ({ visible, onClose, onRegistered }: PhoneAuthModalProps)
         return;
     }
 
-    // Obsłuż obie ścieżki: przez confirmation albo przez verificationId
-    if (!confirmation && !verificationIdRef.current) return;
+    // Tryb testowy w development - pomiń weryfikację SMS
+    if (__DEV__ && !confirmation) {
+      console.log('🔧 [DEBUG] Tryb testowy - pomijam weryfikację SMS');
+      if (mode === 'login') {
+        showToast('DEBUG: Symulacja logowania pomyślnego!', 'success');
+        handleClose();
+        if (onLoginSuccess) {
+          onLoginSuccess();
+        }
+        setTimeout(() => {
+          showGlobalToast('DEBUG: Zalogowano (tryb testowy)!', 'success');
+        }, 300);
+      } else {
+        showToast('DEBUG: Symulacja weryfikacji numeru!', 'success');
+        setStep('enter-details');
+      }
+      return;
+    }
+
+    if (!confirmation) {
+      showToast('Brak tokenu weryfikacji. Spróbuj wysłać kod ponownie.', 'error');
+      return;
+    }
 
     setIsLoading(true);
     try {
-      if (confirmation) {
-        await confirmation.confirm(code);
-      } else if (verificationIdRef.current) {
-        const credential = auth.PhoneAuthProvider.credential(verificationIdRef.current, code);
-        await auth().signInWithCredential(credential);
+      console.log('📱 [SMS DEBUG] Próba potwierdzenia kodu:', code);
+      await confirmation.confirm(code);
+      console.log('✅ [SMS DEBUG] Kod potwierdzony pomyślnie');
+      
+      if (mode === 'login') {
+        if (userExistsInDatabase) {
+          // Użytkownik istnieje - zaloguj go
+          console.log('📱 [SMS DEBUG] Logowanie istniejącego użytkownika');
+          showToast('Logowanie pomyślne!', 'success');
+          
+          // Zamknij modal od razu
+          handleClose();
+          
+          // Wywołaj callback informujący o pomyślnym logowaniu
+          if (onLoginSuccess) {
+            onLoginSuccess();
+          }
+          
+          // Pokaż globalny toast po zamknięciu modala
+          setTimeout(() => {
+            showGlobalToast('Zalogowano pomyślnie przez SMS!', 'success');
+          }, 300);
+        } else {
+          // Użytkownik nie istnieje - przejdź do rejestracji
+          console.log('📱 [SMS DEBUG] Tworzenie nowego konta dla użytkownika');
+          showToast('Numer zweryfikowany!\nTeraz podaj nick i hasło aby utworzyć konto.', 'success');
+          setStep('enter-details');
+        }
+      } else {
+        // Tryb rejestracji - przejdź do wprowadzania danych
+        showToast('Numer zweryfikowany pomyślnie!\nTeraz podaj nick i hasło.', 'success');
+        setStep('enter-details');
       }
-      showGlobalToast('Numer zweryfikowany pomyślnie!\nTeraz podaj nick i hasło.', 'success');
-      setStep('enter-details');
     } catch (error: any) {
-      const { message, level } = mapFirebaseAuthErrorToMessage(String(error?.code || 'auth/invalid-verification-code'));
-      showGlobalToast(message, level);
+      console.log('❌ [SMS DEBUG] Błąd potwierdzania kodu:', {
+        code: error.code,
+        message: error.message
+      });
+      showToast('Nieprawidłowy kod weryfikacyjny.', 'error');
     } finally {
       setIsLoading(false);
     }
@@ -239,24 +336,24 @@ const PhoneAuthModal = ({ visible, onClose, onRegistered }: PhoneAuthModalProps)
       const dummyEmail = `${user.phoneNumber}@dailyflow.app`;
       const emailCredential = EmailAuthProvider.credential(dummyEmail, password);
       
-      // Spróbuj połączyć credentials - może już istnieć
-      try {
-        await user.linkWithCredential(emailCredential);
-      } catch (linkError: any) {
-        // Jeśli użytkownik już ma połączony email credential, kontynuuj
-        if (linkError.code !== 'auth/provider-already-linked' && linkError.code !== 'auth/email-already-in-use') {
-          throw linkError;
-        }
-      }
+      // Połącz konto telefoniczne z email+hasło
+      const emailCredential = EmailAuthProvider.credential(phoneEmail, password);
+      await linkWithCredential(user, emailCredential);
       
+      // Utwórz użytkownika w Firestore z prawidłowym emailem
       await createNewUserInFirestore(user, nickname);
       // Prefill login screen with phone number
       try { await setSuggestedLoginIdentifier(user.phoneNumber!); } catch {}
       // Wyloguj po zakończeniu rejestracji, aby wrócić do ekranu logowania
       await getAuth().signOut();
       
-      // Zamknij modal od razu
+      // Zamknij modal od razu - użytkownik pozostaje zalogowany
       handleClose();
+      
+      // Wywołaj callback informujący o pomyślnej rejestracji
+      if (onRegistrationSuccess) {
+        onRegistrationSuccess();
+      }
       
       // Pokaż globalny toast po zamknięciu modala
       setTimeout(() => {
@@ -264,7 +361,12 @@ const PhoneAuthModal = ({ visible, onClose, onRegistered }: PhoneAuthModalProps)
         onRegistered && onRegistered();
       }, 300);
     } catch (error: any) {
-      showGlobalToast(`Błąd rejestracji. Spróbuj ponownie.`, 'error');
+      console.log('Błąd rejestracji:', error.code, error.message);
+      if (error.code === 'auth/email-already-in-use') {
+        showToast('Konto z tym numerem telefonu już istnieje.\nSpróbuj się zalogować.', 'error');
+      } else {
+        showToast(`Błąd rejestracji. Spróbuj ponownie.`, 'error');
+      }
     } finally {
       setIsLoading(false);
     }
@@ -277,7 +379,7 @@ const PhoneAuthModal = ({ visible, onClose, onRegistered }: PhoneAuthModalProps)
       case 'enter-phone':
         return (
           <>
-            <Text style={styles.modalTitle}>Zarejestruj się</Text>
+            <Text style={styles.modalTitle}>{mode === 'login' ? 'Zaloguj się przez SMS' : 'Zarejestruj się'}</Text>
             <Text style={styles.modalSubtitle}>Podaj swój numer, aby otrzymać kod weryfikacyjny SMS.</Text>
             <PhoneNumberField
               country={country}
@@ -374,7 +476,9 @@ const styles = StyleSheet.create({
     errorText: { color: Colors.danger, alignSelf: 'flex-start', width: '100%', marginLeft: Spacing.small, marginTop: Spacing.xSmall, marginBottom: Spacing.small, },
     buttonTextHidden: { opacity: 0, },
     activityIndicator: { position: 'absolute', },
-    
+    toastContainer: { position: 'absolute', top: 20, left: Spacing.medium, right: Spacing.medium, padding: Spacing.medium, borderRadius: 12, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(0,0,0,0.8)', elevation: 10, zIndex: 9999, },
+    toastIcon: { marginRight: Spacing.medium, },
+    toastText: { ...Typography.body, color: 'white', fontWeight: '600', flexShrink: 1, textAlign: 'left' },
 });
 
 export default PhoneAuthModal;

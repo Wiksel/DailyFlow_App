@@ -12,6 +12,7 @@ import PhonePasswordResetModal from './PhonePasswordResetModal';
 interface ForgotPasswordModalProps {
   visible: boolean;
   onClose: () => void;
+  onPhoneReset: () => void; // Nowy prop do obsługi resetowania przez telefon
 }
 
 const ForgotPasswordModal = ({ visible, onClose }: ForgotPasswordModalProps) => {
@@ -34,20 +35,29 @@ const ForgotPasswordModal = ({ visible, onClose }: ForgotPasswordModalProps) => 
       const email = await findUserEmailByIdentifier(identifier.trim());
       
       if (!email) {
-        showCustomToast('Nie znaleziono użytkownika dla podanego e‑maila.', 'error');
+        showCustomToast('Nie znaleziono konta z tym adresem e-mail.\n\nSprawdź czy adres jest poprawny\nlub zarejestruj się.', 'error');
         setIsLoading(false);
         return;
       }
 
-      await sendPasswordResetEmail(getAuth(), email);
-      showCustomToast('Wysłaliśmy link do zresetowania hasła na adres powiązany z Twoim kontem. Sprawdź również folder spam.', 'success');
+      await sendPasswordResetEmail(auth, email);
+      showCustomToast('Wysłaliśmy link do zresetowania hasła na adres powiązany z Twoim kontem.\n\nSprawdź również folder spam.', 'success');
+      
+      // Po pomyślnym wysłaniu linku, zamknij modal po krótkiej chwili
       setTimeout(() => {
-        onClose();
-      }, 3000);
+        handleClose();
+      }, 2000);
+      
     } catch (error: any) {
-      const { message, level } = mapFirebaseAuthErrorToMessage(String(error?.code || ''));
-      showCustomToast(message, level);
-      try { console.error('Błąd resetowania hasła:', error); } catch {}
+      // Błędy z `findUserEmailByIdentifier` będą tu obsługiwane
+      if (error.code === 'auth/user-not-found') {
+        showCustomToast('Nie znaleziono konta z tym adresem e-mail.\n\nSprawdź czy adres jest poprawny\nlub zarejestruj się.', 'error');
+      } else if (error.code === 'auth/too-many-requests') {
+        showCustomToast('Zbyt wiele prób.\nDostęp został tymczasowo zablokowany.\n\nSpróbuj ponownie za kilka minut.', 'error');
+      } else {
+        showCustomToast('Wystąpił nieoczekiwany błąd. Spróbuj ponownie.', 'error');
+        console.error("Błąd resetowania hasła:", error);
+      }
     } finally {
       setIsLoading(false);
     }
@@ -55,7 +65,6 @@ const ForgotPasswordModal = ({ visible, onClose }: ForgotPasswordModalProps) => 
 
   const handleClose = () => {
     setIdentifier('');
-    setShowPhoneReset(false);
     onClose();
   };
 
@@ -135,7 +144,9 @@ const ForgotPasswordModal = ({ visible, onClose }: ForgotPasswordModalProps) => 
     dividerContainer: { flexDirection: 'row', alignItems: 'center', width: '100%', marginVertical: 0, marginTop: Spacing.medium, marginBottom: Spacing.small },
     dividerLine: { flex: 1, height: 1, backgroundColor: Colors.border },
     dividerText: { ...Typography.small, color: Colors.textSecondary, marginHorizontal: Spacing.medium },
-    // lokalne style toast niepotrzebne – korzystamy z ToastOverlay
+    toastContainer: { position: 'absolute', top: -160, left: Spacing.medium, right: Spacing.medium, padding: Spacing.medium, borderRadius: 12, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(0,0,0,0.8)', elevation: 10, zIndex: 9999 },
+    toastIcon: { marginRight: Spacing.medium },
+    toastText: { ...Typography.body, color: 'white', fontWeight: '600', flexShrink: 1, textAlign: 'left', lineHeight: 20 },
 });
 
 export default ForgotPasswordModal;

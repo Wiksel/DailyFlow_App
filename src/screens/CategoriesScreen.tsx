@@ -76,7 +76,56 @@ const CategoriesScreen = () => {
         }
     };
 
-    const handleDeleteCategory = (category: Category) => setConfirmDeleteCategory(category);
+    const handleDeleteCategory = (category: Category) => {
+        Alert.alert(
+            "Potwierdź usunięcie",
+            `Czy na pewno chcesz usunąć kategorię\n"${category.name}"?\n\nZadania przypisane do niej zostaną\nprzeniesione do kategorii "Inne".`,
+            [
+                { text: "Anuluj", style: "cancel" },
+                { text: "Usuń", style: "destructive", onPress: async () => {
+                    setIsSubmitting(true);
+                    try {
+                        if (!currentUser) {
+                            showToast("Użytkownik nie jest zalogowany.", 'error');
+                            return;
+                        }
+
+                        const otherCategory = categories.find(cat => cat.name === 'Inne');
+                        const defaultCategoryId = otherCategory?.id;
+
+                        if (!defaultCategoryId) {
+                            showToast("Błąd: Nie znaleziono domyślnej kategorii 'Inne'. Upewnij się, że istnieje.", 'error');
+                            return;
+                        }
+
+                        const tasksRef = collection(db, 'tasks');
+                        const tasksToUpdateQuery = query(
+                            tasksRef,
+                            where('category', '==', category.id),
+                            where('userId', '==', currentUser.uid)
+                        );
+                        const tasksSnapshot = await getDocs(tasksToUpdateQuery);
+
+                        const batch = writeBatch(db);
+
+                        tasksSnapshot.docs.forEach(taskDoc => {
+                            batch.update(taskDoc.ref, { category: defaultCategoryId });
+                        });
+
+                        batch.delete(doc(db, 'categories', category.id));
+
+                        await batch.commit();
+                        showToast("Kategoria i powiązane zadania zaktualizowane!", 'success');
+                    } catch (error: any) {
+                        showToast(`Błąd podczas usuwania kategorii: ${error.message}`, 'error');
+                        console.error("Błąd usuwania kategorii:", error);
+                    } finally {
+                        setIsSubmitting(false);
+                    }
+                }}
+            ]
+        );
+    };
 
     const startEditing = (category: Category) => {
         setEditingCategory(category);

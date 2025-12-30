@@ -167,7 +167,12 @@ const RegisterForm = React.memo(({ registerData, handleRegisterDataChange, email
 ));
 
 
-const LoginScreen = () => {
+interface LoginScreenProps {
+  onRefreshAuthState?: () => void;
+}
+
+const LoginScreen = ({ onRefreshAuthState }: LoginScreenProps = {}) => {
+    const auth = getAuth();
     const navigation = useNavigation<LoginNavigationProp>();
     const theme = useTheme();
     
@@ -177,6 +182,7 @@ const LoginScreen = () => {
     const [emailError, setEmailError] = useState('');
     const [passwordError, setPasswordError] = useState('');
     const [isLoading, setIsLoading] = useState(false);
+    const [isAnimating, setIsAnimating] = useState(false);
     const { showToast } = useToast();
     
     const [unverifiedDialogVisible, setUnverifiedDialogVisible] = useState(false);
@@ -193,6 +199,7 @@ const LoginScreen = () => {
     const [loginSuggestionHasGoogle, setLoginSuggestionHasGoogle] = useState(false);
     const [loginSuggestionHasPhone, setLoginSuggestionHasPhone] = useState(false);
     const [forgotPasswordModalVisible, setForgotPasswordModalVisible] = useState(false);
+    const [phonePasswordResetModalVisible, setPhonePasswordResetModalVisible] = useState(false);
     
     const progress = useSharedValue(0);
     const swipeDirection = useSharedValue(1);
@@ -381,15 +388,69 @@ const LoginScreen = () => {
         } 
         setIsLoading(true); 
         try { 
-            const resolvedIdentifier = await findUserEmailByIdentifier(identifier); 
-            const userCredentials = await signInWithEmailAndPassword(getAuth(), resolvedIdentifier || identifier, loginPassword); 
-            await userCredentials.user.reload(); 
-            const freshUser = getAuth().currentUser; 
-            const hasGoogleProvider = !!freshUser?.providerData?.some(p => p.providerId === 'google.com');
-            if (freshUser && !freshUser.emailVerified && !freshUser.phoneNumber && !(freshUser.email || '').endsWith('@dailyflow.app') && !hasGoogleProvider) {
-                setUnverifiedDialogVisible(true);
-                setPendingVerificationUserEmail(freshUser.email || null);
+            // Sprawdź czy to email czy telefon
+            const isEmail = /\S+@\S+\.\S+/.test(identifier.trim());
+            let loginEmail: string = '';
+            if (isEmail) {
+                // Jeśli to email, użyj bezpośrednio
+                loginEmail = identifier.trim();
+            } else {
+                // Jeśli to telefon, szukaj użytkownika po phoneNumber w Firestore
+                const usersRef = collection(db, 'users');
+                const cleanIdentifier = identifier.trim();
+                const numericOnly = cleanIdentifier.replace(/\D/g, '');
+                let possibleFormats = [cleanIdentifier];
+                if (cleanIdentifier.startsWith('+')) {
+                    const withoutPrefix = cleanIdentifier.substring(1);
+                    possibleFormats.push(withoutPrefix);
+                    if (cleanIdentifier.startsWith('+48') && numericOnly.length === 11) {
+                        const polishNumber = numericOnly.substring(2);
+                        possibleFormats.push(`+48${polishNumber}`);
+                    }
+                } else {
+                    possibleFormats.push(`+${numericOnly}`);
+                    if (numericOnly.length === 9) {
+                        possibleFormats.push(`+48${numericOnly}`);
+                    }
+                }
+                const uniqueFormats = [...new Set(possibleFormats)];
+                let foundUser = null;
+                for (const format of uniqueFormats) {
+                    const phoneQuery = query(usersRef, where('phoneNumber', '==', format), limit(1));
+                    const phoneSnapshot = await getDocs(phoneQuery);
+                    if (!phoneSnapshot.empty) {
+                        foundUser = phoneSnapshot.docs[0].data();
+                        break;
+                    }
+                }
+                if (!foundUser) {
+                    showToast('Nie znaleziono użytkownika z tym numerem telefonu.', 'error');
+                    setIsLoading(false);
+                    return;
+                }
+                if (foundUser.email) {
+                    loginEmail = foundUser.email;
+                } else if (foundUser.phoneNumber) {
+                    loginEmail = `${foundUser.phoneNumber}@dailyflow.app`;
+                } else {
+                    showToast('Nie znaleziono adresu e-mail powiązanego z tym numerem.', 'error');
+                    setIsLoading(false);
+                    return;
+                }
             }
+            // Logowanie przez email+hasło (działa także dla kont zarejestrowanych przez telefon)
+            await signInWithEmailAndPassword(auth, loginEmail, loginPassword);
+            const freshUser = auth.currentUser; 
+            if (freshUser && isEmail && !freshUser.emailVerified) { 
+                Alert.alert( 
+                    "Konto niezweryfikowane", 
+                    "Wygląda na to, że nie kliknąłeś jeszcze\nw link aktywacyjny.\n\nSprawdź swoją skrzynkę e-mail\n(również folder spam!).", 
+                    [ 
+                        { text: "OK", onPress: () => signOut(auth) }, 
+                        { text: "Wyślij link ponownie", onPress: () => handleResendVerification(freshUser) } 
+                    ] 
+                ); 
+            } 
         } catch (error: any) { 
             handleAuthError(error); 
         } finally { 
@@ -548,7 +609,14 @@ const LoginScreen = () => {
     useAnimatedReaction(
         () => targetProgress.value,
         (target) => {
-            progress.value = withSpring(target, SPRING_CONFIG);
+            if (target !== progress.value) {
+                runOnJS(setIsAnimating)(true);
+                progress.value = withSpring(target, SPRING_CONFIG, (finished) => {
+                    if (finished) {
+                        runOnJS(setIsAnimating)(false);
+                    }
+                });
+            }
         }
     );
 
@@ -703,10 +771,38 @@ const LoginScreen = () => {
 
                             <View style={[styles.formSliderContainer, { backgroundColor: 'transparent' }]}>
                                 <Animated.View style={[styles.formWrapper, loginFormAnimatedStyle]}>
-                                    <LoginForm identifier={identifier} setIdentifier={setIdentifier} loginPassword={loginPassword} setLoginPassword={setLoginPassword} isLoading={isLoading} handleLogin={handleLogin} setForgotPasswordModalVisible={setForgotPasswordModalVisible} onGoogleButtonPress={onGoogleButtonPress} theme={theme} />
+                                    <LoginForm 
+                                        identifier={identifier} 
+                                        setIdentifier={setIdentifier} 
+                                        loginPassword={loginPassword} 
+                                        setLoginPassword={setLoginPassword} 
+                                        isLoading={isLoading} 
+                                        handleLogin={handleLogin} 
+                                        setForgotPasswordModalVisible={setForgotPasswordModalVisible} 
+                                        onGoogleButtonPress={onGoogleButtonPress}
+                                        onSmsLogin={() => {
+                                            setPhoneModalMode('login');
+                                            setPhoneModalVisible(true);
+                                        }}
+                                    />
                                 </Animated.View>
                                 <Animated.View style={[styles.formWrapper, registerFormAnimatedStyle]}>
-                                    <RegisterForm registerData={registerData} handleRegisterDataChange={handleRegisterDataChange} emailError={emailError} passwordError={passwordError} validateEmail={validateEmail} validatePassword={validatePassword} isLoading={isLoading} isRegisterFormValid={isRegisterFormValid} handleRegister={handleRegister} onGoogleButtonPress={onGoogleButtonPress} setPhoneModalVisible={setPhoneModalVisible} theme={theme} />
+                                    <RegisterForm 
+                                        registerData={registerData} 
+                                        handleRegisterDataChange={handleRegisterDataChange} 
+                                        emailError={emailError} 
+                                        passwordError={passwordError} 
+                                        validateEmail={validateEmail} 
+                                        validatePassword={validatePassword} 
+                                        isLoading={isLoading} 
+                                        isRegisterFormValid={isRegisterFormValid} 
+                                        handleRegister={handleRegister} 
+                                        onGoogleButtonPress={onGoogleButtonPress} 
+                                        onPhoneRegister={() => {
+                                            setPhoneModalMode('register');
+                                            setPhoneModalVisible(true);
+                                        }}
+                                    />
                                 </Animated.View>
                             </View>
                         </View>

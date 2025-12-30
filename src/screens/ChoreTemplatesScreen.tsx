@@ -128,8 +128,27 @@ const ChoreTemplatesScreen = () => {
         }
     };
 
-    const [confirmDeleteTemplate, setConfirmDeleteTemplate] = useState<ChoreTemplate | null>(null);
-    const handleDeleteTemplate = (template: ChoreTemplate) => setConfirmDeleteTemplate(template);
+    const handleDeleteTemplate = (template: ChoreTemplate) => {
+        Alert.alert(
+            "Potwierdź usunięcie",
+            `Czy na pewno chcesz usunąć\nszablon "${template.name}"?`,
+            [
+                { text: "Anuluj", style: "cancel" },
+                { text: "Usuń", style: "destructive", onPress: async () => {
+                    setIsSubmitting(true);
+                    try {
+                        await deleteDoc(doc(db, 'choreTemplates', template.id));
+                        showToast("Szablon usunięty!", 'success');
+                    } catch (error: any) {
+                        showToast(`Błąd podczas usuwania szablonu: ${error.message}`, 'error');
+                        console.error("Błąd usuwania szablonu:", error);
+                    } finally {
+                        setIsSubmitting(false);
+                    }
+                }}
+            ]
+        );
+    };
 
     const startEditing = (template: ChoreTemplate) => {
         setEditingTemplate(template);

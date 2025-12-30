@@ -38,7 +38,8 @@ const TaskForm = ({ taskData, onDataChange, showDatePicker, onDatePickerChange, 
                 label="Nazwa zadania"
                 value={taskData.text}
                 onChangeText={(text) => onDataChange('text', text)}
-                placeholder="Nazwa"
+                placeholderTextColor={Colors.placeholder}
+                accessibilityLabel="Wpisz nazwę zadania"
             />
 
             <LabeledInput
@@ -47,7 +48,8 @@ const TaskForm = ({ taskData, onDataChange, showDatePicker, onDatePickerChange, 
                 onChangeText={(text) => onDataChange('description', text)}
                 placeholder="Opis"
                 multiline
-                inputStyle={styles.multilineInput}
+                placeholderTextColor={Colors.placeholder}
+                accessibilityLabel="Wpisz opis zadania"
             />
 
             <Text style={[styles.label, { color: theme.colors.textSecondary }]}>Kategoria</Text>
@@ -61,6 +63,9 @@ const TaskForm = ({ taskData, onDataChange, showDatePicker, onDatePickerChange, 
                             taskData.category === cat.id && styles.categorySelected
                         ]}
                         onPress={() => onDataChange('category', cat.id)}
+                        accessibilityRole="button"
+                        accessibilityLabel={`Kategoria ${cat.name}`}
+                        accessibilityState={{ selected: taskData.category === cat.id }}
                     >
                         <Text
                             style={[
@@ -82,9 +87,11 @@ const TaskForm = ({ taskData, onDataChange, showDatePicker, onDatePickerChange, 
                 step={1}
                 value={taskData.difficulty}
                 onValueChange={(value) => onDataChange('difficulty', value)}
-                minimumTrackTintColor={theme.colors.primary}
-                maximumTrackTintColor={theme.colors.border}
-                thumbTintColor={theme.colors.primary}
+                minimumTrackTintColor={Colors.primary}
+                maximumTrackTintColor={Colors.border}
+                thumbTintColor={Colors.primary}
+                accessibilityLabel="Suwak trudności zadania"
+                accessibilityValue={{ min: 1, max: 10, now: taskData.difficulty }}
             />
 
             <Text style={[styles.label, { color: theme.colors.textSecondary }]}>Priorytet bazowy</Text>
@@ -93,13 +100,23 @@ const TaskForm = ({ taskData, onDataChange, showDatePicker, onDatePickerChange, 
                 onSelect={(p) => onDataChange('basePriority', p)}
             />
 
-            <Text style={[styles.label, { color: theme.colors.textSecondary }]}>Termin wykonania</Text>
-            <TouchableOpacity onPress={onShowDatePicker} style={[styles.datePickerButton, { backgroundColor: theme.colors.inputBackground, borderColor: theme.colors.border }]}> 
-                <Text style={[styles.datePickerText, { color: theme.colors.textPrimary }]}>{taskData.deadline ? taskData.deadline.toDate().toLocaleDateString('pl-PL') : 'Ustaw termin'}</Text>
+            <Text style={styles.label}>Termin wykonania</Text>
+            <TouchableOpacity
+                onPress={onShowDatePicker}
+                style={styles.datePickerButton}
+                accessibilityRole="button"
+                accessibilityLabel={taskData.deadline ? `Termin wykonania: ${taskData.deadline.toDate().toLocaleDateString('pl-PL')}` : "Wybierz termin wykonania"}
+            >
+                <Text style={styles.datePickerText}>{taskData.deadline ? taskData.deadline.toDate().toLocaleDateString('pl-PL') : 'Ustaw termin'}</Text>
             </TouchableOpacity>
             {taskData.deadline && (
-                <TouchableOpacity onPress={() => onDataChange('deadline', null)} style={styles.removeDateButton}>
-                    <Feather name="x-circle" size={24} color={theme.colors.danger} />
+                <TouchableOpacity
+                    onPress={() => onDataChange('deadline', null)}
+                    style={styles.removeDateButton}
+                    accessibilityRole="button"
+                    accessibilityLabel="Usuń termin wykonania"
+                >
+                    <Feather name="x-circle" size={24} color={Colors.danger} />
                 </TouchableOpacity>
             )}
             {showDatePicker && <DateTimePicker value={taskData.deadline ? taskData.deadline.toDate() : new Date()} mode="date" display="default" onChange={onDatePickerChange} />}

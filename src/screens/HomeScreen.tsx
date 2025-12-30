@@ -43,8 +43,19 @@ const HOME_FILTERS_KEY = 'dailyflow_home_filters';
 
 const HomeScreen = () => {
     const navigation = useNavigation<TaskStackNavigationProp>();
-    const theme = useTheme();
-    const { density, focusModeEnabled, setDensity } = useUI();
+    const [rawTasks, setRawTasks] = useState<Task[]>([]);
+    const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
+    const [taskType, setTaskType] = useState<'personal' | 'shared'>('personal');
+    const [activeCategory, setActiveCategory] = useState<string | 'all'>('all');
+    const [loading, setLoading] = useState(true);
+    const [templates, setTemplates] = useState<ChoreTemplate[]>([]);
+    const [templatesModalVisible, setTemplatesModalVisible] = useState(false);
+    const [searchQuery, setSearchQuery] = useState('');
+    const [addTaskModalVisible, setAddTaskModalVisible] = useState(false);
+    const [filterFromDate, setFilterFromDate] = useState<Date | null>(null);
+    const [filterToDate, setFilterToDate] = useState<Date | null>(null);
+    const auth = getAuth();
+    const currentUser = auth.currentUser;
     const { categories } = useCategories();
     const { showToast } = useToast();
     const currentUser = getAuth().currentUser;
@@ -272,9 +283,27 @@ const HomeScreen = () => {
         } catch { }
     }, []);
 
-    useEffect(() => {
-        if (categoryPickerTask || categoryPickerBulk) { loadRecentCategories(); setCategorySearch(''); }
-    }, [categoryPickerTask, categoryPickerBulk, loadRecentCategories]);
+    const handleTaskAction = (task: Task) => {
+        const action = task.completed ? "Zarchiwizuj" : "Usuń";
+        const handler = async () => {
+            try {
+                if (task.completed) {
+                    await updateDoc(doc(db, 'tasks', task.id), { status: 'archived' });
+                    showToast("Zadanie zarchiwizowane.", 'success');
+                } else {
+                    await deleteDoc(doc(db, 'tasks', task.id));
+                    showToast("Zadanie usunięte.", 'success');
+                }
+            } catch (error) {
+                console.error(`Błąd ${action.toLowerCase()} zadania: `, error);
+            }
+        };
+        Alert.alert(
+            `Potwierdź ${action}`, 
+            `Czy na pewno chcesz ${action.toLowerCase()}\nto zadanie?`,
+            [{ text: "Anuluj" }, { text: action, style: "destructive", onPress: handler }]
+        );
+    };
 
     useEffect(() => {
         if (difficultyPickerTask || difficultyPickerBulk) { loadRecentDifficulties(); }

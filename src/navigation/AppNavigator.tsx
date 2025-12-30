@@ -44,10 +44,16 @@ const BudgetsStackNavigator = createNativeStackNavigator<BudgetStackParamList>()
 
 function TaskStack() {
   return (
-    <TasksStackNavigator.Navigator screenOptions={{ animation: 'slide_from_right' }}>
+    <TasksStackNavigator.Navigator
+      screenOptions={{
+        gestureEnabled: true,
+        gestureDirection: 'horizontal',
+        animation: 'slide_from_right',
+      }}
+    >
       <TasksStackNavigator.Screen name="Home" component={HomeScreen} options={{ headerShown: false }} />
-      <TasksStackNavigator.Screen name="TaskDetail" component={TaskDetailScreen} options={{ headerShown: false }} />
-      <TasksStackNavigator.Screen name="Archive" component={ArchiveScreen} options={{ headerShown: false }} />
+      <TasksStackNavigator.Screen name="TaskDetail" component={TaskDetailScreen} options={{ title: 'Szczegóły zadania', gestureEnabled: false }} />
+      <TasksStackNavigator.Screen name="Archive" component={ArchiveScreen} options={{ title: 'Archiwum zadań' }} />
       <TasksStackNavigator.Screen name="Profile" component={ProfileScreen} options={{ title: 'Profil i para' }} />
       <TasksStackNavigator.Screen name="ChoreTemplates" component={ChoreTemplatesScreen} options={{ headerShown: false }} />
       <TasksStackNavigator.Screen name="Settings" component={SettingsScreen} options={{ headerShown: false }} />
@@ -63,12 +69,18 @@ function TaskStack() {
 }
 
 function BudgetStack() {
-  return (
-    <BudgetsStackNavigator.Navigator screenOptions={{ animation: 'slide_from_right' }}>
-      <BudgetsStackNavigator.Screen name="Budgets" component={BudgetsScreen} options={{ headerShown: false }} />
-      <BudgetsStackNavigator.Screen name="BudgetDetail" component={BudgetDetailScreen} options={{ headerShown: false }} />
-    </BudgetsStackNavigator.Navigator>
-  );
+    return (
+      <BudgetsStackNavigator.Navigator
+        screenOptions={{
+          gestureEnabled: true,
+          gestureDirection: 'horizontal',
+          animation: 'slide_from_right',
+        }}
+      >
+        <BudgetsStackNavigator.Screen name="Budgets" component={BudgetsScreen} options={{ headerShown: false }} />
+        <BudgetsStackNavigator.Screen name="BudgetDetail" component={BudgetDetailScreen} options={{ title: 'Szczegóły budżetu', gestureEnabled: false }} />
+      </BudgetsStackNavigator.Navigator>
+    );
 }
 
 function AppTabs() {
@@ -81,10 +93,12 @@ function AppTabs() {
   );
 }
 
-function AuthScreens({ user, onProfileCreated }: { user: FirebaseAuthTypes.User | null, onProfileCreated: () => void }) {
+function AuthScreens({ user, onProfileCreated, onRefreshAuthState }: { user: FirebaseAuthTypes.User | null, onProfileCreated: () => void, onRefreshAuthState?: () => void }) {
   return (
     <AuthStack.Navigator screenOptions={{ headerShown: false }}>
-      <AuthStack.Screen name="Login" component={LoginScreen} />
+      <AuthStack.Screen name="Login">
+        {props => <LoginScreen {...props} onRefreshAuthState={onRefreshAuthState} />}
+      </AuthStack.Screen>
       <AuthStack.Screen name="Nickname">
         {props => <NicknameScreen {...props} onProfileCreated={onProfileCreated} />}
       </AuthStack.Screen>
@@ -96,8 +110,26 @@ const AppNavigator = () => {
   const theme = useTheme();
   const [user, setUser] = useState<FirebaseAuthTypes.User | null>(null);
   const [userProfileExists, setUserProfileExists] = useState(false);
+  const [userVerifiedByPhone, setUserVerifiedByPhone] = useState(false);
   const [initializing, setInitializing] = useState(true);
   const [showThemeFade, setShowThemeFade] = useState(false);
+
+  // Funkcja do ręcznego odświeżenia stanu użytkownika
+  const refreshUserState = async () => {
+    const currentUser = auth.currentUser;
+    if (currentUser) {
+      const userDoc = await getDoc(doc(db, 'users', currentUser.uid));
+      const profileExists = userDoc.exists();
+      setUserProfileExists(profileExists);
+      
+      if (profileExists) {
+        const userData = userDoc.data();
+        setUserVerifiedByPhone(userData?.verifiedByPhone || false);
+      } else {
+        setUserVerifiedByPhone(false);
+      }
+    }
+  };
 
   useEffect(() => {
     // Notifications init (safe for Expo Go via lazy import)
@@ -127,6 +159,7 @@ const AppNavigator = () => {
         }
       } else {
         setUserProfileExists(false);
+        setUserVerifiedByPhone(false);
       }
       if (initializing) {
         setInitializing(false);
@@ -188,7 +221,11 @@ const AppNavigator = () => {
           {user && isVerified && !needsOnboarding && !suppressAppTabs ? (
             <AppTabs />
           ) : (
-            <AuthScreens user={user} onProfileCreated={() => setUserProfileExists(true)} />
+            <AuthScreens 
+              user={user} 
+              onProfileCreated={refreshUserState}
+              onRefreshAuthState={refreshUserState}
+            />
           )}
           {/* Subtelny fade przy zmianie motywu */}
           {showThemeFade && (

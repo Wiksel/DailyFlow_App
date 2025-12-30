@@ -167,15 +167,27 @@ export const findUserEmailByIdentifier = async (identifier: string): Promise<str
 
     // Możliwe formaty do sprawdzenia:
     const possibleFormats = [
-        cleanIdentifier, // Dokładnie jak wprowadzono
-        `+${numericOnly}`, // Z prefiksem +
-        numericOnly, // Tylko cyfry
+        cleanIdentifier, // Dokładnie jak wprowadzono (np. +48123456789)
     ];
-
-    // Jeśli numer zaczyna się od cyfry (nie +), sprawdź też z kodem kraju
-    if (/^\d/.test(cleanIdentifier) && numericOnly.length === 9) {
+    
+    // Jeśli numer ma prefiks kraju (np. +48), sprawdź też bez prefiksu
+    if (cleanIdentifier.startsWith('+')) {
+        const withoutPrefix = cleanIdentifier.substring(1); // Usuń +
+        possibleFormats.push(withoutPrefix);
+        
+        // Dla polskich numerów sprawdź też z prefiksem +48
+        if (cleanIdentifier.startsWith('+48') && numericOnly.length === 11) {
+            const polishNumber = numericOnly.substring(2); // Usuń 48
+            possibleFormats.push(`+48${polishNumber}`);
+        }
+    } else {
+        // Jeśli numer nie ma prefiksu, sprawdź z prefiksem
+        possibleFormats.push(`+${numericOnly}`);
+        
         // Dla polskich numerów (9 cyfr) dodaj +48
-        possibleFormats.push(`+48${numericOnly}`);
+        if (numericOnly.length === 9) {
+            possibleFormats.push(`+48${numericOnly}`);
+        }
     }
 
     // Usuń duplikaty
