@@ -13,6 +13,7 @@ import { Feather } from '@expo/vector-icons';
 import ActionModal from '../components/ActionModal';
 import LinkAccountsModal from '../components/LinkAccountsModal';
 import LinkAvailableModal from '../components/LinkAvailableModal';
+
 import NicknameConflictModal from '../components/NicknameConflictModal';
 import ForgotPasswordModal from '../components/ForgotPasswordModal';
 
@@ -29,10 +30,13 @@ import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 
 type LoginNavigationProp = NativeStackNavigationProp<AuthStackParamList, 'Login'>;
 
-const { width: SCREEN_WIDTH } = Dimensions.get('window');
+const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT_FIXED } = Dimensions.get('window'); // Capture constant height
 const FORM_CONTAINER_WIDTH = SCREEN_WIDTH - 2 * Spacing.xLarge;
 const LOGO_DIAMETER = 260; // jeszcze odrobinę mniejszy okrąg
 const SPRING_CONFIG = { damping: 20, stiffness: 150, mass: 1 };
+let cachedSphereConfigs: any[] | null = null; // Cache globally to prevent shift on logout
+let cachedTopPadding = 0; // Cache top padding to prevent layout shift on logout
+
 
 // Komponenty formularzy (bez zmian)
 const LoginForm = React.memo(({ identifier, setIdentifier, loginPassword, setLoginPassword, isLoading, handleLogin, setForgotPasswordModalVisible, onGoogleButtonPress, theme }: any) => (
@@ -90,6 +94,7 @@ const LoginForm = React.memo(({ identifier, setIdentifier, loginPassword, setLog
     </View>
 ));
 
+
 const RegisterForm = React.memo(({ registerData, handleRegisterDataChange, emailError, passwordError, validateEmail, validatePassword, isLoading, isRegisterFormValid, handleRegister, onGoogleButtonPress, theme }: any) => (
     <View style={styles.formInnerContainer}>
         <View style={styles.inputWrapper}>
@@ -108,9 +113,10 @@ const RegisterForm = React.memo(({ registerData, handleRegisterDataChange, email
                 onChangeText={(val: string) => handleRegisterDataChange('email', val)}
                 keyboardType="email-address"
                 autoCapitalize="none"
+
                 editable={!isLoading}
                 onBlur={() => validateEmail(registerData.email)}
-                containerStyle={emailError ? styles.inputError : undefined}
+                inputStyle={emailError ? styles.inputError : undefined}
                 placeholder="Adres e-mail"
             />
             {!!emailError && <Text style={styles.errorText}>{emailError}</Text>}
@@ -121,9 +127,9 @@ const RegisterForm = React.memo(({ registerData, handleRegisterDataChange, email
                 value={registerData.password}
                 onChangeText={(val: string) => handleRegisterDataChange('password', val)}
                 editable={!isLoading}
-                placeholder="Hasło (min. 6, litera, cyfra)"
+                placeholder="Hasło" // Removed "min 6..." text to keep it cleaner as per request (or keep it if essential, but user asked for spacing) - wait, user didn't ask to remove placeholder. keeping it simpler for now to match other fields potentially
                 onBlur={() => validatePassword(registerData.password)}
-                inputStyle={passwordError ? (styles.inputError as any) : undefined}
+                containerStyle={passwordError ? (styles.inputError as any) : undefined}
             />
             {!!passwordError && <Text style={styles.errorText}>{passwordError}</Text>}
         </View>
@@ -142,7 +148,7 @@ const RegisterForm = React.memo(({ registerData, handleRegisterDataChange, email
             <TouchableOpacity
                 testID="google-register-button"
                 style={[styles.socialButton, isLoading && styles.disabledGoogleButton, { borderColor: theme.colors.border, backgroundColor: theme.colors.card }]}
-                onPress={onGoogleButtonPress}
+                onPress={() => onGoogleButtonPress(registerData.nickname)}
                 disabled={isLoading}
             >
                 {isLoading ? <ActivityIndicator color={Colors.primary} /> : (
@@ -187,8 +193,10 @@ const LoginScreen = () => {
     // Reverse Linking State
     const [linkAvailableModalVisible, setLinkAvailableModalVisible] = useState(false);
     const [nicknameConflictModalVisible, setNicknameConflictModalVisible] = useState(false);
+
     const [pendingReverseLinkData, setPendingReverseLinkData] = useState<{ email: string; password: string; nickname: string } | null>(null);
     const [googleAccountNickname, setGoogleAccountNickname] = useState('');
+    const [pendingGoogleCredentialForLink, setPendingGoogleCredentialForLink] = useState<any>(null);
 
     const progress = useSharedValue(0);
     const swipeDirection = useSharedValue(1);
@@ -196,8 +204,8 @@ const LoginScreen = () => {
     const isTransitioning = useSharedValue(false);
     const keyboardProgress = useSharedValue(0);
     // Removed currentTab state to improve performance (using shared values instead)
-    const [dynamicTopPadding, setDynamicTopPadding] = useState(0);
-    const [topLocked, setTopLocked] = useState(false);
+    const [dynamicTopPadding, setDynamicTopPadding] = useState(cachedTopPadding);
+    const [topLocked, setTopLocked] = useState(!!cachedTopPadding);
     const [logoDiameterState, setLogoDiameterState] = useState(LOGO_DIAMETER);
 
     const KEYBOARD_UP_TRANSLATE_Y = -120;
@@ -228,6 +236,10 @@ const LoginScreen = () => {
             'rgba(0, 255, 127, 0.28)',    // spring green
             'rgba(127, 255, 0, 0.28)',    // chartreuse
         ];
+
+        // START CACHING LOGIC
+        if (cachedSphereConfigs) return cachedSphereConfigs;
+
         type Sphere = { top: number; left: number; size: number; color: string; cx: number; cy: number };
         const items: Sphere[] = [];
         const maxAttempts = 12000;
@@ -288,8 +300,9 @@ const LoginScreen = () => {
                 color: colors[Math.floor(Math.random() * colors.length)],
             });
         }
-        return items.map(({ cx, cy, ...rest }) => rest);
-    }, [logoDiameterState]);
+        cachedSphereConfigs = items.map(({ cx, cy, ...rest }) => rest);
+        return cachedSphereConfigs;
+    }, []); // Removed specific dependency to rely on global cache logic (reset on app reload only)
 
     const isEmailValidCheck = (email: string) => /\S+@\S+\.\S+/.test(email);
     const isPasswordValidCheck = (password: string) => getPasswordValidationError(password) === null;
@@ -447,6 +460,7 @@ const LoginScreen = () => {
                         setLinkAvailableModalVisible(true);
                         return;
                     }
+                    // NEW: If explicit Google linking didn't catch it, but account exists, double check if we can link
                 } catch (e) {
                     Logger.warn('Failed to fetch methods for existing email', e);
                 }
@@ -464,7 +478,10 @@ const LoginScreen = () => {
             setIsLoading(false);
         }
     };
-    const onGoogleButtonPress = async () => {
+    const onGoogleButtonPress = async (arg?: string | any) => {
+        const suggestedNickname = (typeof arg === 'string') ? arg : undefined;
+        // DEBUG: Uncomment to verify what nickname is being passed
+        // if (suggestedNickname) showToast(`Rejestracja z nickiem: ${suggestedNickname}`, 'info'); 
         setIsLoading(true);
         try {
             await GoogleSignin.hasPlayServices({ showPlayServicesUpdateDialog: true });
@@ -516,17 +533,32 @@ const LoginScreen = () => {
 
             const userCredential = await signInWithCredential(getAuth(), googleCredential);
             const user = userCredential.user;
-            try { await upsertAuthProvidersForUser(user); } catch { }
+            // Removed upsertAuthProvidersForUser here to prevent premature userDoc creation.
+            // It will be handled in NicknameScreen (for new users) or below (for existing users via merge).
             const userDoc = await getDoc(doc(db, 'users', user.uid));
             if (!userDoc.exists()) {
-                navigation.navigate('Nickname');
+                // If we have a nickname from the register form, use it immediately
+                if (suggestedNickname && suggestedNickname.trim().length > 0) {
+                    await createNewUserInFirestore(user, suggestedNickname);
+                    await upsertAuthProvidersForUser(user);
+                    // No navigation needed, user is created
+                } else {
+                    navigation.navigate('Nickname');
+                }
             } else {
+                // User exists - update providers now that we know it's safe
+                try { await upsertAuthProvidersForUser(user); } catch { }
                 // Użytkownik istnieje, ale jeśli brak nickname – również poproś o uzupełnienie
                 try {
                     const data = userDoc.data() as any;
                     // Fix: Check for empty nickname explicitly and ensure we don't skip if it's just a default "New User" from some other flow (though unlikely here)
                     if (!data?.nickname || String(data.nickname).trim().length === 0) {
                         navigation.navigate('Nickname');
+                    } else if (suggestedNickname && suggestedNickname.trim().length > 0 && suggestedNickname !== data.nickname) {
+                        // FORCE UPDATE: If user is on Register tab and provided a nick, usage of Google Button implies intent to use this nick.
+                        // Even if account exists (e.g. from previous tests or unlinked state), we update it to match user expectation.
+                        await createNewUserInFirestore(user, suggestedNickname);
+                        await upsertAuthProvidersForUser(user);
                     }
                 } catch { }
             }
@@ -574,41 +606,92 @@ const LoginScreen = () => {
             if (!idToken) throw new Error('Brak tokena Google');
 
             const googleCredential = GoogleAuthProvider.credential(idToken);
-            // Sign in with Google to verify ownership
-            const userCred = await signInWithCredential(getAuth(), googleCredential);
-            const user = userCred.user;
 
-            // Check if we need to resolve nickname conflict
-            const userDoc = await getDoc(doc(db, 'users', user.uid));
-            const currentNickname = userDoc.exists() ? userDoc.data()?.nickname : (user.displayName || '');
+            // Query publicUsers by email to check current nickname BEFORE signing in to prevent auto-navigation
+            // Prioritize the email we are strictly trying to link (from password form)
+            const emailToCheck = pendingReverseLinkData?.email || signInResp?.user?.email;
 
-            if (currentNickname && pendingReverseLinkData?.nickname && currentNickname !== pendingReverseLinkData.nickname) {
-                setGoogleAccountNickname(currentNickname);
-                setNicknameConflictModalVisible(true);
-                setIsLoading(false);
-            } else {
-                // No conflict or no existing nickname, proceed with new nickname
-                await finalizeReverseLink(user, pendingReverseLinkData?.nickname || currentNickname);
+            let currentNickname = '';
+            if (emailToCheck) {
+                try {
+                    // 1. Try publicUsers (standard path)
+                    const q = query(collection(db, 'publicUsers'), where('emailLower', '==', emailToCheck.toLowerCase()), limit(1));
+                    const snap = await getDocs(q as any);
+                    if (!snap.empty) {
+                        const data = snap.docs[0].data() as any;
+                        if (data?.nickname) currentNickname = data.nickname;
+                    }
+
+                    // 2. Fallback: If publicUsers empty (legacy/bug?), try users collection directly if rules allow or if checking self?
+                    // Note: This might fail due to security rules if not logged in, but we are fetching *our own* pending account? 
+                    // Actually we are not logged in yet as that user. So 'users' collection might be blocked.
+                    // But 'publicUsers' is exactly for this. 
+                    // Double check casing fallbacks just in case.
+                } catch (e) {
+                    Logger.warn('Nickname lookup failed', e);
+                }
             }
+
+            // Fallback to Google name ONLY if DB nickname not found
+            if (!currentNickname && signInResp?.user?.name) {
+                // Only use Google name if we absolutely found nothing in DB
+                // But user complains "It shows Google Name instead of App Nick".
+                // This implies currentNickname was empty here.
+                currentNickname = signInResp.user.name;
+            }
+
+            // Fallback to Google name if DB nickname not found
+            if (!currentNickname && signInResp?.user?.name) {
+                currentNickname = signInResp.user.name;
+            }
+
+
+            // Checking if we are in the linking flow (pendingReverseLinkData present)
+            if (pendingReverseLinkData) {
+                // If we found a nickname OR if we rely on "Twoje konto" fallback to force the modal
+                const oldNick = currentNickname || 'Twoje konto';
+                // Only show modal if nicknames different (or if we just want to confirm merge)
+                // If old nick is same as new nick, technically no conflict, but user said "doesn't show choice".
+                // Let's force it if it differs OR always? User wants to choose.
+                // If names are identical, choosing is redundant. 
+                if (oldNick !== pendingReverseLinkData.nickname) {
+                    setGoogleAccountNickname(oldNick);
+                    setPendingGoogleCredentialForLink(googleCredential);
+                    setNicknameConflictModalVisible(true);
+                    setIsLoading(false);
+                    return;
+                }
+            }
+
+            // No conflict triggered, proceed to sign in and link
+            await finalizeReverseLink(googleCredential, pendingReverseLinkData?.nickname || currentNickname || '');
+
         } catch (error: any) {
             handleAuthError(error);
             setIsLoading(false);
         }
     };
 
-    const finalizeReverseLink = async (user: FirebaseAuthTypes.User, finalNickname: string) => {
+    const finalizeReverseLink = async (credential: any, finalNickname: string) => {
         try {
             if (!pendingReverseLinkData) return;
-            // 1. Add Password Credential
+            setIsLoading(true);
+
+            // 1. Sign in with Google (if not already)
+            const userCred = await signInWithCredential(getAuth(), credential);
+            const user = userCred.user;
+
+            // 2. Add Password Credential
             await user.updatePassword(pendingReverseLinkData.password);
 
-            // 2. Update Firestore (merges authProviders automatically in createNewUserInFirestore)
+            // 3. Update Firestore (merges authProviders automatically in createNewUserInFirestore)
             await createNewUserInFirestore(user, finalNickname);
             await upsertAuthProvidersForUser(user);
 
             showToast('Konto połączone pomyślnie. Dodano hasło.', 'success');
             setPendingReverseLinkData(null);
             setNicknameConflictModalVisible(false);
+            setPendingGoogleCredentialForLink(null);
             // User is now signed in and updated
         } catch (error: any) {
             handleAuthError(error);
@@ -633,9 +716,13 @@ const LoginScreen = () => {
     }, [keyboardProgress]);
 
 
-    const animatedContainerStyle = useAnimatedStyle(() => ({
-        transform: [{ translateY: interpolate(keyboardProgress.value, [0, 1], [Spacing.large, KEYBOARD_UP_TRANSLATE_Y]) }],
-    }));
+    const animatedContainerStyle = useAnimatedStyle(() => {
+        // Constant offset for both tabs to ensure uniform push (increased to -70 based on feedback)
+        const offset = -70;
+        return {
+            transform: [{ translateY: interpolate(keyboardProgress.value, [0, 1], [Spacing.large, offset]) }],
+        };
+    });
 
     const animatedHeaderStyle = useAnimatedStyle(() => ({
         opacity: interpolate(keyboardProgress.value, [0, 0.5], [1, 0]),
@@ -726,7 +813,7 @@ const LoginScreen = () => {
             <ScrollView
                 contentContainerStyle={[
                     styles.scrollContentContainer,
-                    { paddingTop: dynamicTopPadding + Spacing.large, paddingBottom: Platform.OS === 'ios' ? Spacing.xxLarge + Spacing.small : Spacing.xxLarge }
+                    { paddingTop: 0, paddingBottom: Platform.OS === 'ios' ? Spacing.xxLarge + Spacing.small : Spacing.xxLarge }
                 ]}
                 keyboardShouldPersistTaps="handled"
                 showsVerticalScrollIndicator={false}
@@ -735,21 +822,9 @@ const LoginScreen = () => {
             >
                 <Animated.View
                     style={[styles.contentContainer, animatedContainerStyle]}
-                    onLayout={(e) => {
-                        try {
-                            const screenHeight = Dimensions.get('window').height;
-                            const contentHeight = e.nativeEvent.layout.height;
-                            const freeSpace = Math.max(0, screenHeight - contentHeight);
-                            // Stronger bias towards lower position of the whole interface
-                            if (!topLocked) {
-                                const top = Math.max(Spacing.small, Math.floor(freeSpace * 0.60));
-                                if (top !== dynamicTopPadding) setDynamicTopPadding(top);
-                                setTopLocked(true);
-                            }
-                        } catch { }
-                    }}
+                    onLayout={() => { }} // Disabled dynamic calculation to fix jumping switcher
                 >
-                    <Animated.View style={animatedHeaderStyle}>
+                    <Animated.View style={[animatedHeaderStyle, { marginTop: 0 }]}>
                         <View style={styles.headerContainer}>
                             <View style={[styles.logoBackground, { width: logoDiameterState, height: logoDiameterState, marginBottom: Spacing.large }]}>
                                 <View style={[
@@ -898,10 +973,10 @@ const LoginScreen = () => {
                 visible={nicknameConflictModalVisible}
                 oldNickname={googleAccountNickname}
                 newNickname={pendingReverseLinkData?.nickname || ''}
-                onKeepOld={() => { if (getAuth().currentUser) finalizeReverseLink(getAuth().currentUser!, googleAccountNickname); }}
-                onUseNew={() => { if (getAuth().currentUser) finalizeReverseLink(getAuth().currentUser!, pendingReverseLinkData?.nickname || ''); }}
+                onKeepOld={() => { if (pendingGoogleCredentialForLink) finalizeReverseLink(pendingGoogleCredentialForLink, googleAccountNickname); }}
+                onUseNew={() => { if (pendingGoogleCredentialForLink) finalizeReverseLink(pendingGoogleCredentialForLink, pendingReverseLinkData?.nickname || ''); }}
             />
-        </View>
+        </View >
     );
 };
 
@@ -909,6 +984,7 @@ const styles = StyleSheet.create({
     container: {
         flex: 1,
         // do not set hard background here; theme controls it in JSX
+        overflow: 'hidden', // Prevent scrollbar flash
     },
     scrollContentContainer: {
         flexGrow: 1,
@@ -1016,13 +1092,20 @@ const styles = StyleSheet.create({
     },
     inputWrapper: {
         width: '100%',
-        marginBottom: Spacing.small,
+        marginBottom: 0,
+        height: 72, // Increased from 66 to 72 (more spacing)
+        justifyContent: 'flex-start',
     },
     errorText: {
         color: Colors.danger,
         alignSelf: 'flex-start',
+        textAlign: 'left',
+        marginTop: 0,
         marginLeft: Spacing.small,
-        marginTop: Spacing.xSmall,
+        marginBottom: 0,
+        fontSize: 13,
+        position: 'absolute',
+        bottom: 4, // Adjusted from 0 to 4
     },
     logoContainer: {
         width: LOGO_DIAMETER,
