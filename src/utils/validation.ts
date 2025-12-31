@@ -10,13 +10,16 @@ export const validateEmail = (email: string): boolean => {
 };
 
 // Password validation with complexity requirements
+// Password validation with complexity requirements (boolean)
 export const validatePassword = (password: string): boolean => {
-  if (password.length < 8) return false;
-  if (!/[A-Z]/.test(password)) return false;
-  if (!/[a-z]/.test(password)) return false;
-  if (!/\d/.test(password)) return false;
-  if (!/[!@#$%^&*(),.?":{}|<>]/.test(password)) return false;
-  return true;
+  return getPasswordValidationError(password) === null;
+};
+
+export const getPasswordValidationError = (password: string): string | null => {
+  if (password.length < 6) return 'Hasło jest za krótkie (min. 6 znaków).';
+  if (!/\d/.test(password)) return 'Hasło musi zawierać co najmniej jedną cyfrę.';
+  if (!/[a-zA-Z]/.test(password)) return 'Hasło musi zawierać co najmniej jedną literę.';
+  return null;
 };
 
 // Phone number validation

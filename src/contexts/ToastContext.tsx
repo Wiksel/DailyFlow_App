@@ -64,7 +64,6 @@ export const ToastProvider = ({ children }: ToastProviderProps) => {
         useNativeDriver: true,
       }).start(() => setToast(null));
     }, 2500);
-    try { if (type === 'error') Logger.warn('[Toast:error]', message); } catch {}
   };
 
   // Sprzątanie timera przy odmontowaniu providera
@@ -158,6 +157,7 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     flexShrink: 1,
     lineHeight: Typography.body.fontSize * 1.4,
+    textAlign: 'center',
   },
 });
 

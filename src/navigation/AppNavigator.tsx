@@ -111,6 +111,8 @@ const AppNavigator = () => {
     const webClientId = (Constants?.expoConfig?.extra as any)?.googleWebClientId;
     if (webClientId) {
       GoogleSignin.configure({ webClientId });
+      // DEBUG: Verify what ID is actually loaded
+      // setTimeout(() => showToast(`Config ID: ${webClientId?.substring(0, 10)}...`, 'info'), 2000);
     } else {
       Logger.warn('[GoogleSignin] Brak googleWebClientId w app config. Logowanie Google może nie działać.');
     }

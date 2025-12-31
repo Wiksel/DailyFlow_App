@@ -38,6 +38,7 @@ const LabeledInput = ({
         onChangeText={onChangeText}
         placeholder={placeholder}
         placeholderTextColor={theme.colors.placeholder}
+        selectionColor={theme.colors.primary}
         editable={editable}
         {...props}
       />

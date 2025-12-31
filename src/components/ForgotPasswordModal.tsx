@@ -6,7 +6,6 @@ import { useToast, ToastOverlay, ToastOverlaySuppressor } from '../contexts/Toas
 import { Colors, Spacing, Typography, GlobalStyles } from '../styles/AppStyles';
 import { useTheme } from '../contexts/ThemeContext';
 import { findUserEmailByIdentifier, mapFirebaseAuthErrorToMessage } from '../utils/authUtils';
-import PhonePasswordResetModal from './PhonePasswordResetModal';
 // removed unused Feather import
 
 interface ForgotPasswordModalProps {
@@ -17,7 +16,6 @@ interface ForgotPasswordModalProps {
 const ForgotPasswordModal = ({ visible, onClose }: ForgotPasswordModalProps) => {
   const [identifier, setIdentifier] = useState('');
   const [isLoading, setIsLoading] = useState(false);
-  const [showPhoneReset, setShowPhoneReset] = useState(false);
   const { showToast: showCustomToast } = useToast();
   const theme = useTheme();
 
@@ -55,7 +53,6 @@ const ForgotPasswordModal = ({ visible, onClose }: ForgotPasswordModalProps) => 
 
   const handleClose = () => {
     setIdentifier('');
-    setShowPhoneReset(false);
     onClose();
   };
 
@@ -83,24 +80,10 @@ const ForgotPasswordModal = ({ visible, onClose }: ForgotPasswordModalProps) => 
             />
             <TouchableOpacity
               style={[GlobalStyles.button, { marginTop: Spacing.medium, width: '100%' }]}
-              onPress={async () => { try { const m = await import('expo-haptics'); await m.impactAsync(m.ImpactFeedbackStyle.Medium); } catch { }; handlePasswordReset(); }}
+              onPress={async () => { handlePasswordReset(); }}
               disabled={isLoading}
             >
               {isLoading ? <ActivityIndicator color="white" /> : <Text style={GlobalStyles.buttonText}>Wyślij link</Text>}
-            </TouchableOpacity>
-
-            <View style={styles.dividerContainer}>
-              <View style={styles.dividerLine} />
-              <Text style={styles.dividerText}>lub</Text>
-              <View style={styles.dividerLine} />
-            </View>
-
-            <TouchableOpacity
-              style={[GlobalStyles.button, { marginTop: Spacing.small, backgroundColor: Colors.secondary }]}
-              onPress={async () => { try { const m = await import('expo-haptics'); await m.selectionAsync(); } catch { }; setShowPhoneReset(true); }}
-              disabled={isLoading}
-            >
-              <Text style={GlobalStyles.buttonText}>Resetuj przez telefon</Text>
             </TouchableOpacity>
 
             <TouchableOpacity style={styles.cancelButton} onPress={handleClose}>
@@ -111,16 +94,6 @@ const ForgotPasswordModal = ({ visible, onClose }: ForgotPasswordModalProps) => 
           <ToastOverlay topOffset={-Spacing.large} />
         </View>
       </Modal>
-
-      <PhonePasswordResetModal
-        visible={showPhoneReset}
-        onClose={() => setShowPhoneReset(false)}
-        onSuccess={() => {
-          // Zamknij również nadrzędne okno "Zresetuj hasło" po pomyślnej zmianie hasła przez telefon
-          setShowPhoneReset(false);
-          onClose();
-        }}
-      />
     </>
   );
 };
