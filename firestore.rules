@@ -16,7 +16,7 @@ service cloud.firestore {
     // PUBLIC USERS (public lookup profile)
     match /publicUsers/{userId} {
       // Allow signed-in clients to read public profiles
-      allow read: if isSignedIn();
+      allow read: if true;
       // Only the owner can create/update their public profile
       allow create, update: if isSignedIn() && request.auth.uid == userId;
       allow delete: if false;

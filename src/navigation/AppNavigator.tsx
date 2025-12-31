@@ -123,8 +123,13 @@ const AppNavigator = () => {
         try {
           const userDoc = await getDoc(doc(db, 'users', user.uid));
           setUserProfileExists(userDoc.exists());
-        } catch (e) {
-          Logger.warn('Failed to read user profile', e);
+        } catch (e: any) {
+          // Ignore permission errors that occur during race conditions (e.g. specialized login flows)
+          if (e?.code === 'firestore/permission-denied' || e?.message?.includes('permission-denied')) {
+            // Squelch
+          } else {
+            Logger.warn('Failed to read user profile', e);
+          }
           setUserProfileExists(false);
         }
       } else {

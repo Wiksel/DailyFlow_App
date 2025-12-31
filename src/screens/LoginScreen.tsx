@@ -39,7 +39,7 @@ let cachedTopPadding = 0; // Cache top padding to prevent layout shift on logout
 
 
 // Komponenty formularzy (bez zmian)
-const LoginForm = React.memo(({ identifier, setIdentifier, loginPassword, setLoginPassword, isLoading, handleLogin, setForgotPasswordModalVisible, onGoogleButtonPress, theme }: any) => (
+const LoginForm = React.memo(({ identifier, setIdentifier, loginPassword, setLoginPassword, isLoading, handleLogin, setForgotPasswordModalVisible, onGoogleButtonPress, theme, focusedOffset }: any) => (
     <View style={styles.formInnerContainer}>
         <View style={styles.inputWrapper}>
             <LabeledInput
@@ -49,6 +49,7 @@ const LoginForm = React.memo(({ identifier, setIdentifier, loginPassword, setLog
                 onChangeText={setIdentifier}
                 autoCapitalize="none"
                 editable={!isLoading}
+                onFocus={() => { focusedOffset.value = -70; }}
             />
         </View>
         <View style={styles.inputWrapper}>
@@ -58,6 +59,7 @@ const LoginForm = React.memo(({ identifier, setIdentifier, loginPassword, setLog
                 value={loginPassword}
                 onChangeText={setLoginPassword}
                 editable={!isLoading}
+                onFocus={() => { focusedOffset.value = -70; }}
             />
         </View>
         <TouchableOpacity
@@ -95,7 +97,7 @@ const LoginForm = React.memo(({ identifier, setIdentifier, loginPassword, setLog
 ));
 
 
-const RegisterForm = React.memo(({ registerData, handleRegisterDataChange, emailError, passwordError, validateEmail, validatePassword, isLoading, isRegisterFormValid, handleRegister, onGoogleButtonPress, theme }: any) => (
+const RegisterForm = React.memo(({ registerData, handleRegisterDataChange, emailError, passwordError, validateEmail, validatePassword, isLoading, isRegisterFormValid, handleRegister, onGoogleButtonPress, theme, focusedOffset }: any) => (
     <View style={styles.formInnerContainer}>
         <View style={styles.inputWrapper}>
             <LabeledInput
@@ -104,6 +106,7 @@ const RegisterForm = React.memo(({ registerData, handleRegisterDataChange, email
                 value={registerData.nickname}
                 onChangeText={(val: string) => handleRegisterDataChange('nickname', val)}
                 editable={!isLoading}
+                onFocus={() => { focusedOffset.value = -70; }}
             />
         </View>
         <View style={styles.inputWrapper}>
@@ -118,6 +121,7 @@ const RegisterForm = React.memo(({ registerData, handleRegisterDataChange, email
                 onBlur={() => validateEmail(registerData.email)}
                 inputStyle={emailError ? styles.inputError : undefined}
                 placeholder="Adres e-mail"
+                onFocus={() => { focusedOffset.value = -70; }}
             />
             {!!emailError && <Text style={styles.errorText}>{emailError}</Text>}
         </View>
@@ -130,6 +134,7 @@ const RegisterForm = React.memo(({ registerData, handleRegisterDataChange, email
                 placeholder="Hasło" // Removed "min 6..." text to keep it cleaner as per request (or keep it if essential, but user asked for spacing) - wait, user didn't ask to remove placeholder. keeping it simpler for now to match other fields potentially
                 onBlur={() => validatePassword(registerData.password)}
                 containerStyle={passwordError ? (styles.inputError as any) : undefined}
+                onFocus={() => { focusedOffset.value = -70; }}
             />
             {!!passwordError && <Text style={styles.errorText}>{passwordError}</Text>}
         </View>
@@ -161,6 +166,7 @@ const RegisterForm = React.memo(({ registerData, handleRegisterDataChange, email
         </View>
     </View>
 ));
+
 
 
 const AnimatedTouchableOpacity = Animated.createAnimatedComponent(TouchableOpacity);
@@ -203,6 +209,7 @@ const LoginScreen = () => {
     const targetProgress = useSharedValue(0);
     const isTransitioning = useSharedValue(false);
     const keyboardProgress = useSharedValue(0);
+    const focusedOffset = useSharedValue(-70); // Dynamic offset for keyboard push (-10, -40, -70)
     // Removed currentTab state to improve performance (using shared values instead)
     const [dynamicTopPadding, setDynamicTopPadding] = useState(cachedTopPadding);
     const [topLocked, setTopLocked] = useState(!!cachedTopPadding);
@@ -607,64 +614,47 @@ const LoginScreen = () => {
 
             const googleCredential = GoogleAuthProvider.credential(idToken);
 
-            // Query publicUsers by email to check current nickname BEFORE signing in to prevent auto-navigation
-            // Prioritize the email we are strictly trying to link (from password form)
-            const emailToCheck = pendingReverseLinkData?.email || signInResp?.user?.email;
+            // 1. Log in immediately to establish permissions
+            const userCred = await signInWithCredential(getAuth(), googleCredential);
+            const user = userCred.user;
 
+            // 2. Fetch authoritative nickname from Firestore
             let currentNickname = '';
-            if (emailToCheck) {
-                try {
-                    // 1. Try publicUsers (standard path)
-                    const q = query(collection(db, 'publicUsers'), where('emailLower', '==', emailToCheck.toLowerCase()), limit(1));
-                    const snap = await getDocs(q as any);
-                    if (!snap.empty) {
-                        const data = snap.docs[0].data() as any;
-                        if (data?.nickname) currentNickname = data.nickname;
-                    }
-
-                    // 2. Fallback: If publicUsers empty (legacy/bug?), try users collection directly if rules allow or if checking self?
-                    // Note: This might fail due to security rules if not logged in, but we are fetching *our own* pending account? 
-                    // Actually we are not logged in yet as that user. So 'users' collection might be blocked.
-                    // But 'publicUsers' is exactly for this. 
-                    // Double check casing fallbacks just in case.
-                } catch (e) {
-                    Logger.warn('Nickname lookup failed', e);
+            try {
+                const userDoc = await getDoc(doc(db, 'users', user.uid));
+                if (userDoc.exists()) {
+                    const data = userDoc.data() as any;
+                    currentNickname = data.nickname || '';
                 }
+            } catch (e) {
+                Logger.warn('Nickname lookup failed', e);
             }
 
-            // Fallback to Google name ONLY if DB nickname not found
-            if (!currentNickname && signInResp?.user?.name) {
-                // Only use Google name if we absolutely found nothing in DB
-                // But user complains "It shows Google Name instead of App Nick".
-                // This implies currentNickname was empty here.
-                currentNickname = signInResp.user.name;
+            // Fallback to Google name if DB nickname not found (and currently empty)
+            if (!currentNickname && user.displayName) {
+                currentNickname = user.displayName;
             }
 
-            // Fallback to Google name if DB nickname not found
-            if (!currentNickname && signInResp?.user?.name) {
-                currentNickname = signInResp.user.name;
-            }
+            // 3. IMPORTANT: Sign OUT temporarily to prevent AppNavigator from switching to Main App
+            // This allows the LoginScreen (and Modal) to stay mounted while user decides.
+            await getAuth().signOut();
 
-
-            // Checking if we are in the linking flow (pendingReverseLinkData present)
+            // 4. Check for conflict with pending registration data
             if (pendingReverseLinkData) {
-                // If we found a nickname OR if we rely on "Twoje konto" fallback to force the modal
                 const oldNick = currentNickname || 'Twoje konto';
-                // Only show modal if nicknames different (or if we just want to confirm merge)
-                // If old nick is same as new nick, technically no conflict, but user said "doesn't show choice".
-                // Let's force it if it differs OR always? User wants to choose.
-                // If names are identical, choosing is redundant. 
+
+                // Show modal if nicknames differ
                 if (oldNick !== pendingReverseLinkData.nickname) {
                     setGoogleAccountNickname(oldNick);
-                    setPendingGoogleCredentialForLink(googleCredential);
+                    setPendingGoogleCredentialForLink(googleCredential); // Store credential to re-login later
                     setNicknameConflictModalVisible(true);
                     setIsLoading(false);
                     return;
                 }
             }
 
-            // No conflict triggered, proceed to sign in and link
-            await finalizeReverseLink(googleCredential, pendingReverseLinkData?.nickname || currentNickname || '');
+            // No conflict, finalize (re-login and update)
+            await finalizeReverseLink(pendingReverseLinkData?.nickname || currentNickname || '', googleCredential);
 
         } catch (error: any) {
             handleAuthError(error);
@@ -672,19 +662,27 @@ const LoginScreen = () => {
         }
     };
 
-    const finalizeReverseLink = async (credential: any, finalNickname: string) => {
+    const finalizeReverseLink = async (finalNickname: string, credential?: any) => {
         try {
             if (!pendingReverseLinkData) return;
             setIsLoading(true);
 
-            // 1. Sign in with Google (if not already)
-            const userCred = await signInWithCredential(getAuth(), credential);
-            const user = userCred.user;
+            let user = getAuth().currentUser;
+
+            // If signed out (due to modal flow), sign in again
+            if (!user) {
+                if (!credential) throw new Error('Cannot finalize link without credential');
+                const userCred = await signInWithCredential(getAuth(), credential);
+                user = userCred.user;
+            }
+
+            if (!user) throw new Error('Authentication failed');
 
             // 2. Add Password Credential
             await user.updatePassword(pendingReverseLinkData.password);
 
             // 3. Update Firestore (merges authProviders automatically in createNewUserInFirestore)
+            // Ensure we use the chosen nickname
             await createNewUserInFirestore(user, finalNickname);
             await upsertAuthProvidersForUser(user);
 
@@ -717,10 +715,8 @@ const LoginScreen = () => {
 
 
     const animatedContainerStyle = useAnimatedStyle(() => {
-        // Constant offset for both tabs to ensure uniform push (increased to -70 based on feedback)
-        const offset = -70;
         return {
-            transform: [{ translateY: interpolate(keyboardProgress.value, [0, 1], [Spacing.large, offset]) }],
+            transform: [{ translateY: interpolate(keyboardProgress.value, [0, 1], [Spacing.large, focusedOffset.value]) }],
         };
     });
 
@@ -810,15 +806,11 @@ const LoginScreen = () => {
 
     return (
         <View style={[styles.container, { backgroundColor: theme.colors.background }]}>
-            <ScrollView
-                contentContainerStyle={[
+            <View
+                style={[
                     styles.scrollContentContainer,
-                    { paddingTop: 0, paddingBottom: Platform.OS === 'ios' ? Spacing.xxLarge + Spacing.small : Spacing.xxLarge }
+                    { paddingTop: Spacing.xxLarge, paddingBottom: Platform.OS === 'ios' ? Spacing.xxLarge + Spacing.small : Spacing.xxLarge }
                 ]}
-                keyboardShouldPersistTaps="handled"
-                showsVerticalScrollIndicator={false}
-                bounces={false}
-                scrollEnabled={false}
             >
                 <Animated.View
                     style={[styles.contentContainer, animatedContainerStyle]}
@@ -887,16 +879,16 @@ const LoginScreen = () => {
 
                             <View style={[styles.formSliderContainer, { backgroundColor: 'transparent' }]}>
                                 <Animated.View style={[styles.formWrapper, loginFormAnimatedStyle]}>
-                                    <LoginForm identifier={identifier} setIdentifier={setIdentifier} loginPassword={loginPassword} setLoginPassword={setLoginPassword} isLoading={isLoading} handleLogin={handleLogin} setForgotPasswordModalVisible={setForgotPasswordModalVisible} onGoogleButtonPress={onGoogleButtonPress} theme={theme} />
+                                    <LoginForm identifier={identifier} setIdentifier={setIdentifier} loginPassword={loginPassword} setLoginPassword={setLoginPassword} isLoading={isLoading} handleLogin={handleLogin} setForgotPasswordModalVisible={setForgotPasswordModalVisible} onGoogleButtonPress={onGoogleButtonPress} theme={theme} focusedOffset={focusedOffset} />
                                 </Animated.View>
                                 <Animated.View style={[styles.formWrapper, registerFormAnimatedStyle]}>
-                                    <RegisterForm registerData={registerData} handleRegisterDataChange={handleRegisterDataChange} emailError={emailError} passwordError={passwordError} validateEmail={validateEmail} validatePassword={validatePassword} isLoading={isLoading} isRegisterFormValid={isRegisterFormValid} handleRegister={handleRegister} onGoogleButtonPress={onGoogleButtonPress} theme={theme} />
+                                    <RegisterForm registerData={registerData} handleRegisterDataChange={handleRegisterDataChange} emailError={emailError} passwordError={passwordError} validateEmail={validateEmail} validatePassword={validatePassword} isLoading={isLoading} isRegisterFormValid={isRegisterFormValid} handleRegister={handleRegister} onGoogleButtonPress={onGoogleButtonPress} theme={theme} focusedOffset={focusedOffset} />
                                 </Animated.View>
                             </View>
                         </View>
                     </GestureDetector>
                 </Animated.View>
-            </ScrollView>
+            </View>
             <ForgotPasswordModal visible={forgotPasswordModalVisible} onClose={() => setForgotPasswordModalVisible(false)} />
             {/* Dialog: konto niezweryfikowane */}
             <ActionModal
@@ -973,8 +965,8 @@ const LoginScreen = () => {
                 visible={nicknameConflictModalVisible}
                 oldNickname={googleAccountNickname}
                 newNickname={pendingReverseLinkData?.nickname || ''}
-                onKeepOld={() => { if (pendingGoogleCredentialForLink) finalizeReverseLink(pendingGoogleCredentialForLink, googleAccountNickname); }}
-                onUseNew={() => { if (pendingGoogleCredentialForLink) finalizeReverseLink(pendingGoogleCredentialForLink, pendingReverseLinkData?.nickname || ''); }}
+                onKeepOld={() => { finalizeReverseLink(googleAccountNickname, pendingGoogleCredentialForLink); }}
+                onUseNew={() => { finalizeReverseLink(pendingReverseLinkData?.nickname || '', pendingGoogleCredentialForLink); }}
             />
         </View >
     );

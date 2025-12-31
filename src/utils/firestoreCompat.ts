@@ -128,6 +128,7 @@ export function onSnapshot(
   }
   const unsubscribe = (source as any).onSnapshot(
     (snap: FirebaseFirestoreTypes.QuerySnapshot) => {
+      if (!snap) return;
       // Create a compatible snapshot object that matches what the context expects
       // but also includes the original docs mapped to our compat format.
       const compatSnapshot = {
