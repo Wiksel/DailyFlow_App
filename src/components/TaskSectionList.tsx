@@ -179,17 +179,17 @@ const TaskSectionListInner = ({ tasks, categories, onPressTask, onToggleComplete
               <TaskListItem
                 task={item}
                 category={cat}
-                onPress={() => onPressTask(item)}
-                onLongPress={() => { if (onToggleSelect) onToggleSelect(item); }}
-                onToggleComplete={() => onToggleComplete(item)}
-                onConfirmAction={() => onConfirmAction(item)}
+                onPress={onPressTask}
+                onLongPress={onToggleSelect}
+                onToggleComplete={onToggleComplete}
+                onConfirmAction={onConfirmAction}
                 isCompact={density === 'compact' ? true : (section.key !== 'overdue' && section.key !== 'today' && section.key !== 'pinned')}
                 selectionMode={selectionMode}
                 selected={selected}
-                onToggleSelect={() => { if (onToggleSelect) onToggleSelect(item); }}
-                onOpenMenu={!selectionMode ? () => { if (onOpenTaskMenu) onOpenTaskMenu(item); } : undefined}
+                onToggleSelect={onToggleSelect}
+                onOpenMenu={!selectionMode ? onOpenTaskMenu : undefined}
                 pinned={isPinned}
-                onTogglePinned={() => { if (onTogglePinned) onTogglePinned(item); }}
+                onTogglePinned={onTogglePinned}
                 highlightQuery={highlightQuery}
               />
             </Animated.View>
@@ -216,5 +216,3 @@ const styles = StyleSheet.create({
   swipeLeft: { justifyContent: 'center', alignItems: 'flex-start', paddingLeft: 20, marginHorizontal: Spacing.medium, marginTop: Spacing.small, borderRadius: 12, height: '100%', flex: 1 },
   swipeRight: { justifyContent: 'center', alignItems: 'flex-end', paddingRight: 20, marginHorizontal: Spacing.medium, marginTop: Spacing.small, borderRadius: 12, height: '100%', flex: 1 },
 });
-
-
