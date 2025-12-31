@@ -33,6 +33,7 @@ const LabeledInput = ({
       ) : null}
       <TextInput
         testID={testID}
+        accessibilityLabel={label || placeholder}
         style={[GlobalStyles.input, { backgroundColor: theme.colors.inputBackground, borderColor: theme.colors.border, color: theme.colors.textPrimary }, inputStyle]}
         value={value}
         onChangeText={onChangeText}
