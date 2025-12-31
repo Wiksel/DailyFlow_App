@@ -33,7 +33,13 @@ const PasswordInput = ({ value, onChangeText, containerStyle, inputStyle, placeh
         selectionColor={theme.colors.primary}
         {...props}
       />
-      <TouchableOpacity onPress={() => setIsPasswordVisible(!isPasswordVisible)} style={styles.eyeIcon}>
+      <TouchableOpacity
+        onPress={() => setIsPasswordVisible(!isPasswordVisible)}
+        style={styles.eyeIcon}
+        accessibilityRole="button"
+        accessibilityLabel={isPasswordVisible ? "Ukryj hasło" : "Pokaż hasło"}
+        accessibilityHint="Przełącza widoczność hasła"
+      >
         <Feather name={isPasswordVisible ? "eye-off" : "eye"} size={22} color={theme.colors.textSecondary} />
       </TouchableOpacity>
     </View>
