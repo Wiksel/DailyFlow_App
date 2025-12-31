@@ -13,22 +13,22 @@ import * as Haptics from 'expo-haptics';
 type Props = {
   task: Task;
   category: Category | undefined;
-  onPress: () => void;
-  onToggleComplete: () => void;
-  onConfirmAction: () => void; // archive/delete depending on state
+  onPress: (task: Task) => void;
+  onToggleComplete: (task: Task) => void;
+  onConfirmAction: (task: Task) => void; // archive/delete depending on state
   creatorAvatarUrl?: string | null;
-  onLongPress?: () => void;
+  onLongPress?: (task: Task) => void;
   isCompact?: boolean;
-  onOpenMenu?: () => void;
+  onOpenMenu?: (task: Task) => void;
   selectionMode?: boolean;
   selected?: boolean;
-  onToggleSelect?: () => void;
+  onToggleSelect?: (task: Task) => void;
   pinned?: boolean;
-  onTogglePinned?: () => void;
+  onTogglePinned?: (task: Task) => void;
   highlightQuery?: string;
 };
 
-export default function TaskListItem({ task, category, onPress, onToggleComplete, onConfirmAction, creatorAvatarUrl, onLongPress, isCompact = false, onOpenMenu, selectionMode = false, selected = false, onToggleSelect, pinned = false, onTogglePinned, highlightQuery }: Props) {
+function TaskListItemComponent({ task, category, onPress, onToggleComplete, onConfirmAction, creatorAvatarUrl, onLongPress, isCompact = false, onOpenMenu, selectionMode = false, selected = false, onToggleSelect, pinned = false, onTogglePinned, highlightQuery }: Props) {
   const theme = useTheme();
   const [expanded, setExpanded] = useState(!isCompact);
   const toggleExpanded = useCallback(() => {
@@ -60,23 +60,44 @@ export default function TaskListItem({ task, category, onPress, onToggleComplete
 
   const weekdayPl = (d: Date) => ['Nd', 'Pn', 'Wt', 'Śr', 'Cz', 'Pt', 'So'][d.getDay()];
 
-  const renderDifficultyDots = (level: number | undefined) => {
-    const n = Math.max(0, Math.min(5, Number(level ?? 0)));
-    return (
-      <View style={styles.diffDotsRow}>
-        {Array.from({ length: 5 }).map((_, i) => (
-          <View key={i} style={[styles.diffDot, i < n ? { backgroundColor: theme.colors.textSecondary, opacity: 0.9 } : { backgroundColor: theme.colors.textSecondary, opacity: 0.25 }]} />
-        ))}
-      </View>
-    );
-  };
+  const handlePress = useCallback(() => {
+    if (selectionMode) {
+      onToggleSelect?.(task);
+    } else {
+      onPress(task);
+    }
+  }, [selectionMode, onToggleSelect, onPress, task]);
+
+  const handleCheckboxPress = useCallback(() => {
+    if (selectionMode) {
+      onToggleSelect?.(task);
+    } else {
+      onToggleComplete(task);
+    }
+  }, [selectionMode, onToggleSelect, onToggleComplete, task]);
+
+  const handleLongPress = useCallback(() => {
+    if (onLongPress) onLongPress(task);
+  }, [onLongPress, task]);
+
+  const handleConfirmAction = useCallback(() => {
+    onConfirmAction(task);
+  }, [onConfirmAction, task]);
+
+  const handleTogglePinned = useCallback(() => {
+    onTogglePinned?.(task);
+  }, [onTogglePinned, task]);
+
+  const handleOpenMenu = useCallback(() => {
+    onOpenMenu?.(task);
+  }, [onOpenMenu, task]);
 
   return (
     <Animated.View layout={Layout.springify()} style={[styles.root, { backgroundColor: theme.colors.card, borderColor: selected ? theme.colors.primary : theme.colors.border, shadowColor: Colors.shadow, opacity: task.completed ? 0.7 : 1, padding: isCompact ? Spacing.xSmall : Spacing.small }]}>
       <LinearGradient colors={accentGradient as any} start={{ x: 0, y: 0 }} end={{ x: 0, y: 1 }} style={[styles.accent, { width: isCompact ? 2 : 3 }]} />
       {/* Checkbox */}
       <TouchableOpacity
-        onPress={selectionMode ? onToggleSelect : onToggleComplete}
+        onPress={handleCheckboxPress}
         style={styles.checkboxTouchable}
         accessibilityLabel={selectionMode ? (selected ? 'Odznacz' : 'Zaznacz') : (task.completed ? 'Cofnij ukończenie' : 'Oznacz jako ukończone')}>
         <View style={[
@@ -90,7 +111,7 @@ export default function TaskListItem({ task, category, onPress, onToggleComplete
       </TouchableOpacity>
 
       {/* Main */}
-      <TouchableOpacity style={styles.main} onPress={selectionMode ? onToggleSelect : onPress} onLongPress={onLongPress} delayLongPress={300} activeOpacity={0.7}>
+      <TouchableOpacity style={styles.main} onPress={handlePress} onLongPress={handleLongPress} delayLongPress={300} activeOpacity={0.7}>
         <View style={styles.titleRow}>
           <Text style={[styles.title, { color: theme.colors.textPrimary }, task.completed && styles.titleCompleted]} numberOfLines={isCompact ? 1 : 2}>
             {highlightText(task.text, highlightQuery, theme.colors.primary)}
@@ -171,7 +192,7 @@ export default function TaskListItem({ task, category, onPress, onToggleComplete
               icon={'trash-2'}
               size={isCompact ? 14 : 16}
               color={theme.colors.danger}
-              onPress={onConfirmAction}
+              onPress={handleConfirmAction}
               accessibilityLabel={'Usuń'}
             />
           </View>
@@ -180,7 +201,7 @@ export default function TaskListItem({ task, category, onPress, onToggleComplete
               icon={'star'}
               size={isCompact ? 14 : 16}
               color={pinned ? '#f1c40f' : theme.colors.textSecondary}
-              onPress={() => onTogglePinned && onTogglePinned()}
+              onPress={handleTogglePinned}
               accessibilityLabel={pinned ? 'Odepnij' : 'Przypnij'}
             />
           </View>
@@ -189,7 +210,7 @@ export default function TaskListItem({ task, category, onPress, onToggleComplete
               icon={'more-vertical'}
               size={isCompact ? 14 : 16}
               color={theme.colors.textSecondary}
-              onPress={() => onOpenMenu && onOpenMenu()}
+              onPress={handleOpenMenu}
               accessibilityLabel={'Więcej akcji'}
             />
           </View>
@@ -270,4 +291,4 @@ const styles = StyleSheet.create({
   shareChipText: { fontSize: Typography.small.fontSize - 1, fontWeight: '600' },
 });
 
-
+export default React.memo(TaskListItemComponent);

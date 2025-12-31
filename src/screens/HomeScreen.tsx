@@ -19,7 +19,6 @@ import { useTheme } from '../contexts/ThemeContext';
 
 // Components
 import AddTaskModal from './AddTaskModal';
-import TaskListItem from '../components/TaskListItem';
 import TaskSectionList, { TaskSectionListHandle } from '../components/TaskSectionList';
 import InlineFilters from '../components/InlineFilters';
 import CalendarRangeModal from '../components/CalendarRangeModal';
