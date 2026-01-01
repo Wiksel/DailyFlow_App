@@ -209,50 +209,7 @@ const LoginForm = React.memo(({ identifier, setIdentifier, loginPassword, setLog
 });
 
 
-const RegisterForm = React.memo(({ registerData, handleRegisterDataChange, emailError, passwordError, validateEmail, validatePassword, isLoading, isRegisterFormValid, handleRegister, onGoogleButtonPress, theme, focusedOffset, themeAnim }: any) => {
-
-    // Fix for Issue 3 & 4: Smooth transition for button text color and background
-    // We need to animate the "validity" state to avoid instant color jumps.
-    const isValid = useDerivedValue(() => {
-        return withTiming(isLoading || !isRegisterFormValid ? 0 : 1, { duration: 200 });
-    }, [isLoading, isRegisterFormValid]);
-
-    const animatedButtonStyle = useAnimatedStyle(() => {
-        // Manual RGB interpolation with rounding to ensure valid integer colors
-        // Light: #C77D98 (199, 125, 152) | Dark: #4DA3FF (77, 163, 255)
-
-        // We handle themeAnim value safety by clamping input range
-        const r = Math.round(interpolate(themeAnim.value, [0, 1], [199, 77], 'clamp'));
-        const g = Math.round(interpolate(themeAnim.value, [0, 1], [125, 163], 'clamp'));
-        const b = Math.round(interpolate(themeAnim.value, [0, 1], [152, 255], 'clamp'));
-
-        const lightInactiveAlpha = 0.5;
-        const darkInactiveAlpha = 0.3;
-        const activeAlpha = 1.0;
-
-        const currentInactiveAlpha = interpolate(themeAnim.value, [0, 1], [lightInactiveAlpha, darkInactiveAlpha], 'clamp');
-        const alpha = interpolate(isValid.value, [0, 1], [currentInactiveAlpha, activeAlpha], 'clamp');
-
-        return {
-            backgroundColor: `rgba(${r},${g},${b},${alpha})`,
-        };
-    });
-
-    const buttonTextStyle = useAnimatedStyle(() => {
-        // Text is always white (#FFFFFF)
-        // Alpha changes only in dark mode when disabled
-        const lightTextAlpha = 1.0;
-        const darkTextInactiveAlpha = 0.5;
-        const darkTextActiveAlpha = 1.0;
-
-        // Use clamp to ensure alpha doesn't overshoot
-        const darkCurrentAlpha = interpolate(isValid.value, [0, 1], [darkTextInactiveAlpha, darkTextActiveAlpha], 'clamp');
-        const alpha = interpolate(themeAnim.value, [0, 1], [lightTextAlpha, darkCurrentAlpha], 'clamp');
-
-        return {
-            color: `rgba(255,255,255,${alpha})`
-        };
-    });
+const RegisterForm = React.memo(({ registerData, handleRegisterDataChange, emailError, passwordError, validateEmail, validatePassword, isLoading, isRegisterFormValid, handleRegister, onGoogleButtonPress, theme, focusedOffset, themeAnim, registerButtonAnimatedStyle, registerButtonTextStyle }: any) => {
 
     const googleBtnStyle = useAnimatedStyle(() => ({
         borderColor: interpolateColor(themeAnim.value, [0, 1], [lightColors.border, darkColors.border]),
@@ -316,12 +273,12 @@ const RegisterForm = React.memo(({ registerData, handleRegisterDataChange, email
                 style={[
                     GlobalStyles.button,
                     styles.buttonMarginTop,
-                    animatedButtonStyle
+                    registerButtonAnimatedStyle
                 ]}
                 onPress={async () => { if (isLoading || !isRegisterFormValid) return; handleRegister(); }}
                 disabled={isLoading || !isRegisterFormValid}
             >
-                {isLoading ? <ActivityIndicator color="white" /> : <AnimatedText style={[GlobalStyles.buttonText, buttonTextStyle]}>Stwórz konto</AnimatedText>}
+                {isLoading ? <ActivityIndicator color="white" /> : <AnimatedText style={[GlobalStyles.buttonText, registerButtonTextStyle]}>Stwórz konto</AnimatedText>}
             </AnimatedTouchableOpacity>
             <View style={styles.dividerContainer}>
                 <AnimatedView style={[styles.dividerLine, dividerStyle]} /><AnimatedText style={[styles.dividerText, dividerTextStyle]}>lub</AnimatedText><AnimatedView style={[styles.dividerLine, dividerStyle]} />
@@ -402,11 +359,12 @@ const LoginScreen = () => {
         backgroundColor: interpolateColor(themeAnim.value, [0, 1], [lightColors.background, darkColors.background])
     }));
 
-    const animatedHeaderTitle = useAnimatedStyle(() => ({
-        color: interpolateColor(themeAnim.value, [0, 1], [lightColors.textPrimary, darkColors.textPrimary]),
-        textShadowColor: interpolateColor(themeAnim.value, [0, 1], ['#FFFFFF80', '#000000CC']), // #FFFFFF 50%, #000000 80%
-        textShadowOffset: { width: 0, height: 1 },
-        textShadowRadius: 4
+    const headerLightStyle = useAnimatedStyle(() => ({
+        opacity: interpolate(themeAnim.value, [0, 1], [1, 0])
+    }));
+
+    const headerDarkStyle = useAnimatedStyle(() => ({
+        opacity: interpolate(themeAnim.value, [0, 1], [0, 1])
     }));
 
     const animatedHeaderSubtitle = useAnimatedStyle(() => ({
@@ -895,6 +853,43 @@ const LoginScreen = () => {
 
     const isRegisterFormValid = registerData.nickname.trim().length > 0 && isEmailValidCheck(registerData.email) && isPasswordValidCheck(registerData.password);
 
+    // Hoisted Animation Logic for Register Button
+    const isRegisterValidAnim = useDerivedValue(() => {
+        return withTiming(isLoading || !isRegisterFormValid ? 0 : 1, { duration: 200 });
+    }, [isLoading, isRegisterFormValid]);
+
+    const registerButtonAnimatedStyle = useAnimatedStyle(() => {
+        // Manual RGB interpolation
+        // Light: #C77D98 (199, 125, 152) | Dark: #4DA3FF (77, 163, 255)
+        const r = Math.round(interpolate(themeAnim.value, [0, 1], [199, 77], 'clamp'));
+        const g = Math.round(interpolate(themeAnim.value, [0, 1], [125, 163], 'clamp'));
+        const b = Math.round(interpolate(themeAnim.value, [0, 1], [152, 255], 'clamp'));
+
+        const lightInactiveAlpha = 0.5;
+        const darkInactiveAlpha = 0.3;
+        const activeAlpha = 1.0;
+
+        const currentInactiveAlpha = interpolate(themeAnim.value, [0, 1], [lightInactiveAlpha, darkInactiveAlpha], 'clamp');
+        const alpha = interpolate(isRegisterValidAnim.value, [0, 1], [currentInactiveAlpha, activeAlpha], 'clamp');
+
+        return {
+            backgroundColor: `rgba(${r},${g},${b},${alpha})`,
+        };
+    });
+
+    const registerButtonTextStyle = useAnimatedStyle(() => {
+        const lightTextAlpha = 1.0;
+        const darkTextInactiveAlpha = 0.5;
+        const darkTextActiveAlpha = 1.0;
+
+        const darkCurrentAlpha = interpolate(isRegisterValidAnim.value, [0, 1], [darkTextInactiveAlpha, darkTextActiveAlpha], 'clamp');
+        const alpha = interpolate(themeAnim.value, [0, 1], [lightTextAlpha, darkCurrentAlpha], 'clamp');
+
+        return {
+            color: `rgba(255,255,255,${alpha})`
+        };
+    });
+
     useEffect(() => {
         (async () => {
             const suggested = await popSuggestedLoginIdentifier();
@@ -1086,11 +1081,29 @@ const LoginScreen = () => {
                                     ))}
                                 </View>
                                 <View style={[styles.textOverlay, { transform: [{ translateY: Spacing.small }], backgroundColor: 'transparent' }]}>
-                                    <View onLayout={() => { }}>
+                                    <View style={{ alignItems: 'center', justifyContent: 'center' }}>
+                                        {/* Light Mode Title (Base backing) */}
                                         <AnimatedText style={[styles.header, {
                                             fontFamily: 'DancingScript_700Bold' as any,
                                             fontSize: 68,
-                                        }, animatedHeaderTitle]}>Daily Flow</AnimatedText>
+                                            color: lightColors.textPrimary,
+                                            textShadowColor: 'rgba(255, 255, 255, 0.5)',
+                                            textShadowOffset: { width: 0, height: 1 },
+                                            textShadowRadius: 4,
+                                        }, headerLightStyle]}>Daily Flow</AnimatedText>
+
+                                        {/* Dark Mode Title (Overlay) */}
+                                        <AnimatedText style={[styles.header, {
+                                            fontFamily: 'DancingScript_700Bold' as any,
+                                            fontSize: 68,
+                                            position: 'absolute',
+                                            top: 0,
+                                            color: darkColors.textPrimary,
+                                            textShadowColor: 'rgba(0, 0, 0, 0.8)',
+                                            textShadowOffset: { width: 0, height: 1 },
+                                            textShadowRadius: 4,
+                                        }, headerDarkStyle]}>Daily Flow</AnimatedText>
+
                                         <AnimatedText style={[styles.subtitle, {
                                             fontFamily: 'DancingScript_400Regular' as any,
                                             fontSize: 28,
@@ -1139,7 +1152,23 @@ const LoginScreen = () => {
                                     <LoginForm identifier={identifier} setIdentifier={setIdentifier} loginPassword={loginPassword} setLoginPassword={setLoginPassword} isLoading={isLoading} handleLogin={handleLogin} setForgotPasswordModalVisible={setForgotPasswordModalVisible} onGoogleButtonPress={onGoogleButtonPress} theme={theme} focusedOffset={focusedOffset} themeAnim={themeAnim} />
                                 </Animated.View>
                                 <Animated.View style={[styles.formWrapper, registerFormAnimatedStyle]}>
-                                    <RegisterForm registerData={registerData} handleRegisterDataChange={handleRegisterDataChange} emailError={emailError} passwordError={passwordError} validateEmail={validateEmail} validatePassword={validatePassword} isLoading={isLoading} isRegisterFormValid={isRegisterFormValid} handleRegister={handleRegister} onGoogleButtonPress={onGoogleButtonPress} theme={theme} focusedOffset={focusedOffset} themeAnim={themeAnim} />
+                                    <RegisterForm
+                                        registerData={registerData}
+                                        handleRegisterDataChange={handleRegisterDataChange}
+                                        emailError={emailError}
+                                        passwordError={passwordError}
+                                        validateEmail={validateEmail}
+                                        validatePassword={validatePassword}
+                                        isLoading={isLoading}
+                                        isRegisterFormValid={isRegisterFormValid}
+                                        handleRegister={handleRegister}
+                                        onGoogleButtonPress={onGoogleButtonPress}
+                                        theme={theme}
+                                        focusedOffset={focusedOffset}
+                                        themeAnim={themeAnim}
+                                        registerButtonAnimatedStyle={registerButtonAnimatedStyle}
+                                        registerButtonTextStyle={registerButtonTextStyle}
+                                    />
                                 </Animated.View>
                             </View>
                         </View>

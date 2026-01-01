@@ -34,7 +34,7 @@ export default function App() {
   // Ciche sprawdzenie aktualizacji OTA na starcie
   useEffect(() => {
     // Konfiguracja log levelu
-    try { setLogLevel(__DEV__ ? 'debug' : 'warn'); } catch {}
+    try { setLogLevel(__DEV__ ? 'debug' : 'warn'); } catch { }
     // Opcjonalna integracja z telemetrią (Sentry/Bugsnag/Crashlytics)
     try {
       // Lazy import, brak twardej zależności
@@ -46,8 +46,11 @@ export default function App() {
           // Sentry?.captureException?.(error, { extra: context });
         });
       })();
-    } catch {}
+    } catch { }
     (async () => {
+      // Don't check for updates in development
+      if (__DEV__) return;
+
       try {
         const update = await Updates.checkForUpdateAsync();
         if (update.isAvailable) {
