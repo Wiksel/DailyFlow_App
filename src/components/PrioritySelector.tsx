@@ -1,7 +1,7 @@
 // src/components/PrioritySelector.tsx
 import React from 'react';
-import { View, TouchableOpacity, StyleSheet, Text } from 'react-native'; // Dodano Text do podglądu priorytetu
-import { Colors, Spacing, Typography } from '../styles/AppStyles';
+import { View, TouchableOpacity, StyleSheet, AccessibilityRole, ViewStyle } from 'react-native';
+import { Colors, Spacing } from '../styles/AppStyles';
 import { useTheme } from '../contexts/ThemeContext';
 
 interface PrioritySelectorProps {
@@ -9,16 +9,39 @@ interface PrioritySelectorProps {
     onSelect: (priority: number) => void;
 }
 
+const getPriorityLabel = (level: number): string => {
+    switch (level) {
+        case 1: return "Najniższy";
+        case 2: return "Niski";
+        case 3: return "Średni";
+        case 4: return "Wysoki";
+        case 5: return "Krytyczny";
+        default: return "Nieznany";
+    }
+};
+
 const PrioritySelector = ({ value, onSelect }: PrioritySelectorProps) => {
     const priorities = [1, 2, 3, 4, 5];
     const theme = useTheme();
     const colors = [theme.colors.success, theme.colors.success, theme.colors.warning, theme.colors.danger, theme.colors.danger];
 
     return (
-        <View style={styles.priorityContainer}>
+        <View
+            style={styles.priorityContainer}
+            accessibilityRole="radiogroup"
+            accessibilityLabel="Wybór priorytetu"
+        >
             {priorities.map(p => {
+                const isSelected = p === value;
                 return (
-                    <TouchableOpacity key={p} onPress={() => onSelect(p)} style={styles.priorityButton}>
+                    <TouchableOpacity
+                        key={p}
+                        onPress={() => onSelect(p)}
+                        style={styles.priorityButton}
+                        accessibilityRole="radio"
+                        accessibilityLabel={`Priorytet ${p} - ${getPriorityLabel(p)}`}
+                        accessibilityState={{ checked: isSelected }}
+                    >
                         <View style={[
                             styles.priorityBar,
                             {
@@ -26,8 +49,6 @@ const PrioritySelector = ({ value, onSelect }: PrioritySelectorProps) => {
                                 backgroundColor: p <= value ? colors[p - 1] : theme.colors.border
                             }
                         ]} />
-                        {/* JEŚLI CHCESZ WYŚWIETLAĆ NUMER PRIORYTETU, MUSI BYĆ TAK: */}
-                        {/* <Text style={styles.priorityNumber}>{p}</Text> */}
                     </TouchableOpacity>
                 )
             })}
@@ -48,17 +69,12 @@ const styles = StyleSheet.create({
         alignItems: 'center',
         justifyContent: 'flex-end',
         paddingHorizontal: Spacing.xSmall,
+        height: '100%', // Ensure the touch target covers the full height
     },
     priorityBar: {
         width: 25,
         borderRadius: 5,
     },
-    // Jeśli zdecydujesz się na wyświetlanie numeru priorytetu:
-    // priorityNumber: {
-    //     fontSize: Typography.small.fontSize,
-    //     color: Colors.textSecondary,
-    //     marginTop: Spacing.xSmall,
-    // },
 });
 
 export default PrioritySelector;
