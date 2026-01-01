@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
-import { View, Text, StyleSheet, TextInput, TouchableOpacity, ActivityIndicator, Image, Dimensions, ScrollView, Platform, Keyboard } from 'react-native';
+import { View, Text, StyleSheet, TextInput, TouchableOpacity, ActivityIndicator, Image, Dimensions, ScrollView, Platform, Keyboard, StatusBar } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import LabeledInput from '../components/LabeledInput';
 import PasswordInput from '../components/PasswordInput';
@@ -8,7 +8,7 @@ import auth, { FirebaseAuthTypes, getAuth, signInWithEmailAndPassword, createUse
 import { GoogleSignin } from '@react-native-google-signin/google-signin';
 import { useToast } from '../contexts/ToastContext';
 import { Colors, Spacing, Typography, GlobalStyles } from '../styles/AppStyles';
-import { useTheme } from '../contexts/ThemeContext';
+import { useTheme, lightColors, darkColors } from '../contexts/ThemeContext';
 import { Feather } from '@expo/vector-icons';
 import ActionModal from '../components/ActionModal';
 import LinkAccountsModal from '../components/LinkAccountsModal';
@@ -25,7 +25,7 @@ import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { doc, getDoc, collection, query, where, getDocs, limit } from '../utils/firestoreCompat';
 import { db } from '../utils/firestoreCompat';
 
-import Animated, { useSharedValue, useAnimatedStyle, withSpring, withTiming, interpolateColor, interpolate, useAnimatedReaction, runOnJS } from 'react-native-reanimated';
+import Animated, { useSharedValue, useAnimatedStyle, withSpring, withTiming, interpolateColor, interpolate, useAnimatedReaction, runOnJS, useDerivedValue, useAnimatedProps } from 'react-native-reanimated';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 
 type LoginNavigationProp = NativeStackNavigationProp<AuthStackParamList, 'Login'>;
@@ -37,139 +37,317 @@ const SPRING_CONFIG = { damping: 20, stiffness: 150, mass: 1 };
 let cachedSphereConfigs: any[] | null = null; // Cache globally to prevent shift on logout
 let cachedTopPadding = 0; // Cache top padding to prevent layout shift on logout
 
-
-// Komponenty formularzy (bez zmian)
-const LoginForm = React.memo(({ identifier, setIdentifier, loginPassword, setLoginPassword, isLoading, handleLogin, setForgotPasswordModalVisible, onGoogleButtonPress, theme, focusedOffset }: any) => (
-    <View style={styles.formInnerContainer}>
-        <View style={styles.inputWrapper}>
-            <LabeledInput
-                testID="login-identifier-input"
-                placeholder="Adres e-mail"
-                value={identifier}
-                onChangeText={setIdentifier}
-                autoCapitalize="none"
-                editable={!isLoading}
-                onFocus={() => { focusedOffset.value = -70; }}
-            />
-        </View>
-        <View style={styles.inputWrapper}>
-            <PasswordInput
-                testID="login-password-input"
-                placeholder="Hasło"
-                value={loginPassword}
-                onChangeText={setLoginPassword}
-                editable={!isLoading}
-                onFocus={() => { focusedOffset.value = -70; }}
-            />
-        </View>
-        <TouchableOpacity
-            testID="forgot-password-button"
-            style={styles.forgotPasswordButton}
-            onPress={() => setForgotPasswordModalVisible(true)}
-        >
-            <Text style={[styles.forgotPasswordText, { color: Colors.primary }]}>Zapomniałem hasła</Text>
-        </TouchableOpacity>
-        <TouchableOpacity
-            testID="login-button"
-            style={[GlobalStyles.button, styles.buttonMarginTop]}
-            onPress={async () => { handleLogin(); }}
-            disabled={isLoading}
-        >
-            {isLoading ? <ActivityIndicator color="white" /> : <Text style={GlobalStyles.buttonText}>Zaloguj się</Text>}
-        </TouchableOpacity>
-        <View style={styles.dividerContainer}>
-            <View style={[styles.dividerLine, { backgroundColor: theme.colors.border }]} /><Text style={[styles.dividerText, { color: theme.colors.textSecondary }]}>lub</Text><View style={[styles.dividerLine, { backgroundColor: theme.colors.border }]} />
-        </View>
-        <TouchableOpacity
-            testID="google-login-button"
-            style={[styles.socialButton, isLoading && styles.disabledGoogleButton, { borderColor: theme.colors.border, backgroundColor: theme.colors.card }]}
-            onPress={onGoogleButtonPress}
-            disabled={isLoading}
-        >
-            {isLoading ? <ActivityIndicator color={Colors.primary} /> : (
-                <>
-                    <Image source={require('../../assets/google-icon.png')} style={styles.socialIcon} />
-                    <Text style={[styles.socialButtonText, { color: Colors.primary }]}>Zaloguj się z Google</Text>
-                </>
-            )}
-        </TouchableOpacity>
-    </View>
-));
+// Palettes for spheres
+// Palettes for spheres - Reduced opacity for softer look
 
 
-const RegisterForm = React.memo(({ registerData, handleRegisterDataChange, emailError, passwordError, validateEmail, validatePassword, isLoading, isRegisterFormValid, handleRegister, onGoogleButtonPress, theme, focusedOffset }: any) => (
-    <View style={styles.formInnerContainer}>
-        <View style={styles.inputWrapper}>
-            <LabeledInput
-                testID="register-nickname-input"
-                placeholder="Nick"
-                value={registerData.nickname}
-                onChangeText={(val: string) => handleRegisterDataChange('nickname', val)}
-                editable={!isLoading}
-                onFocus={() => { focusedOffset.value = -70; }}
-            />
-        </View>
-        <View style={styles.inputWrapper}>
-            <LabeledInput
-                testID="register-email-input"
-                value={registerData.email}
-                onChangeText={(val: string) => handleRegisterDataChange('email', val)}
-                keyboardType="email-address"
-                autoCapitalize="none"
+const lightSphereColors = [
+    'rgba(199, 125, 152, 0.6)',  // Pastel Rose (Stronger)
+    '#C77D98',                   // Explicit Accent (Solid)
+    'rgba(216, 167, 177, 0.6)',  // Pale Pink
+    'rgba(227, 99, 139, 0.5)',   // Rose Red
+    'rgba(214, 51, 132, 0.5)',   // Fuchsia-ish
+    'rgba(199, 125, 152, 0.5)',  // Pastel Rose
+    '#C77D98',                   // Explicit Accent
+    'rgba(230, 180, 190, 0.5)',  // Pale Pink
+    'rgba(219, 112, 147, 0.5)',  // PaleVioletRed
+    'rgba(199, 125, 152, 0.6)',
+    '#C77D98',
+    'rgba(216, 167, 177, 0.6)',
+    'rgba(227, 99, 139, 0.5)',
+    'rgba(214, 51, 132, 0.5)',
+    'rgba(199, 125, 152, 0.5)',
+    '#C77D98',
+];
 
-                editable={!isLoading}
-                onBlur={() => validateEmail(registerData.email)}
-                inputStyle={emailError ? styles.inputError : undefined}
-                placeholder="Adres e-mail"
-                onFocus={() => { focusedOffset.value = -70; }}
+const darkSphereColors = [
+    'rgba(227, 242, 253, 0.4)', // Very Light Blue (Increased opacity)
+    'rgba(187, 222, 251, 0.4)', // Blue 100
+    'rgba(144, 202, 249, 0.4)', // Blue 200
+    'rgba(100, 181, 246, 0.4)', // Blue 300
+    'rgba(66, 165, 245, 0.4)',  // Blue 400
+    'rgba(33, 150, 243, 0.4)',  // Blue 500
+    'rgba(30, 136, 229, 0.4)',  // Blue 600
+    'rgba(25, 118, 210, 0.4)',  // Blue 700
+    'rgba(21, 101, 192, 0.4)',  // Blue 800
+    'rgba(13, 71, 161, 0.4)',   // Blue 900
+    'rgba(130, 177, 255, 0.4)', // Blue A100
+    'rgba(68, 138, 255, 0.4)',  // Blue A200
+    'rgba(41, 121, 255, 0.4)',  // Blue A400
+    'rgba(41, 98, 255, 0.4)',   // Blue A700
+    'rgba(84, 110, 122, 0.4)',  // Blue Grey
+    'rgba(120, 144, 156, 0.4)'  // Blue Grey Light
+];
+
+const LIGHT_MODE_ACCENT = '#C77D98'; // Pastel Rose - Muted Pink/Purple
+
+
+const AnimatedTouchableOpacity = Animated.createAnimatedComponent(TouchableOpacity);
+const AnimatedView = Animated.createAnimatedComponent(View);
+const AnimatedText = Animated.createAnimatedComponent(Text);
+
+// New Animated Sphere Component
+const AnimatedSphere = React.memo(({ config, themeAnim }: { config: any, themeAnim: Animated.SharedValue<number> }) => {
+    const style = useAnimatedStyle(() => {
+        const backgroundColor = interpolateColor(
+            themeAnim.value,
+            [0, 1],
+            [
+                lightSphereColors[config.colorIndex % lightSphereColors.length],
+                darkSphereColors[config.colorIndex % darkSphereColors.length]
+            ]
+        );
+        return { backgroundColor };
+    });
+
+    return (
+        <AnimatedView style={[styles.sphere, {
+            top: config.top,
+            left: config.left,
+            width: config.size,
+            height: config.size,
+            borderRadius: config.size / 2
+        }, style]}>
+            <LinearGradient
+                pointerEvents="none"
+                // We can't easily animate LinearGradient colors natively without a wrapper or props logic, 
+                // but we can animate opacity of two overlays if needed. For now, static gradient is subtle enough.
+                // Or we can use `AnimatedLinearGradient`. Let's stick to simple transparency for performance.
+                colors={['rgba(255,255,255,0.3)', 'rgba(255,255,255,0)']}
+                start={{ x: 0.2, y: 0.2 }}
+                end={{ x: 0.8, y: 0.8 }}
+                style={[StyleSheet.absoluteFillObject as any, { borderRadius: config.size / 2 }]}
             />
-            {!!emailError && <Text style={styles.errorText}>{emailError}</Text>}
-        </View>
-        <View style={styles.inputWrapper}>
-            <PasswordInput
-                testID="register-password-input"
-                value={registerData.password}
-                onChangeText={(val: string) => handleRegisterDataChange('password', val)}
-                editable={!isLoading}
-                placeholder="Hasło" // Removed "min 6..." text to keep it cleaner as per request (or keep it if essential, but user asked for spacing) - wait, user didn't ask to remove placeholder. keeping it simpler for now to match other fields potentially
-                onBlur={() => validatePassword(registerData.password)}
-                containerStyle={passwordError ? (styles.inputError as any) : undefined}
-                onFocus={() => { focusedOffset.value = -70; }}
-            />
-            {!!passwordError && <Text style={styles.errorText}>{passwordError}</Text>}
-        </View>
-        <TouchableOpacity
-            testID="register-button"
-            style={[GlobalStyles.button, styles.buttonMarginTop, (isLoading || !isRegisterFormValid) && GlobalStyles.disabledButton]}
-            onPress={async () => { if (isLoading || !isRegisterFormValid) return; handleRegister(); }}
-            disabled={isLoading || !isRegisterFormValid}
-        >
-            {isLoading ? <ActivityIndicator color="white" /> : <Text style={[(isLoading || !isRegisterFormValid) ? GlobalStyles.disabledButtonText : GlobalStyles.buttonText]}>Stwórz konto</Text>}
-        </TouchableOpacity>
-        <View style={styles.dividerContainer}>
-            <View style={[styles.dividerLine, { backgroundColor: theme.colors.border }]} /><Text style={[styles.dividerText, { color: theme.colors.textSecondary }]}>lub</Text><View style={[styles.dividerLine, { backgroundColor: theme.colors.border }]} />
-        </View>
-        <View style={styles.socialButtonsContainer}>
+        </AnimatedView>
+    );
+});
+
+// Komponenty formularzy (zaktualizowane o animacje)
+const LoginForm = React.memo(({ identifier, setIdentifier, loginPassword, setLoginPassword, isLoading, handleLogin, setForgotPasswordModalVisible, onGoogleButtonPress, theme, focusedOffset, themeAnim }: any) => {
+    // Derived styles for form elements
+    const forgotPassStyle = useAnimatedStyle(() => ({
+        color: interpolateColor(themeAnim.value, [0, 1], [LIGHT_MODE_ACCENT, theme.colors.primary])
+    }));
+
+    const buttonBgStyle = useAnimatedStyle(() => ({
+        backgroundColor: interpolateColor(themeAnim.value, [0, 1], [LIGHT_MODE_ACCENT, theme.colors.primary])
+    }));
+
+    const googleBtnStyle = useAnimatedStyle(() => ({
+        borderColor: interpolateColor(themeAnim.value, [0, 1], [lightColors.border, darkColors.border]),
+        backgroundColor: interpolateColor(themeAnim.value, [0, 1], [lightColors.card, darkColors.card])
+    }));
+
+    const googleTextStyle = useAnimatedStyle(() => ({
+        color: interpolateColor(themeAnim.value, [0, 1], [LIGHT_MODE_ACCENT, theme.colors.primary])
+    }));
+
+    const dividerStyle = useAnimatedStyle(() => ({
+        backgroundColor: interpolateColor(themeAnim.value, [0, 1], [lightColors.border, darkColors.border])
+    }));
+
+    const dividerTextStyle = useAnimatedStyle(() => ({
+        color: interpolateColor(themeAnim.value, [0, 1], [lightColors.textSecondary, darkColors.textSecondary])
+    }));
+
+    return (
+        <View style={styles.formInnerContainer}>
+            <View style={styles.inputWrapper}>
+                <LabeledInput
+                    testID="login-identifier-input"
+                    placeholder="Adres e-mail"
+                    value={identifier}
+                    onChangeText={setIdentifier}
+                    autoCapitalize="none"
+                    editable={!isLoading}
+                    onFocus={() => { focusedOffset.value = -70; }}
+                />
+            </View>
+            <View style={styles.inputWrapper}>
+                <PasswordInput
+                    testID="login-password-input"
+                    placeholder="Hasło"
+                    value={loginPassword}
+                    onChangeText={setLoginPassword}
+                    editable={!isLoading}
+                    onFocus={() => { focusedOffset.value = -70; }}
+                />
+            </View>
             <TouchableOpacity
-                testID="google-register-button"
-                style={[styles.socialButton, isLoading && styles.disabledGoogleButton, { borderColor: theme.colors.border, backgroundColor: theme.colors.card }]}
-                onPress={() => onGoogleButtonPress(registerData.nickname)}
+                testID="forgot-password-button"
+                style={styles.forgotPasswordButton}
+                onPress={() => setForgotPasswordModalVisible(true)}
+            >
+                <AnimatedText style={[styles.forgotPasswordText, forgotPassStyle]}>Zapomniałem hasła</AnimatedText>
+            </TouchableOpacity>
+            <AnimatedTouchableOpacity
+                testID="login-button"
+                style={[GlobalStyles.button, styles.buttonMarginTop, buttonBgStyle]}
+                onPress={async () => { handleLogin(); }}
+                disabled={isLoading}
+            >
+                {isLoading ? <ActivityIndicator color="white" /> : <Text style={[GlobalStyles.buttonText, { color: 'white' }]}>Zaloguj się</Text>}
+            </AnimatedTouchableOpacity>
+            <View style={styles.dividerContainer}>
+                <AnimatedView style={[styles.dividerLine, dividerStyle]} /><AnimatedText style={[styles.dividerText, dividerTextStyle]}>lub</AnimatedText><AnimatedView style={[styles.dividerLine, dividerStyle]} />
+            </View>
+            <AnimatedTouchableOpacity
+                testID="google-login-button"
+                style={[styles.socialButton, isLoading && styles.disabledGoogleButton, googleBtnStyle]}
+                onPress={onGoogleButtonPress}
                 disabled={isLoading}
             >
                 {isLoading ? <ActivityIndicator color={Colors.primary} /> : (
                     <>
                         <Image source={require('../../assets/google-icon.png')} style={styles.socialIcon} />
-                        <Text style={[styles.socialButtonText, { color: Colors.primary }]}>Zarejestruj się przez Google</Text>
+                        <AnimatedText style={[styles.socialButtonText, googleTextStyle]}>Zaloguj się z Google</AnimatedText>
                     </>
                 )}
-            </TouchableOpacity>
+            </AnimatedTouchableOpacity>
         </View>
-    </View>
-));
+    )
+});
+
+
+const RegisterForm = React.memo(({ registerData, handleRegisterDataChange, emailError, passwordError, validateEmail, validatePassword, isLoading, isRegisterFormValid, handleRegister, onGoogleButtonPress, theme, focusedOffset, themeAnim }: any) => {
+
+    // Fix for Issue 3 & 4: Smooth transition for button text color and background
+    // We need to animate the "validity" state to avoid instant color jumps.
+    const isValid = useDerivedValue(() => {
+        return withTiming(isLoading || !isRegisterFormValid ? 0 : 1, { duration: 200 });
+    }, [isLoading, isRegisterFormValid]);
+
+    const animatedButtonStyle = useAnimatedStyle(() => {
+        // Manual RGB interpolation with rounding to ensure valid integer colors
+        // Light: #C77D98 (199, 125, 152) | Dark: #4DA3FF (77, 163, 255)
+
+        // We handle themeAnim value safety by clamping input range
+        const r = Math.round(interpolate(themeAnim.value, [0, 1], [199, 77], 'clamp'));
+        const g = Math.round(interpolate(themeAnim.value, [0, 1], [125, 163], 'clamp'));
+        const b = Math.round(interpolate(themeAnim.value, [0, 1], [152, 255], 'clamp'));
+
+        const lightInactiveAlpha = 0.5;
+        const darkInactiveAlpha = 0.3;
+        const activeAlpha = 1.0;
+
+        const currentInactiveAlpha = interpolate(themeAnim.value, [0, 1], [lightInactiveAlpha, darkInactiveAlpha], 'clamp');
+        const alpha = interpolate(isValid.value, [0, 1], [currentInactiveAlpha, activeAlpha], 'clamp');
+
+        return {
+            backgroundColor: `rgba(${r},${g},${b},${alpha})`,
+        };
+    });
+
+    const buttonTextStyle = useAnimatedStyle(() => {
+        // Text is always white (#FFFFFF)
+        // Alpha changes only in dark mode when disabled
+        const lightTextAlpha = 1.0;
+        const darkTextInactiveAlpha = 0.5;
+        const darkTextActiveAlpha = 1.0;
+
+        // Use clamp to ensure alpha doesn't overshoot
+        const darkCurrentAlpha = interpolate(isValid.value, [0, 1], [darkTextInactiveAlpha, darkTextActiveAlpha], 'clamp');
+        const alpha = interpolate(themeAnim.value, [0, 1], [lightTextAlpha, darkCurrentAlpha], 'clamp');
+
+        return {
+            color: `rgba(255,255,255,${alpha})`
+        };
+    });
+
+    const googleBtnStyle = useAnimatedStyle(() => ({
+        borderColor: interpolateColor(themeAnim.value, [0, 1], [lightColors.border, darkColors.border]),
+        backgroundColor: interpolateColor(themeAnim.value, [0, 1], [lightColors.card, darkColors.card])
+    }));
+
+    const googleTextStyle = useAnimatedStyle(() => ({
+        color: interpolateColor(themeAnim.value, [0, 1], [LIGHT_MODE_ACCENT, theme.colors.primary])
+    }));
+
+    const dividerStyle = useAnimatedStyle(() => ({
+        backgroundColor: interpolateColor(themeAnim.value, [0, 1], [lightColors.border, darkColors.border])
+    }));
+
+    const dividerTextStyle = useAnimatedStyle(() => ({
+        color: interpolateColor(themeAnim.value, [0, 1], [lightColors.textSecondary, darkColors.textSecondary])
+    }));
+
+    return (
+        <View style={styles.formInnerContainer}>
+            <View style={styles.inputWrapper}>
+                <LabeledInput
+                    testID="register-nickname-input"
+                    placeholder="Nick"
+                    value={registerData.nickname}
+                    onChangeText={(val: string) => handleRegisterDataChange('nickname', val)}
+                    editable={!isLoading}
+                    onFocus={() => { focusedOffset.value = -70; }}
+                />
+            </View>
+            <View style={styles.inputWrapper}>
+                <LabeledInput
+                    testID="register-email-input"
+                    value={registerData.email}
+                    onChangeText={(val: string) => handleRegisterDataChange('email', val)}
+                    keyboardType="email-address"
+                    autoCapitalize="none"
+                    editable={!isLoading}
+                    onBlur={() => validateEmail(registerData.email)}
+                    inputStyle={emailError ? styles.inputError : undefined}
+                    placeholder="Adres e-mail"
+                    onFocus={() => { focusedOffset.value = -70; }}
+                />
+                {!!emailError && <Text style={styles.errorText}>{emailError}</Text>}
+            </View>
+            <View style={styles.inputWrapper}>
+                <PasswordInput
+                    testID="register-password-input"
+                    value={registerData.password}
+                    onChangeText={(val: string) => handleRegisterDataChange('password', val)}
+                    editable={!isLoading}
+                    placeholder="Hasło"
+                    onBlur={() => validatePassword(registerData.password)}
+                    containerStyle={passwordError ? (styles.inputError as any) : undefined}
+                    onFocus={() => { focusedOffset.value = -70; }}
+                />
+                {!!passwordError && <Text style={styles.errorText}>{passwordError}</Text>}
+            </View>
+            <AnimatedTouchableOpacity
+                testID="register-button"
+                style={[
+                    GlobalStyles.button,
+                    styles.buttonMarginTop,
+                    animatedButtonStyle
+                ]}
+                onPress={async () => { if (isLoading || !isRegisterFormValid) return; handleRegister(); }}
+                disabled={isLoading || !isRegisterFormValid}
+            >
+                {isLoading ? <ActivityIndicator color="white" /> : <AnimatedText style={[GlobalStyles.buttonText, buttonTextStyle]}>Stwórz konto</AnimatedText>}
+            </AnimatedTouchableOpacity>
+            <View style={styles.dividerContainer}>
+                <AnimatedView style={[styles.dividerLine, dividerStyle]} /><AnimatedText style={[styles.dividerText, dividerTextStyle]}>lub</AnimatedText><AnimatedView style={[styles.dividerLine, dividerStyle]} />
+            </View>
+            <View style={styles.socialButtonsContainer}>
+                <AnimatedTouchableOpacity
+                    testID="google-register-button"
+                    style={[styles.socialButton, isLoading && styles.disabledGoogleButton, googleBtnStyle]}
+                    onPress={() => onGoogleButtonPress(registerData.nickname)}
+                    disabled={isLoading}
+                >
+                    {isLoading ? <ActivityIndicator color={Colors.primary} /> : (
+                        <>
+                            <Image source={require('../../assets/google-icon.png')} style={styles.socialIcon} />
+                            <AnimatedText style={[styles.socialButtonText, googleTextStyle]}>Zarejestruj się przez Google</AnimatedText>
+                        </>
+                    )}
+                </AnimatedTouchableOpacity>
+            </View>
+        </View >
+    )
+});
 
 
 
-const AnimatedTouchableOpacity = Animated.createAnimatedComponent(TouchableOpacity);
+
 
 const LoginScreen = () => {
     const navigation = useNavigation<LoginNavigationProp>();
@@ -215,6 +393,38 @@ const LoginScreen = () => {
     const [topLocked, setTopLocked] = useState(!!cachedTopPadding);
     const [logoDiameterState, setLogoDiameterState] = useState(LOGO_DIAMETER);
 
+    // Theme Transition Logic
+    const themeAnim = useDerivedValue(() => {
+        return withTiming(theme.colorScheme === 'dark' ? 1 : 0, { duration: 300 });
+    }, [theme.colorScheme]);
+
+    const animatedMainBg = useAnimatedStyle(() => ({
+        backgroundColor: interpolateColor(themeAnim.value, [0, 1], [lightColors.background, darkColors.background])
+    }));
+
+    const animatedHeaderTitle = useAnimatedStyle(() => ({
+        color: interpolateColor(themeAnim.value, [0, 1], [lightColors.textPrimary, darkColors.textPrimary]),
+        textShadowColor: interpolateColor(themeAnim.value, [0, 1], ['#FFFFFF80', '#000000CC']), // #FFFFFF 50%, #000000 80%
+        textShadowOffset: { width: 0, height: 1 },
+        textShadowRadius: 4
+    }));
+
+    const animatedHeaderSubtitle = useAnimatedStyle(() => ({
+        color: interpolateColor(themeAnim.value, [0, 1], ['#555', darkColors.textSecondary])
+    }));
+
+    const animatedSwitcherStyle = useAnimatedStyle(() => ({
+        backgroundColor: interpolateColor(themeAnim.value, [0, 1], ['rgba(0,0,0,0.05)', 'rgba(255,255,255,0.1)'])
+    }));
+
+    const animatedSwitcherIconProps = useAnimatedProps(() => {
+        const color = interpolateColor(themeAnim.value, [0, 1], [lightColors.textPrimary, darkColors.textPrimary]);
+        return { color } as any;
+    });
+
+    const AnimatedFeather = Animated.createAnimatedComponent(Feather);
+
+
     const KEYBOARD_UP_TRANSLATE_Y = -120;
     const HEADER_HEIGHT_ESTIMATE = 130;
     const HEADER_MARGIN_BOTTOM = Spacing.xLarge;
@@ -223,31 +433,11 @@ const LoginScreen = () => {
     const sphereConfigs = useMemo(() => {
         const targetCount = 64;
         const r = logoDiameterState / 2;
-        const colors = [
-            // czyste, żywe barwy w wyższej przezroczystości
-            'rgba(255, 0, 0, 0.28)',     // red
-            'rgba(255, 69, 0, 0.28)',     // orange red
-            'rgba(255, 140, 0, 0.28)',    // dark orange
-            'rgba(255, 215, 0, 0.28)',    // gold
-            'rgba(255, 255, 0, 0.28)',    // yellow
-            'rgba(50, 205, 50, 0.28)',    // lime green
-            'rgba(0, 200, 83, 0.28)',     // vivid green
-            'rgba(0, 191, 255, 0.28)',    // deep sky blue
-            'rgba(30, 144, 255, 0.28)',   // dodger blue
-            'rgba(0, 0, 255, 0.28)',      // pure blue
-            // bez fioletów
-            'rgba(255, 105, 180, 0.28)',  // hot pink
-            'rgba(255, 20, 147, 0.28)',   // deep pink
-            'rgba(0, 255, 255, 0.28)',    // cyan
-            'rgba(64, 224, 208, 0.28)',   // turquoise
-            'rgba(0, 255, 127, 0.28)',    // spring green
-            'rgba(127, 255, 0, 0.28)',    // chartreuse
-        ];
 
         // START CACHING LOGIC
         if (cachedSphereConfigs) return cachedSphereConfigs;
 
-        type Sphere = { top: number; left: number; size: number; color: string; cx: number; cy: number };
+        type Sphere = { top: number; left: number; size: number; colorIndex: number; cx: number; cy: number };
         const items: Sphere[] = [];
         const maxAttempts = 12000;
         let attempts = 0;
@@ -255,6 +445,7 @@ const LoginScreen = () => {
         // zróżnicowanie gęstości: bias do centrum i do dwóch losowych hotspotów
         const hotspot1 = { x: r + 0.35 * r, y: r - 0.15 * r };
         const hotspot2 = { x: r - 0.30 * r, y: r + 0.20 * r };
+
         while (items.length < targetCount && attempts < maxAttempts) {
             attempts++;
             const size = 9 + Math.random() * 18;
@@ -298,13 +489,17 @@ const LoginScreen = () => {
                 ok = true;
             }
             if (!ok) continue;
+
+            // Random index for color selection later
+            const colorIndex = Math.floor(Math.random() * 16); // We have 16 colors in our palettes
+
             items.push({
                 cx,
                 cy,
                 left: cx - size / 2,
                 top: cy - size / 2,
                 size,
-                color: colors[Math.floor(Math.random() * colors.length)],
+                colorIndex,
             });
         }
         cachedSphereConfigs = items.map(({ cx, cy, ...rest }) => rest);
@@ -726,6 +921,11 @@ const LoginScreen = () => {
         marginBottom: HEADER_MARGIN_BOTTOM,
     }));
 
+    const animatedThemeSwitcherStyle = useAnimatedStyle(() => ({
+        opacity: interpolate(keyboardProgress.value, [0, 0.2], [1, 0]),
+        transform: [{ scale: interpolate(keyboardProgress.value, [0, 0.2], [1, 0.8]) }],
+    }));
+
     useAnimatedReaction(
         () => targetProgress.value,
         (target) => {
@@ -791,27 +991,74 @@ const LoginScreen = () => {
     ].filter(Boolean).join('\n');
 
     // Animated styles for tabs
-    const loginTabStyle = useAnimatedStyle(() => ({
-        backgroundColor: interpolateColor(progress.value, [0, 1], [Colors.primary, 'transparent']),
-    }));
-    const loginTextStyle = useAnimatedStyle(() => ({
-        color: interpolateColor(progress.value, [0, 1], ['white', theme.colors.textSecondary]),
-    }));
-    const registerTabStyle = useAnimatedStyle(() => ({
-        backgroundColor: interpolateColor(progress.value, [0, 1], ['transparent', Colors.primary]),
-    }));
-    const registerTextStyle = useAnimatedStyle(() => ({
-        color: interpolateColor(progress.value, [0, 1], [theme.colors.textSecondary, 'white']),
-    }));
+    // Animated styles for tabs
+    // Animated styles for tabs
+    // Stable colors for Reanimated to avoid flickering
+    // Animated styles for tabs
+    // Combine Theme Animation (themeAnim) + Swipe Animation (progress)
+    const loginTabStyle = useAnimatedStyle(() => {
+        const activeColor = interpolateColor(themeAnim.value, [0, 1], [LIGHT_MODE_ACCENT, darkColors.primary]);
+        return {
+            backgroundColor: interpolateColor(progress.value, [0, 1], [activeColor, 'transparent']),
+        };
+    });
+
+    const registerTabStyle = useAnimatedStyle(() => {
+        const activeColor = interpolateColor(themeAnim.value, [0, 1], [LIGHT_MODE_ACCENT, darkColors.primary]);
+        return {
+            backgroundColor: interpolateColor(progress.value, [0, 1], ['transparent', activeColor]),
+        };
+    });
+
+    const loginTextStyle = useAnimatedStyle(() => {
+        const secondary = interpolateColor(themeAnim.value, [0, 1], [lightColors.textSecondary, darkColors.textSecondary]);
+        return {
+            color: interpolateColor(progress.value, [0, 1], ['white', secondary]),
+        };
+    });
+
+    const registerTextStyle = useAnimatedStyle(() => {
+        const secondary = interpolateColor(themeAnim.value, [0, 1], [lightColors.textSecondary, darkColors.textSecondary]);
+        return {
+            color: interpolateColor(progress.value, [0, 1], [secondary, 'white']),
+        };
+    });
 
     return (
-        <View style={[styles.container, { backgroundColor: theme.colors.background }]}>
+        <AnimatedView style={[styles.container, animatedMainBg]}>
             <View
                 style={[
                     styles.scrollContentContainer,
                     { paddingTop: Spacing.xxLarge, paddingBottom: Platform.OS === 'ios' ? Spacing.xxLarge + Spacing.small : Spacing.xxLarge }
                 ]}
             >
+                {/* Theme Switcher Button */}
+                {/* Theme Switcher Button */}
+                <AnimatedTouchableOpacity
+                    style={[
+                        styles.themeSwitcher,
+                        {
+                            top: Platform.OS === 'ios' ? 65 : 45 // Moved down slightly
+                        },
+                        animatedThemeSwitcherStyle,
+                        animatedSwitcherStyle
+                    ]}
+                    onPress={() => {
+                        const now = Date.now();
+                        if (now - (theme as any).lastSwitchTime > 500 || !(theme as any).lastSwitchTime) {
+                            (theme as any).lastSwitchTime = now;
+                            theme.setMode(theme.colorScheme === 'dark' ? 'light' : 'dark');
+                        }
+                    }}
+                // disabled prop removed to prevent blocking
+                >
+                    <AnimatedFeather
+                        name={theme.colorScheme === 'dark' ? 'sun' : 'moon'}
+                        size={22}
+                        animatedProps={animatedSwitcherIconProps}
+                    />
+                </AnimatedTouchableOpacity>
+
                 <Animated.View
                     style={[styles.contentContainer, animatedContainerStyle]}
                     onLayout={() => { }} // Disabled dynamic calculation to fix jumping switcher
@@ -819,33 +1066,36 @@ const LoginScreen = () => {
                     <Animated.View style={[animatedHeaderStyle, { marginTop: 0 }]}>
                         <View style={styles.headerContainer}>
                             <View style={[styles.logoBackground, { width: logoDiameterState, height: logoDiameterState, marginBottom: Spacing.large }]}>
+                                {/* Spheres Container - Memoized to prevent re-layout */}
                                 <View style={[
                                     styles.logoContainer,
                                     {
                                         width: logoDiameterState,
                                         height: logoDiameterState,
                                         borderRadius: logoDiameterState / 2,
-                                        overflow: 'hidden',
+                                        overflow: 'visible', // Changed to visible as requested to avoid circular crop look, user implies uniform background
+                                        backgroundColor: 'transparent', // Removed hard background
                                     }
                                 ]}>
                                     {sphereConfigs.map((s, idx) => (
-                                        <View key={idx} style={[styles.sphere, { backgroundColor: s.color, top: s.top, left: s.left, width: s.size, height: s.size, borderRadius: s.size / 2 }]}>
-                                            <LinearGradient
-                                                pointerEvents="none"
-                                                colors={['rgba(255,255,255,0.55)', 'rgba(0,0,0,0.28)']}
-                                                start={{ x: 0.05, y: 0.95 }}
-                                                end={{ x: 0.95, y: 0.05 }}
-                                                style={[StyleSheet.absoluteFillObject as any, { borderRadius: s.size / 2 }]}
-                                            />
-                                            <View style={[styles.sphereHighlight]} />
-                                            <View style={{ position: 'absolute', right: 4, top: 4, width: '22%', height: '22%', borderRadius: 100, backgroundColor: 'rgba(0,0,0,0.08)' }} />
-                                        </View>
+                                        <AnimatedSphere
+                                            key={idx}
+                                            config={s}
+                                            themeAnim={themeAnim}
+                                        />
                                     ))}
                                 </View>
                                 <View style={[styles.textOverlay, { transform: [{ translateY: Spacing.small }], backgroundColor: 'transparent' }]}>
                                     <View onLayout={() => { }}>
-                                        <Text style={[styles.header, { color: theme.colors.textPrimary, fontFamily: 'DancingScript_700Bold' as any, fontSize: 68 }]}>Daily Flow</Text>
-                                        <Text style={[styles.subtitle, { color: theme.colors.textSecondary, fontFamily: 'DancingScript_400Regular' as any, fontSize: 28 }]}>Twoje centrum organizacji</Text>
+                                        <AnimatedText style={[styles.header, {
+                                            fontFamily: 'DancingScript_700Bold' as any,
+                                            fontSize: 68,
+                                        }, animatedHeaderTitle]}>Daily Flow</AnimatedText>
+                                        <AnimatedText style={[styles.subtitle, {
+                                            fontFamily: 'DancingScript_400Regular' as any,
+                                            fontSize: 28,
+                                            marginTop: -5
+                                        }, animatedHeaderSubtitle]}>Twoje centrum organizacji</AnimatedText>
                                     </View>
                                 </View>
                             </View>
@@ -854,7 +1104,14 @@ const LoginScreen = () => {
 
                     <GestureDetector gesture={gesture}>
                         <View style={[styles.formContainer, { marginTop: Spacing.xxLarge + Spacing.xxLarge }]}>
-                            <View style={[styles.modeSwitcher, { backgroundColor: theme.colors.inputBackground, borderWidth: 1, borderColor: theme.colors.border }]}>
+                            <AnimatedView style={[
+                                styles.modeSwitcher,
+                                { borderWidth: 1 },
+                                useAnimatedStyle(() => ({
+                                    backgroundColor: interpolateColor(themeAnim.value, [0, 1], [lightColors.inputBackground, darkColors.inputBackground]),
+                                    borderColor: interpolateColor(themeAnim.value, [0, 1], [lightColors.border, darkColors.border])
+                                }))
+                            ]}>
                                 <AnimatedTouchableOpacity
                                     testID="login-mode-button"
                                     style={[styles.modeButton, loginTabStyle]}
@@ -875,14 +1132,14 @@ const LoginScreen = () => {
                                 >
                                     <Animated.Text style={[styles.modeButtonText, registerTextStyle]}>Zarejestruj się</Animated.Text>
                                 </AnimatedTouchableOpacity>
-                            </View>
+                            </AnimatedView>
 
                             <View style={[styles.formSliderContainer, { backgroundColor: 'transparent' }]}>
                                 <Animated.View style={[styles.formWrapper, loginFormAnimatedStyle]}>
-                                    <LoginForm identifier={identifier} setIdentifier={setIdentifier} loginPassword={loginPassword} setLoginPassword={setLoginPassword} isLoading={isLoading} handleLogin={handleLogin} setForgotPasswordModalVisible={setForgotPasswordModalVisible} onGoogleButtonPress={onGoogleButtonPress} theme={theme} focusedOffset={focusedOffset} />
+                                    <LoginForm identifier={identifier} setIdentifier={setIdentifier} loginPassword={loginPassword} setLoginPassword={setLoginPassword} isLoading={isLoading} handleLogin={handleLogin} setForgotPasswordModalVisible={setForgotPasswordModalVisible} onGoogleButtonPress={onGoogleButtonPress} theme={theme} focusedOffset={focusedOffset} themeAnim={themeAnim} />
                                 </Animated.View>
                                 <Animated.View style={[styles.formWrapper, registerFormAnimatedStyle]}>
-                                    <RegisterForm registerData={registerData} handleRegisterDataChange={handleRegisterDataChange} emailError={emailError} passwordError={passwordError} validateEmail={validateEmail} validatePassword={validatePassword} isLoading={isLoading} isRegisterFormValid={isRegisterFormValid} handleRegister={handleRegister} onGoogleButtonPress={onGoogleButtonPress} theme={theme} focusedOffset={focusedOffset} />
+                                    <RegisterForm registerData={registerData} handleRegisterDataChange={handleRegisterDataChange} emailError={emailError} passwordError={passwordError} validateEmail={validateEmail} validatePassword={validatePassword} isLoading={isLoading} isRegisterFormValid={isRegisterFormValid} handleRegister={handleRegister} onGoogleButtonPress={onGoogleButtonPress} theme={theme} focusedOffset={focusedOffset} themeAnim={themeAnim} />
                                 </Animated.View>
                             </View>
                         </View>
@@ -968,7 +1225,7 @@ const LoginScreen = () => {
                 onKeepOld={() => { finalizeReverseLink(googleAccountNickname, pendingGoogleCredentialForLink); }}
                 onUseNew={() => { finalizeReverseLink(pendingReverseLinkData?.nickname || '', pendingGoogleCredentialForLink); }}
             />
-        </View >
+        </AnimatedView >
     );
 };
 
@@ -1151,6 +1408,14 @@ const styles = StyleSheet.create({
         opacity: 0.55,
         backgroundColor: 'rgba(255,255,255,0.22)'
     },
+    themeSwitcher: {
+        position: 'absolute',
+        top: Platform.OS === 'ios' ? 50 : 30,
+        right: 20,
+        zIndex: 100,
+        padding: 10,
+        borderRadius: 20,
+    }
 });
 
 export default LoginScreen;

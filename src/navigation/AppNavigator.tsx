@@ -35,7 +35,7 @@ import Constants from 'expo-constants';
 import Logger from '../utils/logger';
 import { initNotifications, registerNotificationResponseListener, ensureDailyMorningReminderScheduled } from '../utils/notifications';
 import { processOutbox } from '../utils/offlineQueue';
-import Animated, { FadeIn, FadeOut } from 'react-native-reanimated';
+
 
 const AuthStack = createNativeStackNavigator<AuthStackParamList>();
 const Tab = createBottomTabNavigator<RootTabParamList>();
@@ -97,7 +97,7 @@ const AppNavigator = () => {
   const [user, setUser] = useState<FirebaseAuthTypes.User | null>(null);
   const [userProfileExists, setUserProfileExists] = useState(false);
   const [initializing, setInitializing] = useState(true);
-  const [showThemeFade, setShowThemeFade] = useState(false);
+
 
   useEffect(() => {
     // Notifications init (safe for Expo Go via lazy import)
@@ -145,12 +145,7 @@ const AppNavigator = () => {
     return () => { try { sub?.remove?.(); } catch { }; try { appStateSub.remove(); } catch { }; clearInterval(outboxTimer); subscriber(); };
   }, []);
 
-  // Fade overlay when theme/accent changes to smoothen transition
-  useEffect(() => {
-    setShowThemeFade(true);
-    const t = setTimeout(() => setShowThemeFade(false), 220);
-    return () => clearTimeout(t);
-  }, [theme.colorScheme, theme.accent, theme.colors.primary]);
+
 
   if (initializing) {
     return <View style={GlobalStyles.centered}><ActivityIndicator size="large" color={theme.colors.primary} /></View>;
@@ -197,15 +192,7 @@ const AppNavigator = () => {
           ) : (
             <AuthScreens user={user} onProfileCreated={() => setUserProfileExists(true)} />
           )}
-          {/* Subtelny fade przy zmianie motywu */}
-          {showThemeFade && (
-            <Animated.View
-              pointerEvents="none"
-              entering={FadeIn.duration(120)}
-              exiting={FadeOut.duration(180)}
-              style={{ position: 'absolute', left: 0, right: 0, top: 0, bottom: 0, backgroundColor: theme.colors.background }}
-            />
-          )}
+
         </NavigationContainer>
       </CategoryProvider>
     </ToastProvider>

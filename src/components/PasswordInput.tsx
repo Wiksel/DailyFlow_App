@@ -1,8 +1,9 @@
 import React, { useState } from 'react';
 import { View, TextInput, TouchableOpacity, StyleSheet, TextInputProps, ViewStyle, TextStyle } from 'react-native';
 import { Feather } from '@expo/vector-icons';
+import Animated, { useAnimatedProps, useAnimatedStyle, useDerivedValue, withTiming, interpolateColor, createAnimatedComponent } from 'react-native-reanimated';
 import { Colors, Spacing, Typography, GlobalStyles } from '../styles/AppStyles';
-import { useTheme } from '../contexts/ThemeContext';
+import { useTheme, lightColors, darkColors } from '../contexts/ThemeContext';
 
 interface PasswordInputProps extends Omit<TextInputProps, 'style'> {
   value: string;
@@ -12,25 +13,82 @@ interface PasswordInputProps extends Omit<TextInputProps, 'style'> {
   testID?: string;
 }
 
+const AnimatedTextInput = Animated.createAnimatedComponent(TextInput);
+const AnimatedView = Animated.createAnimatedComponent(View);
+// Animated Feather Icon
+const AnimatedFeather = Animated.createAnimatedComponent(Feather);
+
 const PasswordInput = ({ value, onChangeText, containerStyle, inputStyle, placeholder = "Hasło", testID, ...props }: PasswordInputProps) => {
   const [isPasswordVisible, setIsPasswordVisible] = useState(false);
   const theme = useTheme();
 
+  const themeProgress = useDerivedValue(() => {
+    return withTiming(theme.colorScheme === 'dark' ? 1 : 0, { duration: 300 });
+  }, [theme.colorScheme]);
+
+  const animatedContainerStyle = useAnimatedStyle(() => {
+    const backgroundColor = interpolateColor(
+      themeProgress.value,
+      [0, 1],
+      [lightColors.inputBackground, darkColors.inputBackground]
+    );
+    const borderColor = interpolateColor(
+      themeProgress.value,
+      [0, 1],
+      [lightColors.border, darkColors.border]
+    );
+    return { backgroundColor, borderColor };
+  });
+
+  const animatedInputStyle = useAnimatedStyle(() => {
+    const color = interpolateColor(
+      themeProgress.value,
+      [0, 1],
+      [lightColors.textPrimary, darkColors.textPrimary]
+    );
+    return { color };
+  });
+
+  const animatedIconProps = useAnimatedProps(() => {
+    const color = interpolateColor(
+      themeProgress.value,
+      [0, 1],
+      [lightColors.textSecondary, darkColors.textSecondary]
+    );
+    return { color } as any;
+  });
+
+  const animatedInputProps = useAnimatedProps(() => {
+    const placeholderColor = interpolateColor(
+      themeProgress.value,
+      [0, 1],
+      [lightColors.placeholder, darkColors.placeholder]
+    );
+    const selectionColor = interpolateColor(
+      themeProgress.value,
+      [0, 1],
+      [lightColors.primary, darkColors.primary]
+    );
+    return {
+      placeholderTextColor: placeholderColor,
+      selectionColor: selectionColor
+    };
+  });
+
   return (
-    <View style={[
+    <AnimatedView style={[
       styles.container,
-      { backgroundColor: theme.colors.inputBackground, borderColor: theme.colors.border },
+      animatedContainerStyle,
       containerStyle
     ]}>
-      <TextInput
+      <AnimatedTextInput
         testID={testID}
-        style={[styles.input, { color: theme.colors.textPrimary }, inputStyle]}
+        style={[styles.input, animatedInputStyle, inputStyle]}
         value={value}
         onChangeText={onChangeText}
         secureTextEntry={!isPasswordVisible}
         placeholder={placeholder}
-        placeholderTextColor={theme.colors.placeholder}
-        selectionColor={theme.colors.primary}
+        animatedProps={animatedInputProps}
         {...props}
       />
       <TouchableOpacity
@@ -40,9 +98,13 @@ const PasswordInput = ({ value, onChangeText, containerStyle, inputStyle, placeh
         accessibilityLabel={isPasswordVisible ? "Ukryj hasło" : "Pokaż hasło"}
         accessibilityHint="Przełącza widoczność hasła"
       >
-        <Feather name={isPasswordVisible ? "eye-off" : "eye"} size={22} color={theme.colors.textSecondary} />
+        <AnimatedFeather
+          name={isPasswordVisible ? "eye-off" : "eye"}
+          size={22}
+          animatedProps={animatedIconProps}
+        />
       </TouchableOpacity>
-    </View>
+    </AnimatedView>
   );
 };
 

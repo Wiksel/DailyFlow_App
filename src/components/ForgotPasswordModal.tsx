@@ -79,7 +79,7 @@ const ForgotPasswordModal = ({ visible, onClose }: ForgotPasswordModalProps) => 
               containerStyle={{ width: '100%' }}
             />
             <TouchableOpacity
-              style={[GlobalStyles.button, { marginTop: Spacing.medium, width: '100%' }]}
+              style={[GlobalStyles.button, { marginTop: Spacing.medium, width: '100%', backgroundColor: theme.mode === 'light' ? '#C77D98' : theme.colors.primary }]}
               onPress={async () => { handlePasswordReset(); }}
               disabled={isLoading}
             >
@@ -87,7 +87,7 @@ const ForgotPasswordModal = ({ visible, onClose }: ForgotPasswordModalProps) => 
             </TouchableOpacity>
 
             <TouchableOpacity style={styles.cancelButton} onPress={handleClose}>
-              <Text style={[styles.cancelButtonText, { color: theme.colors.textSecondary }]}>Anuluj</Text>
+              <Text style={[styles.cancelButtonText, { color: theme.mode === 'light' ? '#C77D98' : theme.colors.primary }]}>Anuluj</Text>
             </TouchableOpacity>
           </View>
           {/* Lokalny ToastOverlay – wyżej, ale w granicach ekranu */}
@@ -104,7 +104,7 @@ const styles = StyleSheet.create({
   modalTitle: { ...Typography.h2, textAlign: 'center', marginBottom: Spacing.small },
   modalSubtitle: { ...Typography.body, color: Colors.textSecondary, textAlign: 'center', marginBottom: Spacing.large },
   cancelButton: { marginTop: Spacing.medium, padding: Spacing.small },
-  cancelButtonText: { color: Colors.primary, fontSize: 16 },
+  cancelButtonText: { fontSize: 16 },
   dividerContainer: { flexDirection: 'row', alignItems: 'center', width: '100%', marginVertical: 0, marginTop: Spacing.medium, marginBottom: Spacing.small },
   dividerLine: { flex: 1, height: 1, backgroundColor: Colors.border },
   dividerText: { ...Typography.small, color: Colors.textSecondary, marginHorizontal: Spacing.medium },

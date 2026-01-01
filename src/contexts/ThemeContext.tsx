@@ -36,40 +36,40 @@ export interface Theme {
 const THEME_STORAGE_KEY = 'dailyflow_theme_mode';
 const ACCENT_STORAGE_KEY = 'dailyflow_theme_accent';
 
-const lightColors: ThemeColors = {
-  primary: '#0782F9',
+export const lightColors: ThemeColors = {
+  primary: '#0782F9',        // Standard Blue
   purple: '#7e57c2',
-  secondary: '#5bc0de',
+  secondary: '#17a2b8',      // Teal/Cyan for info
   success: '#28a745',
   danger: '#e74c3c',
   warning: '#f1c40f',
   info: '#17a2b8',
-  textPrimary: '#333333',
-  textSecondary: '#6c757d',
-  background: '#f5f5f5',
+  textPrimary: '#1a1a1a',    // Darker for better contrast
+  textSecondary: '#5a5a5a',  // Darker gray
+  background: '#F5F1E6',     // Darker warmer beige
   card: '#ffffff',
-  border: '#2b2b2b1a', // #eee with alpha
-  inputBackground: '#f1f3f5',
+  border: '#e0e0e0',         // More visible border
+  inputBackground: '#F0F2F5', // Distinct from white card/background
   shadow: '#000000',
-  placeholder: '#adb5bd',
+  placeholder: '#6c757d',    // Darker placeholder for visibility
 };
 
-const darkColors: ThemeColors = {
-  primary: '#5aa9ff',
-  purple: '#a996e6',
-  secondary: '#6ad0ea',
-  success: '#38d16a',
-  danger: '#ff6b5a',
-  warning: '#ffd166',
-  info: '#42c9dd',
-  textPrimary: '#eaeaea',
-  textSecondary: '#b0b3b8',
-  background: '#121212',
-  card: '#1e1e1e',
-  border: '#2a2a2a',
-  inputBackground: '#2a2a2a',
+export const darkColors: ThemeColors = {
+  primary: '#4DA3FF',        // Brighter Blue for Dark Mode
+  purple: '#B39DDB',         // Light Purple
+  secondary: '#4DD0E1',      // Cyan Accent
+  success: '#00E676',        // Bright Green
+  danger: '#FF5252',         // Bright Red
+  warning: '#FFD740',        // Bright Yellow
+  info: '#40C4FF',           // Bright Info Blue
+  textPrimary: '#F5F5F5',    // Near White
+  textSecondary: '#B0BEC5',  // Light Blue-Gray
+  background: '#121212',     // Deep Black
+  card: '#1E1E1E',           // Dark Gray Card
+  border: '#333333',         // Subtle Border
+  inputBackground: '#2C2C2C',// Distinct Input Background
   shadow: '#000000',
-  placeholder: '#8a8f98',
+  placeholder: '#78909C',    // Blue-Gray Placeholder
 };
 
 const ThemeContext = createContext<Theme | undefined>(undefined);
@@ -92,7 +92,7 @@ export const ThemeProvider: React.FC<React.PropsWithChildren<{}>> = ({ children 
         if (storedAccent === 'blue' || storedAccent === 'purple' || storedAccent === 'mint' || storedAccent === 'orange') {
           setAccentState(storedAccent);
         }
-      } catch {}
+      } catch { }
     })();
     const listener = ({ colorScheme }: { colorScheme: ColorSchemeName }) => { if (colorScheme) setSystemScheme(colorScheme); };
     try {
@@ -102,18 +102,18 @@ export const ThemeProvider: React.FC<React.PropsWithChildren<{}>> = ({ children 
     } catch {
       // Fallback
       const sub2: any = Appearance.addChangeListener(listener as any);
-      return () => { try { sub2.remove(); } catch {} };
+      return () => { try { sub2.remove(); } catch { } };
     }
   }, []);
 
   const setMode = async (next: ThemeMode) => {
     setModeState(next);
-    try { await AsyncStorage.setItem(THEME_STORAGE_KEY, next); } catch {}
+    try { await AsyncStorage.setItem(THEME_STORAGE_KEY, next); } catch { }
   };
 
   const setAccent = async (a: Accent) => {
     setAccentState(a);
-    try { await AsyncStorage.setItem(ACCENT_STORAGE_KEY, a); } catch {}
+    try { await AsyncStorage.setItem(ACCENT_STORAGE_KEY, a); } catch { }
   };
 
   const effectiveScheme: Exclude<ColorSchemeName, null> = useMemo(() => {

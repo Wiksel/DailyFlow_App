@@ -1,7 +1,8 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { View, Text, TextInput, StyleSheet, TextInputProps, ViewStyle, TextStyle } from 'react-native';
+import Animated, { useAnimatedProps, useAnimatedStyle, useDerivedValue, withTiming, interpolateColor, useSharedValue } from 'react-native-reanimated';
 import { GlobalStyles, Spacing, Typography } from '../styles/AppStyles';
-import { useTheme } from '../contexts/ThemeContext';
+import { useTheme, lightColors, darkColors } from '../contexts/ThemeContext';
 
 interface LabeledInputProps extends Omit<TextInputProps, 'style' | 'value' | 'onChangeText'> {
   label?: string;
@@ -12,6 +13,9 @@ interface LabeledInputProps extends Omit<TextInputProps, 'style' | 'value' | 'on
   labelStyle?: TextStyle | TextStyle[];
   testID?: string;
 }
+
+const AnimatedTextInput = Animated.createAnimatedComponent(TextInput);
+const AnimatedText = Animated.createAnimatedComponent(Text);
 
 const LabeledInput = ({
   label,
@@ -26,21 +30,81 @@ const LabeledInput = ({
   ...props
 }: LabeledInputProps) => {
   const theme = useTheme();
+  // We use a shared value to track theme changes for smooth interpolation
+  // 0 = light, 1 = dark
+  const themeProgress = useDerivedValue(() => {
+    return withTiming(theme.colorScheme === 'dark' ? 1 : 0, { duration: 300 });
+  }, [theme.colorScheme]);
+
+  const animatedContainerStyle = useAnimatedStyle(() => {
+    const borderColor = interpolateColor(
+      themeProgress.value,
+      [0, 1],
+      [lightColors.border, darkColors.border]
+    );
+    // Note: GlobalStyles.input usually has backgroundColor, we override it here
+    const backgroundColor = interpolateColor(
+      themeProgress.value,
+      [0, 1],
+      [lightColors.inputBackground, darkColors.inputBackground]
+    );
+    const color = interpolateColor(
+      themeProgress.value,
+      [0, 1],
+      [lightColors.textPrimary, darkColors.textPrimary]
+    );
+
+    return {
+      borderColor,
+      backgroundColor,
+      color, // For the text input text color
+    };
+  });
+
+  const animatedLabelStyle = useAnimatedStyle(() => {
+    const color = interpolateColor(
+      themeProgress.value,
+      [0, 1],
+      [lightColors.textSecondary, darkColors.textSecondary]
+    );
+    return { color };
+  });
+
+  const animatedInputProps = useAnimatedProps(() => {
+    const placeholderColor = interpolateColor(
+      themeProgress.value,
+      [0, 1],
+      [lightColors.placeholder, darkColors.placeholder]
+    );
+    const selectionColor = interpolateColor(
+      themeProgress.value,
+      [0, 1],
+      [lightColors.primary, darkColors.primary]
+    );
+    return {
+      placeholderTextColor: placeholderColor,
+      selectionColor: selectionColor
+    };
+  });
+
   return (
     <View style={[styles.container, containerStyle]}>
       {label ? (
-        <Text style={[styles.label, { color: theme.colors.textSecondary }, labelStyle]}>{label}</Text>
+        <AnimatedText style={[styles.label, animatedLabelStyle, labelStyle]}>{label}</AnimatedText>
       ) : null}
-      <TextInput
+      <AnimatedTextInput
         testID={testID}
         accessibilityLabel={label || placeholder}
-        style={[GlobalStyles.input, { backgroundColor: theme.colors.inputBackground, borderColor: theme.colors.border, color: theme.colors.textPrimary }, inputStyle]}
+        style={[
+          GlobalStyles.input,
+          animatedContainerStyle, // animating bg, border, and text color here
+          inputStyle
+        ]}
         value={value}
         onChangeText={onChangeText}
         placeholder={placeholder}
-        placeholderTextColor={theme.colors.placeholder}
-        selectionColor={theme.colors.primary}
         editable={editable}
+        animatedProps={animatedInputProps}
         {...props}
       />
     </View>
