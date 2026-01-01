@@ -1,14 +1,13 @@
 import React, { useMemo, useState, useCallback, useRef, useImperativeHandle, forwardRef } from 'react';
 import { View, Text, SectionList, StyleSheet, TouchableOpacity } from 'react-native';
-import { Swipeable } from 'react-native-gesture-handler';
 import { Feather } from '@expo/vector-icons';
 import { Colors, Spacing, Typography } from '../styles/AppStyles';
 import { Task, Category } from '../types';
-import TaskListItem from './TaskListItem';
+import SwipeableTaskItem from './SwipeableTaskItem';
 import { useTheme } from '../contexts/ThemeContext';
 import { useUI } from '../contexts/UIContext';
 import * as Haptics from 'expo-haptics';
-import Animated, { Layout, FadeInUp } from 'react-native-reanimated';
+import Animated, { Layout } from 'react-native-reanimated';
 
 type SectionKey = 'pinned' | 'overdue' | 'today' | 'tomorrow' | 'week' | 'later' | 'none' | 'completed';
 
@@ -149,51 +148,25 @@ const TaskSectionListInner = ({ tasks, categories, onPressTask, onToggleComplete
         const cat = categoryMap[item.category];
         const selected = !!selectedIds?.has(item.id);
         const isPinned = !!pinnedIds?.has(item.id);
-        const renderLeft = () => (
-          <View style={[styles.swipeLeft, { backgroundColor: theme.colors.success }]}>
-            <Feather name="check" size={22} color={'white'} />
-            <Text style={{ color: 'white', fontWeight: '700', marginLeft: 6 }}>Ukończ</Text>
-          </View>
-        );
-        const renderRight = () => (
-          <View style={[styles.swipeRight, { backgroundColor: theme.colors.danger }]}>
-            <Feather name="trash-2" size={22} color={'white'} />
-            <Text style={{ color: 'white', fontWeight: '700', marginLeft: 6 }}>{item.completed ? 'Usuń' : 'Usuń'}</Text>
-          </View>
-        );
+        const isCompact = density === 'compact' ? true : (section.key !== 'overdue' && section.key !== 'today' && section.key !== 'pinned');
+
         return (
-          <Swipeable
-            renderLeftActions={renderLeft}
-            renderRightActions={renderRight}
-            onSwipeableOpen={(direction) => {
-              try { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); } catch { }
-              if (direction === 'left') { onToggleComplete(item); }
-              if (direction === 'right') { onConfirmAction(item); }
-            }}
-            leftThreshold={64}
-            rightThreshold={64}
-            overshootLeft={false}
-            overshootRight={false}
-          >
-            <Animated.View layout={Layout.springify()} entering={FadeInUp.delay(Math.min(300, (index || 0) * 20))} style={[styles.itemContainer, { backgroundColor: theme.colors.card, borderColor: theme.colors.border, shadowColor: Colors.shadow }]} >
-              <TaskListItem
-                task={item}
-                category={cat}
-                onPress={onPressTask}
-                onLongPress={onToggleSelect}
-                onToggleComplete={onToggleComplete}
-                onConfirmAction={onConfirmAction}
-                isCompact={density === 'compact' ? true : (section.key !== 'overdue' && section.key !== 'today' && section.key !== 'pinned')}
-                selectionMode={selectionMode}
-                selected={selected}
-                onToggleSelect={onToggleSelect}
-                onOpenMenu={!selectionMode ? onOpenTaskMenu : undefined}
-                pinned={isPinned}
-                onTogglePinned={onTogglePinned}
-                highlightQuery={highlightQuery}
-              />
-            </Animated.View>
-          </Swipeable>
+          <SwipeableTaskItem
+            task={item}
+            category={cat}
+            index={index}
+            isCompact={isCompact}
+            selectionMode={selectionMode}
+            selected={selected}
+            isPinned={isPinned}
+            highlightQuery={highlightQuery}
+            onPress={onPressTask}
+            onToggleComplete={onToggleComplete}
+            onConfirmAction={onConfirmAction}
+            onToggleSelect={onToggleSelect!} // These handlers are always passed
+            onOpenMenu={onOpenTaskMenu}
+            onTogglePinned={onTogglePinned}
+          />
         );
       }}
       contentContainerStyle={{ paddingBottom: Spacing.xLarge * 2 }}
@@ -212,7 +185,4 @@ const styles = StyleSheet.create({
   countPill: { marginLeft: 8, paddingHorizontal: 8, paddingVertical: 2, borderRadius: 999, borderWidth: 1 },
   countText: { fontSize: Typography.small.fontSize, fontWeight: '700' },
   collapseBtn: { padding: 6 },
-  itemContainer: { marginHorizontal: Spacing.medium, marginTop: Spacing.small, paddingHorizontal: Spacing.medium, paddingVertical: Spacing.small, borderWidth: 1, borderRadius: 12, shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.08, shadowRadius: 3, elevation: 1 },
-  swipeLeft: { justifyContent: 'center', alignItems: 'flex-start', paddingLeft: 20, marginHorizontal: Spacing.medium, marginTop: Spacing.small, borderRadius: 12, height: '100%', flex: 1 },
-  swipeRight: { justifyContent: 'center', alignItems: 'flex-end', paddingRight: 20, marginHorizontal: Spacing.medium, marginTop: Spacing.small, borderRadius: 12, height: '100%', flex: 1 },
 });
