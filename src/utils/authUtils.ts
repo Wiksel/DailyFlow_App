@@ -1,6 +1,6 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { doc, setDoc, collection, writeBatch, query, where, getDocs, limit, getDoc, db } from "./firestoreCompat";
-import { FirebaseAuthTypes } from '../utils/authCompat';
+import auth, { FirebaseAuthTypes } from '../utils/authCompat';
 import { DEFAULT_CATEGORIES } from '../constants/categories';
 
 export function mapFirebaseAuthErrorToMessage(code: string): { message: string; level: 'error' | 'info' } {
@@ -126,10 +126,28 @@ export const upsertAuthProvidersForUser = async (user: FirebaseAuthTypes.User) =
 export const findUserEmailByIdentifier = async (identifier: string): Promise<string | null> => {
     const cleanIdentifier = identifier.trim();
     if (/\S+@\S+\.\S+/.test(cleanIdentifier)) {
+        try {
+            const methods = await auth().fetchSignInMethodsForEmail(cleanIdentifier);
+            if (methods && methods.length > 0) {
+                return cleanIdentifier;
+            }
+            return null;
+        } catch (error) {
+            // Handle error (e.g. rate limit, network).
+            // Returning null allows caller to decide (usually failing).
+            return null;
+        }
+    }
+
+    // Check for phone number (simple digits check)
+    // Note: We cannot verify if phone exists without auth in this setup,
+    // so we return the identifier to allow downstream logic (like signInWithPhoneNumber) to attempt it.
+    if (/^\+?\d{9,15}$/.test(cleanIdentifier.replace(/[\s-]/g, ''))) {
         return cleanIdentifier;
     }
-    // Fallback: if user enters something that is not email, treat is as invalid or try to use it as is
-    return cleanIdentifier;
+
+    // Invalid format
+    return null;
 };
 
 
@@ -168,5 +186,3 @@ export const isOnboardingDone = async (): Promise<boolean> => {
 export const setOnboardingDone = async (): Promise<void> => {
     try { await AsyncStorage.setItem(ONBOARD_FLAG_KEY, '1'); } catch { }
 };
-
-
