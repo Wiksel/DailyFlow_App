@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useEffect, useMemo, useState } from 'react';
-import { Appearance, ColorSchemeName } from 'react-native';
+import { Appearance, ColorSchemeName, Platform } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import * as NavigationBar from 'expo-navigation-bar';
 
 export type ThemeMode = 'system' | 'light' | 'dark';
 
@@ -130,6 +131,19 @@ export const ThemeProvider: React.FC<React.PropsWithChildren<{}>> = ({ children 
   };
   const colors: ThemeColors = { ...base, primary: primaryByAccent[accent] };
 
+  useEffect(() => {
+    if (Platform.OS === 'android') {
+      // Refined "Edge-to-Edge" settings to eliminate artifacts
+      NavigationBar.setPositionAsync('absolute');
+      NavigationBar.setBackgroundColorAsync('#00000001'); // Near-Transparent (Hex with 1/255 opacity) to trick some scrim logic
+      NavigationBar.setBorderColorAsync('transparent');  // Ensure no divider line
+      // setElevationAsync(0) might not be exposed in types, but is useful if available or ignored
+      try { (NavigationBar as any).setElevationAsync(0); } catch { }
+
+      NavigationBar.setButtonStyleAsync(effectiveScheme === 'dark' ? 'light' : 'dark');
+    }
+  }, [effectiveScheme]);
+
   const value: Theme = useMemo(() => ({ mode, colorScheme: effectiveScheme, colors, setMode, accent, setAccent }), [mode, effectiveScheme, colors, accent]);
 
   return <ThemeContext.Provider value={value}>{children}</ThemeContext.Provider>;
@@ -140,6 +154,3 @@ export const useTheme = () => {
   if (!ctx) throw new Error('useTheme must be used within ThemeProvider');
   return ctx;
 };
-
-
-

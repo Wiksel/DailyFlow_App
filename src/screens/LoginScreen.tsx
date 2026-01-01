@@ -160,7 +160,7 @@ const LoginForm = React.memo(({ identifier, setIdentifier, loginPassword, setLog
                     onChangeText={setIdentifier}
                     autoCapitalize="none"
                     editable={!isLoading}
-                    onFocus={() => { focusedOffset.value = -70; }}
+                    onFocus={() => { focusedOffset.value = -165; }}
                 />
             </View>
             <View style={styles.inputWrapper}>
@@ -170,7 +170,7 @@ const LoginForm = React.memo(({ identifier, setIdentifier, loginPassword, setLog
                     value={loginPassword}
                     onChangeText={setLoginPassword}
                     editable={!isLoading}
-                    onFocus={() => { focusedOffset.value = -70; }}
+                    onFocus={() => { focusedOffset.value = -165; }}
                 />
             </View>
             <TouchableOpacity
@@ -237,7 +237,7 @@ const RegisterForm = React.memo(({ registerData, handleRegisterDataChange, email
                     value={registerData.nickname}
                     onChangeText={(val: string) => handleRegisterDataChange('nickname', val)}
                     editable={!isLoading}
-                    onFocus={() => { focusedOffset.value = -70; }}
+                    onFocus={() => { focusedOffset.value = -165; }}
                 />
             </View>
             <View style={styles.inputWrapper}>
@@ -251,7 +251,7 @@ const RegisterForm = React.memo(({ registerData, handleRegisterDataChange, email
                     onBlur={() => validateEmail(registerData.email)}
                     inputStyle={emailError ? styles.inputError : undefined}
                     placeholder="Adres e-mail"
-                    onFocus={() => { focusedOffset.value = -70; }}
+                    onFocus={() => { focusedOffset.value = -165; }}
                 />
                 {!!emailError && <Text style={styles.errorText}>{emailError}</Text>}
             </View>
@@ -264,7 +264,7 @@ const RegisterForm = React.memo(({ registerData, handleRegisterDataChange, email
                     placeholder="Hasło"
                     onBlur={() => validatePassword(registerData.password)}
                     containerStyle={passwordError ? (styles.inputError as any) : undefined}
-                    onFocus={() => { focusedOffset.value = -70; }}
+                    onFocus={() => { focusedOffset.value = -165; }}
                 />
                 {!!passwordError && <Text style={styles.errorText}>{passwordError}</Text>}
             </View>
@@ -344,7 +344,7 @@ const LoginScreen = () => {
     const targetProgress = useSharedValue(0);
     const isTransitioning = useSharedValue(false);
     const keyboardProgress = useSharedValue(0);
-    const focusedOffset = useSharedValue(-70); // Dynamic offset for keyboard push (-10, -40, -70)
+    const focusedOffset = useSharedValue(-165); // Dynamic offset for keyboard push (-10, -40, -165) - Increased to account for edge-to-edge nav bar
     // Removed currentTab state to improve performance (using shared values instead)
     const [dynamicTopPadding, setDynamicTopPadding] = useState(cachedTopPadding);
     const [topLocked, setTopLocked] = useState(!!cachedTopPadding);
