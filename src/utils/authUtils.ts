@@ -139,14 +139,8 @@ export const findUserEmailByIdentifier = async (identifier: string): Promise<str
         }
     }
 
-    // Check for phone number (simple digits check)
-    // Note: We cannot verify if phone exists without auth in this setup,
-    // so we return the identifier to allow downstream logic (like signInWithPhoneNumber) to attempt it.
-    if (/^\+?\d{9,15}$/.test(cleanIdentifier.replace(/[\s-]/g, ''))) {
-        return cleanIdentifier;
-    }
-
-    // Invalid format
+    // Phone number support is removed.
+    // Invalid format or unsupported identifier type
     return null;
 };
 
