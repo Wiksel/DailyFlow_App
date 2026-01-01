@@ -1,4 +1,4 @@
-## 2024-05-23 - Firestore Open Read Access
-**Vulnerability:** The `users` collection was readable by any authenticated user via `allow read`, which permits listing all documents (dumping the database).
-**Learning:** Using `allow read` implicitly grants both `get` (single doc) and `list` (collection query). Often developers only intend to allow fetching specific docs by ID, not scraping the whole table.
-**Prevention:** Split rules into `allow get` and `allow list`. Explicitly deny `list` unless necessary for specific queries (e.g. searching/filtering).
+## 2024-05-24 - Firestore Unauthenticated Access to User Data
+**Vulnerability:** The `publicUsers` collection was readable by anyone (`if true`), allowing unauthenticated attackers to scrape all user emails and nicknames. This was likely intended to support a "pre-login" user lookup feature, but it exposed the entire database.
+**Learning:** UX convenience features (like checking if an email exists before login) often conflict with security principles (user enumeration). When in doubt, prioritize security. "Public" in a collection name does not mean "Public to the world".
+**Prevention:** Always use `isSignedIn()` as a baseline for any user data. If "public" data is needed, restrict `list` operations to exact matches only (e.g. searching by email), or use Cloud Functions to expose a limited lookup API without exposing the database.
