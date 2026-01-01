@@ -126,7 +126,21 @@ export const upsertAuthProvidersForUser = async (user: FirebaseAuthTypes.User) =
 export const findUserEmailByIdentifier = async (identifier: string): Promise<string | null> => {
     const cleanIdentifier = identifier.trim();
     if (/\S+@\S+\.\S+/.test(cleanIdentifier)) {
-        return cleanIdentifier;
+        try {
+            const q = query(
+                collection(db, 'users'),
+                where('emailLower', '==', cleanIdentifier.toLowerCase()),
+                limit(1)
+            );
+            const snapshot = await getDocs(q);
+            if (!snapshot.empty) {
+                return snapshot.docs[0].data().email || cleanIdentifier;
+            }
+            return null;
+        } catch (error) {
+            // Permission denied or offline -> return identifier to let auth handle it
+            return cleanIdentifier;
+        }
     }
     // Fallback: if user enters something that is not email, treat is as invalid or try to use it as is
     return cleanIdentifier;
