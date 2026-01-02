@@ -13,6 +13,7 @@ import { Feather } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import { useToast } from '../contexts/ToastContext';
 import { Spacing, Typography, GlobalStyles } from '../styles/AppStyles';
+import { safeToDate } from '../utils/dateUtils';
 import FormActionBar from '../components/FormActionBar';
 import AppHeader from '../components/AppHeader';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -184,7 +185,7 @@ const TaskDetailScreen = () => {
         <View style={[styles.commentContainer, { backgroundColor: theme.colors.inputBackground }]}>
             <View style={styles.commentHeader}>
                 <Text style={[styles.commentAuthor, { color: theme.colors.textPrimary }]}>{item.authorNickname}</Text>
-                <Text style={[styles.commentDate, { color: theme.colors.textSecondary }]}>{item.createdAt.toDate().toLocaleString('pl-PL')}</Text>
+                <Text style={[styles.commentDate, { color: theme.colors.textSecondary }]}>{safeToDate(item.createdAt)?.toLocaleString('pl-PL') || ''}</Text>
             </View>
             <Text style={[styles.commentText, { color: theme.colors.textPrimary }]}>{item.text}</Text>
         </View>

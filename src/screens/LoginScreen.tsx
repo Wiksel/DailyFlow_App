@@ -9,6 +9,7 @@ import { GoogleSignin } from '@react-native-google-signin/google-signin';
 import { useToast } from '../contexts/ToastContext';
 import { Colors, Spacing, Typography, GlobalStyles } from '../styles/AppStyles';
 import { useTheme, lightColors, darkColors } from '../contexts/ThemeContext';
+import { getAccentColors, getSpherePalette, hexToRgb } from '../utils/themeUtils';
 import { Feather } from '@expo/vector-icons';
 import ActionModal from '../components/ActionModal';
 import LinkAccountsModal from '../components/LinkAccountsModal';
@@ -45,24 +46,7 @@ const SPRING_CONFIG = { damping: 20, stiffness: 150, mass: 1 };
 let cachedSphereConfigs: any[] | null = null;
 let cachedTopPadding = 0;
 
-// Palettes for spheres - Refined for "Premium" aesthetic
-const lightSphereColors = [
-    'rgba(199, 125, 152, 0.75)',  // Accent - Primary (Stronger for color visibility)
-    'rgba(199, 125, 152, 0.65)',  // Pastel Rose 
-    'rgba(219, 112, 147, 0.55)',  // Clear PaleVioletRed
-    'rgba(255, 182, 193, 0.70)',  // Light Pink (Cleaner)
-    'rgba(199, 125, 152, 0.60)',  // Accent repeat
-];
-
-const darkSphereColors = [
-    'rgba(33, 150, 243, 0.3)',   // Blue 500
-    'rgba(25, 118, 210, 0.3)',   // Blue 700
-    'rgba(66, 165, 245, 0.2)',   // Blue 400
-    'rgba(13, 71, 161, 0.3)',    // Blue 900
-    'rgba(100, 181, 246, 0.2)',  // Blue 300
-];
-
-const LIGHT_MODE_ACCENT = '#C77D98'; // Pastel Rose - Muted Pink/Purple
+// Palettes and Accents are now handled dynamically via themeUtils
 
 
 const AnimatedTouchableOpacity = Animated.createAnimatedComponent(TouchableOpacity);
@@ -70,7 +54,7 @@ const AnimatedView = Animated.createAnimatedComponent(View);
 const AnimatedText = Animated.createAnimatedComponent(Text);
 
 // Individual Animated Sphere - Fully localized physics for maximum variety
-const Sphere = React.memo(({ config, themeAnim, globalClock, index }: { config: any, themeAnim: Animated.SharedValue<number>, globalClock: Animated.SharedValue<number>, index: number }) => {
+const Sphere = React.memo(({ config, themeAnim, globalClock, index, lightPalette, darkPalette }: { config: any, themeAnim: Animated.SharedValue<number>, globalClock: Animated.SharedValue<number>, index: number, lightPalette: string[], darkPalette: string[] }) => {
 
     // Optimization: Split style into Position (runs every frame) and Color (runs rarely)
     const animatedPos = useAnimatedStyle(() => {
@@ -96,8 +80,8 @@ const Sphere = React.memo(({ config, themeAnim, globalClock, index }: { config: 
             themeAnim.value,
             [0, 1],
             [
-                lightSphereColors[config.colorIndex % lightSphereColors.length],
-                darkSphereColors[config.colorIndex % darkSphereColors.length]
+                lightPalette[config.colorIndex % lightPalette.length],
+                darkPalette[config.colorIndex % darkPalette.length]
             ]
         );
         return { backgroundColor };
@@ -124,14 +108,14 @@ const Sphere = React.memo(({ config, themeAnim, globalClock, index }: { config: 
 });
 
 // Komponenty formularzy (zaktualizowane o animacje)
-const LoginForm = React.memo(({ identifier, setIdentifier, loginPassword, setLoginPassword, isLoading, handleLogin, setForgotPasswordModalVisible, onGoogleButtonPress, theme, focusedOffset, themeAnim }: any) => {
+const LoginForm = React.memo(({ identifier, setIdentifier, loginPassword, setLoginPassword, isLoading, handleLogin, setForgotPasswordModalVisible, onGoogleButtonPress, theme, focusedOffset, themeAnim, accentColors }: any) => {
     // Derived styles for form elements
     const forgotPassStyle = useAnimatedStyle(() => ({
-        color: interpolateColor(themeAnim.value, [0, 1], [LIGHT_MODE_ACCENT, theme.colors.primary])
+        color: interpolateColor(themeAnim.value, [0, 1], [accentColors.light, accentColors.dark])
     }));
 
     const buttonBgStyle = useAnimatedStyle(() => ({
-        backgroundColor: interpolateColor(themeAnim.value, [0, 1], [LIGHT_MODE_ACCENT, theme.colors.primary])
+        backgroundColor: interpolateColor(themeAnim.value, [0, 1], [accentColors.light, accentColors.dark])
     }));
 
     const googleBtnStyle = useAnimatedStyle(() => ({
@@ -140,7 +124,7 @@ const LoginForm = React.memo(({ identifier, setIdentifier, loginPassword, setLog
     }));
 
     const googleTextStyle = useAnimatedStyle(() => ({
-        color: interpolateColor(themeAnim.value, [0, 1], [LIGHT_MODE_ACCENT, theme.colors.primary])
+        color: interpolateColor(themeAnim.value, [0, 1], [accentColors.light, accentColors.dark])
     }));
 
     const dividerStyle = useAnimatedStyle(() => ({
@@ -212,7 +196,7 @@ const LoginForm = React.memo(({ identifier, setIdentifier, loginPassword, setLog
 });
 
 
-const RegisterForm = React.memo(({ registerData, handleRegisterDataChange, emailError, passwordError, validateEmail, validatePassword, isLoading, isRegisterFormValid, handleRegister, onGoogleButtonPress, theme, focusedOffset, themeAnim, registerButtonAnimatedStyle, registerButtonTextStyle }: any) => {
+const RegisterForm = React.memo(({ registerData, handleRegisterDataChange, emailError, passwordError, validateEmail, validatePassword, isLoading, isRegisterFormValid, handleRegister, onGoogleButtonPress, theme, focusedOffset, themeAnim, registerButtonAnimatedStyle, registerButtonTextStyle, accentColors }: any) => {
 
     const googleBtnStyle = useAnimatedStyle(() => ({
         borderColor: interpolateColor(themeAnim.value, [0, 1], [lightColors.border, darkColors.border]),
@@ -220,7 +204,7 @@ const RegisterForm = React.memo(({ registerData, handleRegisterDataChange, email
     }));
 
     const googleTextStyle = useAnimatedStyle(() => ({
-        color: interpolateColor(themeAnim.value, [0, 1], [LIGHT_MODE_ACCENT, theme.colors.primary])
+        color: interpolateColor(themeAnim.value, [0, 1], [accentColors.light, accentColors.dark])
     }));
 
     const dividerStyle = useAnimatedStyle(() => ({
@@ -315,6 +299,11 @@ const RegisterForm = React.memo(({ registerData, handleRegisterDataChange, email
 const LoginScreen = () => {
     const navigation = useNavigation<LoginNavigationProp>();
     const theme = useTheme();
+    const accentColors = useMemo(() => getAccentColors(theme.accent), [theme.accent]);
+    const lightAccentRgb = useMemo(() => hexToRgb(accentColors.light), [accentColors]);
+    const darkAccentRgb = useMemo(() => hexToRgb(accentColors.dark), [accentColors]);
+    const sphereLightPalette = useMemo(() => getSpherePalette(theme.accent, 'light'), [theme.accent]);
+    const sphereDarkPalette = useMemo(() => getSpherePalette(theme.accent, 'dark'), [theme.accent]);
 
     const [identifier, setIdentifier] = useState('');
     const [loginPassword, setLoginPassword] = useState('');
@@ -932,11 +921,9 @@ const LoginScreen = () => {
     }, [isLoading, isRegisterFormValid]);
 
     const registerButtonAnimatedStyle = useAnimatedStyle(() => {
-        // Manual RGB interpolation
-        // Light: #C77D98 (199, 125, 152) | Dark: #4DA3FF (77, 163, 255)
-        const r = Math.round(interpolate(themeAnim.value, [0, 1], [199, 77], 'clamp'));
-        const g = Math.round(interpolate(themeAnim.value, [0, 1], [125, 163], 'clamp'));
-        const b = Math.round(interpolate(themeAnim.value, [0, 1], [152, 255], 'clamp'));
+        const r = interpolate(themeAnim.value, [0, 1], [lightAccentRgb.r, darkAccentRgb.r], 'clamp');
+        const g = interpolate(themeAnim.value, [0, 1], [lightAccentRgb.g, darkAccentRgb.g], 'clamp');
+        const b = interpolate(themeAnim.value, [0, 1], [lightAccentRgb.b, darkAccentRgb.b], 'clamp');
 
         const lightInactiveAlpha = 0.5;
         const darkInactiveAlpha = 0.3;
@@ -948,7 +935,7 @@ const LoginScreen = () => {
         return {
             backgroundColor: `rgba(${r},${g},${b},${alpha})`,
         };
-    });
+    }, [themeAnim, isRegisterValidAnim, lightAccentRgb, darkAccentRgb]);
 
     const registerButtonTextStyle = useAnimatedStyle(() => {
         const lightTextAlpha = 1.0;
@@ -1066,18 +1053,18 @@ const LoginScreen = () => {
     // Animated styles for tabs
     // Combine Theme Animation (themeAnim) + Swipe Animation (progress)
     const loginTabStyle = useAnimatedStyle(() => {
-        const activeColor = interpolateColor(themeAnim.value, [0, 1], [LIGHT_MODE_ACCENT, darkColors.primary]);
+        const activeColor = interpolateColor(themeAnim.value, [0, 1], [accentColors.light, accentColors.dark]);
         return {
             backgroundColor: interpolateColor(progress.value, [0, 1], [activeColor, 'transparent']),
         };
-    });
+    }, [themeAnim, progress, accentColors]);
 
     const registerTabStyle = useAnimatedStyle(() => {
-        const activeColor = interpolateColor(themeAnim.value, [0, 1], [LIGHT_MODE_ACCENT, darkColors.primary]);
+        const activeColor = interpolateColor(themeAnim.value, [0, 1], [accentColors.light, accentColors.dark]);
         return {
             backgroundColor: interpolateColor(progress.value, [0, 1], ['transparent', activeColor]),
         };
-    });
+    }, [themeAnim, progress, accentColors]);
 
     const loginTextStyle = useAnimatedStyle(() => {
         const secondary = interpolateColor(themeAnim.value, [0, 1], [lightColors.textSecondary, darkColors.textSecondary]);
@@ -1187,6 +1174,8 @@ const LoginScreen = () => {
                                             themeAnim={themeAnim}
                                             globalClock={globalClock}
                                             index={idx}
+                                            lightPalette={sphereLightPalette}
+                                            darkPalette={sphereDarkPalette}
                                         />
                                     ))}
                                 </View>
@@ -1263,7 +1252,7 @@ const LoginScreen = () => {
 
                             <View style={[styles.formSliderContainer, { backgroundColor: 'transparent' }]}>
                                 <Animated.View style={[styles.formWrapper, loginFormAnimatedStyle]}>
-                                    <LoginForm identifier={identifier} setIdentifier={setIdentifier} loginPassword={loginPassword} setLoginPassword={setLoginPassword} isLoading={isLoading} handleLogin={handleLogin} setForgotPasswordModalVisible={setForgotPasswordModalVisible} onGoogleButtonPress={onGoogleButtonPress} theme={theme} focusedOffset={focusedOffset} themeAnim={themeAnim} />
+                                    <LoginForm identifier={identifier} setIdentifier={setIdentifier} loginPassword={loginPassword} setLoginPassword={setLoginPassword} isLoading={isLoading} handleLogin={handleLogin} setForgotPasswordModalVisible={setForgotPasswordModalVisible} onGoogleButtonPress={onGoogleButtonPress} theme={theme} focusedOffset={focusedOffset} themeAnim={themeAnim} accentColors={accentColors} />
                                 </Animated.View>
                                 <Animated.View style={[styles.formWrapper, registerFormAnimatedStyle]}>
                                     <RegisterForm
@@ -1282,6 +1271,7 @@ const LoginScreen = () => {
                                         themeAnim={themeAnim}
                                         registerButtonAnimatedStyle={registerButtonAnimatedStyle}
                                         registerButtonTextStyle={registerButtonTextStyle}
+                                        accentColors={accentColors}
                                     />
                                 </Animated.View>
                             </View>

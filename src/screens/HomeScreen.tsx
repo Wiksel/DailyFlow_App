@@ -18,9 +18,9 @@ import { useUI } from '../contexts/UIContext';
 import { useTheme, Theme } from '../contexts/ThemeContext';
 
 // Components
+import SectionedTaskList, { TaskSectionListHandle } from '../components/SectionedTaskList';
+import FilterChips from '../components/FilterChips';
 import AddTaskModal from './AddTaskModal';
-import TaskSectionList, { TaskSectionListHandle } from '../components/TaskSectionList';
-import InlineFilters from '../components/InlineFilters';
 import CalendarRangeModal from '../components/CalendarRangeModal';
 import EmptyState from '../components/EmptyState';
 import ActionModal from '../components/ActionModal';
@@ -28,7 +28,6 @@ import SearchBar from '../components/SearchBar';
 import FilterPresets from '../components/FilterPresets';
 import AppHeader from '../components/AppHeader';
 import BottomQuickAdd from '../components/BottomQuickAdd';
-import ActiveFiltersSummary from '../components/ActiveFiltersSummary';
 import TaskListSkeleton from '../components/TaskListSkeleton';
 
 // Hooks
@@ -44,7 +43,7 @@ const HOME_FILTERS_KEY = 'dailyflow_home_filters';
 const HomeScreen = () => {
     const navigation = useNavigation<TaskStackNavigationProp>();
     const theme = useTheme();
-    const { density, focusModeEnabled, setDensity } = useUI();
+    const { focusModeEnabled } = useUI();
     const { categories } = useCategories();
     const { showToast } = useToast();
     const currentUser = getAuth().currentUser;
@@ -58,7 +57,8 @@ const HomeScreen = () => {
     const [templates, setTemplates] = useState<ChoreTemplate[]>([]);
     const [pendingDeadline, setPendingDeadline] = useState<any>(null);
     const [quickTaskText, setQuickTaskText] = useState('');
-    const [showFilters, setShowFilters] = useState(false);
+    // const [showFilters, setShowFilters] = useState(false); // Removed
+    const [activeQuickFilter, setActiveQuickFilter] = useState<'all' | 'today' | 'upcoming' | 'overdue'>('all'); // NEW
     const [globalSearchVisible, setGlobalSearchVisible] = useState(false);
     const [globalSearchQuery, setGlobalSearchQuery] = useState('');
     const [presetsRefreshToken, setPresetsRefreshToken] = useState<number>(0);
@@ -285,12 +285,47 @@ const HomeScreen = () => {
         if (match) taskListRef.current?.scrollToTaskId(match.id);
     }, [processedAndSortedTasks]);
 
+    // Format helpers for Quick Filter
+    const applyQuickFilter = useCallback((type: 'all' | 'today' | 'upcoming' | 'overdue') => {
+        setActiveQuickFilter(type);
+        const now = new Date();
+        now.setHours(0, 0, 0, 0);
+
+        // Reset all dates first
+        setFilterFromDate(null); setFilterToDate(null);
+        setDeadlineFromDate(null); setDeadlineToDate(null);
+        setCompletedFromDate(null); setCompletedToDate(null);
+
+        switch (type) {
+            case 'today':
+                setDeadlineFromDate(new Date(now));
+                setDeadlineToDate(new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59));
+                break;
+            case 'upcoming':
+                const nextWeek = new Date(now); nextWeek.setDate(now.getDate() + 7);
+                setDeadlineFromDate(now);
+                setDeadlineToDate(nextWeek);
+                break;
+            case 'overdue':
+                // Handled usually by logic, but essentially deadline < now. 
+                // useTaskFilters might need robust "overdue" toggle, or we imply it by date range?
+                // For now, let's just use TODAY as the anchor.
+                // Actually, "Overdue" is tricky with just range if we don't have an upper bound of "Yesterday".
+                // Let's set deadlineTo = yesterday.
+                const yesterday = new Date(now); yesterday.setDate(now.getDate() - 1); yesterday.setHours(23, 59, 59);
+                setDeadlineToDate(yesterday);
+                break;
+            case 'all':
+            default:
+                break;
+        }
+    }, [setDeadlineFromDate, setDeadlineToDate, setCompletedFromDate, setCompletedToDate, setFilterFromDate, setFilterToDate]);
+
     return (
         <View style={[GlobalStyles.container, { backgroundColor: theme.colors.background }]}>
             <AppHeader
                 title="Twoje zadania"
                 rightActions={[
-                    { icon: density === 'compact' ? 'maximize-2' : 'minimize-2', onPress: async () => { try { await Haptics.selectionAsync(); } catch { }; setDensity(density === 'compact' ? 'standard' : 'compact'); }, accessibilityLabel: density === 'compact' ? 'Tryb komfortowy' : 'Tryb kompaktowy' },
                     { icon: globalSearchVisible ? 'x' : 'search', onPress: async () => { try { await Haptics.selectionAsync(); } catch { }; setGlobalSearchVisible(v => !v); if (globalSearchVisible) setGlobalSearchQuery(''); }, accessibilityLabel: 'Szukaj' },
                     { icon: 'archive', onPress: () => navigation.navigate('Archive'), accessibilityLabel: 'Archiwum zadań' },
                     { icon: 'settings', onPress: () => navigation.navigate('Profile'), accessibilityLabel: 'Ustawienia' },
@@ -298,6 +333,20 @@ const HomeScreen = () => {
                 avatarUrl={userProfile?.photoURL || null}
                 onAvatarPress={() => navigation.navigate('Profile')}
             />
+
+            {/* Search Bar Area */}
+            <View style={{ paddingHorizontal: Spacing.medium, paddingBottom: Spacing.small }}>
+                {globalSearchVisible && (
+                    <SearchBar
+                        placeholder="Szukaj zadań..."
+                        value={globalSearchQuery || filters.searchQuery}
+                        onChangeText={(t) => { setGlobalSearchQuery(t); setSearchQuery(t); }}
+                        debounceMs={150}
+                        showBottomBorder={false}
+                        style={{ backgroundColor: theme.colors.inputBackground, borderRadius: 12, borderWidth: 1, borderColor: theme.colors.border }}
+                    />
+                )}
+            </View>
 
             <View style={styles.tabContainer}>
                 <TouchableOpacity style={[styles.tab, filters.taskType === 'personal' && styles.tabActive]} onPress={() => setTaskType('personal')} activeOpacity={0.8}>
@@ -307,138 +356,14 @@ const HomeScreen = () => {
                     <Text style={[styles.tabText, filters.taskType === 'shared' && styles.tabTextActive]}>Wspólne</Text>
                 </TouchableOpacity>
             </View>
-            {filters.taskType === 'shared' && userProfile?.partnerNickname ? (
-                <View style={styles.partnerInfoBanner}>
-                    <Text style={styles.partnerInfoText}>Dzielone z: <Text style={{ fontWeight: '700', color: theme.colors.textPrimary }}>{userProfile.partnerNickname}</Text></Text>
-                </View>
-            ) : null}
 
-            {todayTasks.length > 0 && (
-                <LinearGradient
-                    colors={theme.colorScheme === 'dark' ? [theme.colors.primary, theme.colors.purple] : [theme.colors.primary, theme.colors.purple]}
-                    start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}
-                    style={[GlobalStyles.card, styles.todaySection, { borderWidth: 0, shadowOpacity: theme.colorScheme === 'dark' ? 0.25 : 0.18, backgroundColor: theme.colors.card }]} // Overrode GlobalStyles.card white bg
-                >
-                    <Text style={[styles.todayTitle, { color: 'white' }]}>Dzisiaj · {todayTasks.length} {pluralizeTasks(todayTasks.length)}</Text>
-                    <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingVertical: 6 }}>
-                        {todayTasks.map(t => (
-                            <TodayTile key={t.id} text={t.text} onPress={async () => { try { await Haptics.selectionAsync(); } catch { }; navigation.navigate('TaskDetail', { taskId: t.id }); }} />
-                        ))}
-                    </ScrollView>
-                </LinearGradient>
-            )}
-
-            <FilterPresets
-                storageKey="dailyflow_home_filter_presets"
-                userId={currentUser?.uid}
-                hideTitle
-                hideSaveButton
-                refreshToken={presetsRefreshToken}
-                getCurrentFilters={() => filters}
-                applyFilters={(data: any) => setFilters(data)}
-            />
-
-            <View style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 0, backgroundColor: theme.colors.inputBackground }}>
-                <TouchableOpacity onPress={() => setShowFilters(prev => !prev)} style={{ marginLeft: Spacing.small, marginRight: Spacing.small, padding: 6, borderRadius: 8, backgroundColor: 'transparent' }}>
-                    <Feather name="sliders" size={18} color={theme.colors.textSecondary} />
-                </TouchableOpacity>
-                {globalSearchVisible ? (
-                    <SearchBar
-                        placeholder="Globalne szukanie..."
-                        value={globalSearchQuery}
-                        onChangeText={setGlobalSearchQuery}
-                        debounceMs={150}
-                        showBottomBorder={false}
-                        style={{ flex: 1, paddingBottom: 0, paddingTop: 0, marginLeft: 0, marginRight: Spacing.small, backgroundColor: 'transparent' }}
-                        onSubmitEditing={() => jumpToFirstMatch(globalSearchQuery)}
-                    />
-                ) : (
-                    <SearchBar
-                        placeholder="Szukaj zadań..."
-                        value={filters.searchQuery}
-                        onChangeText={setSearchQuery}
-                        debounceMs={200}
-                        showBottomBorder={false}
-                        style={{ flex: 1, paddingBottom: 0, paddingTop: 0, marginLeft: 0, marginRight: Spacing.small, backgroundColor: 'transparent' }}
-                        onPressSaveIcon={async () => {
-                            try {
-                                const key = `dailyflow_home_filter_presets_${currentUser?.uid}`;
-                                const raw = await AsyncStorage.getItem(key);
-                                const arr = raw ? JSON.parse(raw) : [];
-                                const name = (filters.searchQuery || '').trim();
-                                if (!name) return;
-                                const candidate = { ...filters, searchQuery: name };
-                                const isDuplicate = Array.isArray(arr) && arr.some((p: any) => p?.name === name);
-                                if (isDuplicate) { showToast('Taki preset już istnieje.', 'info'); return; }
-                                const next = [{ id: Date.now(), name, data: candidate }, ...arr].slice(0, 20);
-                                await AsyncStorage.setItem(key, JSON.stringify(next));
-                                setPresetsRefreshToken(t => t + 1);
-                            } catch { }
-                        }}
-                        saveIconName="save"
-                    />
-                )}
-            </View>
-
-            <ActiveFiltersSummary
+            <FilterChips
                 categories={categories}
-                activeCategory={'all'}
                 activeCategories={filters.activeCategories}
-                onClearCategory={() => setActiveCategories([])}
-                onRemoveCategory={(id) => setActiveCategories(prev => prev.filter(x => x !== id))}
-                difficultyFilter={filters.difficultyFilter}
-                onClearDifficulty={() => setDifficultyFilter([])}
-                createdFrom={filters.filterFromDate}
-                createdTo={filters.filterToDate}
-                onClearCreated={() => { setFilterFromDate(null); setFilterToDate(null); }}
-                deadlineFrom={filters.deadlineFromDate}
-                deadlineTo={filters.deadlineToDate}
-                onClearDeadline={() => { setDeadlineFromDate(null); setDeadlineToDate(null); }}
-                completedFrom={filters.completedFromDate}
-                completedTo={filters.completedToDate}
-                onClearCompleted={() => { setCompletedFromDate(null); setCompletedToDate(null); }}
-                taskType={filters.taskType}
-                creatorFilter={filters.creatorFilter}
-                onClearCreator={() => setCreatorFilter('all')}
-                searchQuery={filters.searchQuery}
-                onClearSearch={() => setSearchQuery('')}
-                onClearAll={() => setFilters({
-                    activeCategories: [], difficultyFilter: [],
-                    filterFromDate: null, filterToDate: null,
-                    deadlineFromDate: null, deadlineToDate: null,
-                    completedFromDate: null, completedToDate: null,
-                    creatorFilter: 'all', searchQuery: ''
-                })}
+                onToggleCategory={(id) => setActiveCategories(prev => prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id])}
+                activeFilter={activeQuickFilter}
+                onSetFilter={applyQuickFilter}
             />
-
-            {showFilters && (
-                <InlineFilters
-                    showCreatorFilter={filters.taskType === 'shared'}
-                    categories={categories}
-                    activeCategory={'all'}
-                    onChangeCategory={() => { }}
-                    activeCategories={filters.activeCategories}
-                    onChangeCategories={setActiveCategories}
-                    difficultyFilter={filters.difficultyFilter}
-                    onChangeDifficulty={setDifficultyFilter}
-                    createdFrom={filters.filterFromDate}
-                    createdTo={filters.filterToDate}
-                    onChangeCreatedFrom={setFilterFromDate}
-                    onChangeCreatedTo={setFilterToDate}
-                    deadlineFrom={filters.deadlineFromDate}
-                    deadlineTo={filters.deadlineToDate}
-                    onChangeDeadlineFrom={setDeadlineFromDate}
-                    onChangeDeadlineTo={setDeadlineToDate}
-                    completedFrom={filters.completedFromDate}
-                    completedTo={filters.completedToDate}
-                    onChangeCompletedFrom={setCompletedFromDate}
-                    onChangeCompletedTo={setCompletedToDate}
-                    creators={sharedCreators}
-                    creatorFilter={filters.creatorFilter}
-                    onChangeCreator={setCreatorFilter}
-                    onOpenCalendar={(type) => setCalendarModal({ visible: true, type })}
-                />
-            )}
 
             {tasksLoading ? <TaskListSkeleton rows={8} /> : (
                 processedAndSortedTasks.length === 0 ? (
@@ -446,17 +371,17 @@ const HomeScreen = () => {
                         <HomeEmptyState onAddTask={() => setAddTaskModalVisible(true)} onOpenTemplates={() => navigation.navigate('ChoreTemplates' as any)} />
                     </View>
                 ) : (
-                    <TaskSectionList
+                    <SectionedTaskList
                         tasks={processedAndSortedTasks}
                         categories={categories}
-                        onPressTask={(t) => navigation.navigate('TaskDetail', { taskId: t.id })}
-                        onToggleComplete={(t) => toggleComplete(t)}
-                        onConfirmAction={(t) => handleTaskAction(t)}
+                        onPressTask={(t: Task) => navigation.navigate('TaskDetail', { taskId: t.id })}
+                        onToggleComplete={(t: Task) => toggleComplete(t)}
+                        onConfirmAction={(t: Task) => handleTaskAction(t)}
                         selectionMode={selectionMode}
                         selectedIds={selectedIds}
                         onToggleSelect={toggleSelect}
-                        onOpenTaskMenu={(t) => setMenuTask(t)}
-                        onSelectAllSection={(key, items) => {
+                        onOpenTaskMenu={(t: Task) => setMenuTask(t)}
+                        onSelectAllSection={(key: string, items: Task[]) => {
                             const ids = new Set(selectedIds);
                             const list = items as Task[];
                             const allSelected = list.every(it => ids.has(it.id));
@@ -464,7 +389,7 @@ const HomeScreen = () => {
                             setSelectedIds(ids);
                             setSelectionMode(true);
                         }}
-                        onQuickAdd={(key) => {
+                        onQuickAdd={(key: string) => {
                             let initial: Date | null = null;
                             const now = new Date();
                             if (key === 'today') { initial = new Date(now); initial.setHours(23, 59, 0, 0); }

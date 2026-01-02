@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, TextInput, Alert, ActivityIndicator, ScrollView, Image } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { getAuth } from '../utils/authCompat';
@@ -13,11 +13,12 @@ import { Feather } from '@expo/vector-icons';
 import { Spacing, Typography, GlobalStyles } from '../styles/AppStyles';
 import AppHeader from '../components/AppHeader';
 import Animated, { FadeInUp, Layout } from 'react-native-reanimated';
-import { useTheme } from '../contexts/ThemeContext';
+import { useTheme, Theme } from '../contexts/ThemeContext';
 
 const ProfileScreen = () => {
     const navigation = useNavigation<TaskStackNavigationProp>();
     const theme = useTheme();
+    const styles = useMemo(() => createStyles(theme), [theme]);
     const { showToast } = useToast();
     const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
     const [nickname, setNickname] = useState('');
@@ -248,41 +249,41 @@ const ProfileScreen = () => {
     }
 
     return (
-        <ScrollView style={[GlobalStyles.container, { backgroundColor: theme.colors.background }]}>
+        <ScrollView style={styles.container}>
             <AppHeader title="Profil i para" />
-            <Animated.View layout={Layout.springify()} style={[styles.profileSection, { backgroundColor: theme.colors.card, borderColor: theme.colors.border }]}>
-                <View style={[styles.avatarContainer, { borderColor: theme.colors.primary }]}>
+            <Animated.View layout={Layout.springify()} style={styles.profileSection}>
+                <View style={styles.avatarContainer}>
                     {userProfile?.photoURL ? (
                         <Image source={{ uri: userProfile.photoURL }} style={styles.avatarImage} />
                     ) : (
-                        <View style={[styles.avatarPlaceholder, { backgroundColor: theme.colors.primary }]}>
+                        <View style={styles.avatarPlaceholder}>
                             <Text style={styles.avatarText}>
                                 {userProfile?.nickname ? userProfile.nickname.charAt(0).toUpperCase() : '?'}
                             </Text>
                         </View>
                     )}
                 </View>
-                <Text style={[styles.nicknameText, { color: theme.colors.textPrimary }]}>{userProfile?.nickname || 'Brak nicku'}</Text>
-                <Text style={[styles.emailText, { color: theme.colors.textSecondary }]}>{currentUser?.email}</Text>
+                <Text style={styles.nicknameText}>{userProfile?.nickname || 'Brak nicku'}</Text>
+                <Text style={styles.emailText}>{currentUser?.email}</Text>
             </Animated.View>
 
-            <Animated.View layout={Layout.springify()} style={[styles.statsContainer, { backgroundColor: theme.colors.card, borderColor: theme.colors.border }]}>
+            <Animated.View layout={Layout.springify()} style={styles.statsContainer}>
                 <View style={styles.statCard}>
                     <Feather name="star" size={24} color={theme.colors.warning} />
-                    <Text style={[styles.statValue, { color: theme.colors.textPrimary }]}>{userProfile?.points ?? 0}</Text>
-                    <Text style={[styles.statLabel, { color: theme.colors.textSecondary }]}>Zdobyte punkty</Text>
+                    <Text style={styles.statValue}>{userProfile?.points ?? 0}</Text>
+                    <Text style={styles.statLabel}>Zdobyte punkty</Text>
                 </View>
                 <View style={styles.statCard}>
                     <Feather name="check-circle" size={24} color={theme.colors.success} />
-                    <Text style={[styles.statValue, { color: theme.colors.textPrimary }]}>{userProfile?.completedTasksCount ?? 0}</Text>
-                    <Text style={[styles.statLabel, { color: theme.colors.textSecondary }]}>Ukończone zadania</Text>
+                    <Text style={styles.statValue}>{userProfile?.completedTasksCount ?? 0}</Text>
+                    <Text style={styles.statLabel}>Ukończone zadania</Text>
                 </View>
             </Animated.View>
 
-            <Animated.View layout={Layout.springify()} style={[GlobalStyles.card, { backgroundColor: theme.colors.card, borderColor: theme.colors.border }]}>
-                <Text style={[styles.sectionTitle, { color: theme.colors.textPrimary }]}>Zaproś do pary</Text>
+            <Animated.View layout={Layout.springify()} style={styles.card}>
+                <Text style={styles.sectionTitle}>Zaproś do pary</Text>
                 <TextInput
-                    style={[GlobalStyles.input, { backgroundColor: theme.colors.inputBackground, borderColor: theme.colors.border, color: theme.colors.textPrimary }]}
+                    style={styles.input}
                     placeholder="E-mail partnera"
                     placeholderTextColor={theme.colors.placeholder}
                     value={inviteEmail}
@@ -294,52 +295,52 @@ const ProfileScreen = () => {
                     title="Wyślij zaproszenie"
                     onPress={handleSendInvite}
                     isLoading={isPairActionLoading}
-                    style={{ marginTop: Spacing.small, backgroundColor: theme.colors.primary }}
+                    style={styles.primaryButton}
                 />
             </Animated.View>
 
-            <Animated.View layout={Layout.springify()} style={[GlobalStyles.card, { backgroundColor: theme.colors.card, borderColor: theme.colors.border }]}>
-                <Text style={[styles.sectionTitle, { color: theme.colors.textPrimary }]}>Zarządzanie</Text>
-                <ActionButton title="Zarządzaj kategoriami" onPress={() => navigation.navigate('Categories')} style={[styles.manageButton, { backgroundColor: theme.colors.primary }]} />
-                <ActionButton title="Szablony obowiązków" onPress={() => navigation.navigate('ChoreTemplates', {})} style={[styles.manageButton, { backgroundColor: theme.colors.primary }]} />
-                <ActionButton title="Ustawienia priorytetów" onPress={() => navigation.navigate('Settings')} style={[styles.manageButton, { backgroundColor: theme.colors.primary }]} />
-                <ActionButton title="Ustawienia konta" onPress={() => navigation.navigate('AccountSettings')} style={[styles.manageButton, { backgroundColor: theme.colors.primary }]} />
-                <ActionButton title="Ustawienia wyświetlania" onPress={() => navigation.navigate('DisplaySettings')} style={[styles.manageButton, { backgroundColor: theme.colors.primary }]} />
-                <ActionButton title="Kolejka offline" onPress={() => navigation.navigate('Outbox')} style={[styles.manageButton, { backgroundColor: theme.colors.primary }]} />
-                <View style={{ height: 1, backgroundColor: theme.colors.border, marginTop: Spacing.medium }} />
+            <Animated.View layout={Layout.springify()} style={styles.card}>
+                <Text style={styles.sectionTitle}>Zarządzanie</Text>
+                <ActionButton title="Zarządzaj kategoriami" onPress={() => navigation.navigate('Categories')} style={styles.manageButton} />
+                <ActionButton title="Szablony obowiązków" onPress={() => navigation.navigate('ChoreTemplates', {})} style={styles.manageButton} />
+                <ActionButton title="Ustawienia priorytetów" onPress={() => navigation.navigate('Settings')} style={styles.manageButton} />
+                <ActionButton title="Ustawienia konta" onPress={() => navigation.navigate('AccountSettings')} style={styles.manageButton} />
+                <ActionButton title="Ustawienia wyświetlania" onPress={() => navigation.navigate('DisplaySettings')} style={styles.manageButton} />
+                <ActionButton title="Kolejka offline" onPress={() => navigation.navigate('Outbox')} style={styles.manageButton} />
+                <View style={styles.separator} />
             </Animated.View>
 
             {userProfile?.pairId ? (
-                <Animated.View layout={Layout.springify()} style={[GlobalStyles.card, { backgroundColor: theme.colors.card, borderColor: theme.colors.border }]}>
-                    <Text style={[styles.sectionTitle, { color: theme.colors.textPrimary }]}>Twoja para</Text>
-                    <Text style={[styles.pairInfo, { color: theme.colors.textSecondary }]}>Jesteś w parze z: <Text style={[Typography.bold, { color: theme.colors.textPrimary }]}>{partnerEmail}</Text></Text>
+                <Animated.View layout={Layout.springify()} style={styles.card}>
+                    <Text style={styles.sectionTitle}>Twoja para</Text>
+                    <Text style={styles.pairInfo}>Jesteś w parze z: <Text style={styles.pairEmail}>{partnerEmail}</Text></Text>
                     <ActionButton
                         title="Opuść parę"
                         onPress={handleLeavePair}
                         isLoading={isPairActionLoading}
-                        style={{ backgroundColor: theme.colors.danger }}
+                        style={styles.dangerButton}
                     />
                 </Animated.View>
             ) : (
                 <>
                     {incomingInvites.length > 0 && (
-                        <Animated.View entering={FadeInUp.delay(240)} layout={Layout.springify()} style={[GlobalStyles.card, { backgroundColor: theme.colors.card, borderColor: theme.colors.border }]}>
-                            <Text style={[styles.sectionTitle, { color: theme.colors.textPrimary }]}>Oczekujące zaproszenia</Text>
+                        <Animated.View entering={FadeInUp.delay(240)} layout={Layout.springify()} style={styles.card}>
+                            <Text style={styles.sectionTitle}>Oczekujące zaproszenia</Text>
                             {incomingInvites.map(invite => (
-                                <View key={invite.id} style={[styles.inviteContainer, { borderColor: theme.colors.border }]}>
-                                    <Text style={[styles.inviteText, { color: theme.colors.textSecondary }]}>Zaproszenie od: <Text style={[Typography.semiBold, { color: theme.colors.textPrimary }]}>{invite.requesterNickname}</Text></Text>
+                                <View key={invite.id} style={styles.inviteContainer}>
+                                    <Text style={styles.inviteText}>Zaproszenie od: <Text style={styles.pairEmail}>{invite.requesterNickname}</Text></Text>
                                     <View style={styles.inviteActions}>
                                         <ActionButton
                                             title="Akceptuj"
                                             onPress={() => handleAcceptInvite(invite)}
                                             isLoading={isPairActionLoading}
-                                            style={[styles.inviteActionButton, { backgroundColor: theme.colors.success }]}
+                                            style={styles.successButton}
                                         />
                                         <ActionButton
                                             title="Odrzuć"
                                             onPress={() => handleDeclineInvite(invite.id)}
                                             isLoading={isPairActionLoading}
-                                            style={[styles.inviteActionButton, { backgroundColor: theme.colors.danger }]}
+                                            style={styles.dangerButton}
                                         />
                                     </View>
                                 </View>
@@ -351,23 +352,32 @@ const ProfileScreen = () => {
             <ActionButton
                 title="Wyloguj się"
                 onPress={handleLogout}
-                style={{ marginHorizontal: Spacing.medium, marginTop: Spacing.medium, marginBottom: Spacing.small, backgroundColor: theme.colors.textSecondary }}
+                style={styles.logoutButton}
             />
         </ScrollView>
     );
 };
 
-const styles = StyleSheet.create({
+const createStyles = (theme: Theme) => StyleSheet.create({
+    container: {
+        ...GlobalStyles.container,
+        backgroundColor: theme.colors.background,
+    },
+    card: {
+        ...GlobalStyles.card,
+        backgroundColor: theme.colors.card,
+        borderColor: theme.colors.border,
+    },
     profileSection: {
         padding: Spacing.large,
-        backgroundColor: 'white',
+        backgroundColor: theme.colors.card,
         alignItems: 'center',
         borderBottomWidth: 1,
-        borderColor: '#e0e0e0',
+        borderColor: theme.colors.border,
         marginHorizontal: Spacing.medium,
         marginTop: Spacing.medium,
         borderRadius: 16,
-        shadowColor: "#000",
+        shadowColor: theme.colors.shadow,
         shadowOffset: { width: 0, height: 4 },
         shadowOpacity: 0.08,
         shadowRadius: 12,
@@ -381,6 +391,7 @@ const styles = StyleSheet.create({
         alignItems: 'center',
         marginBottom: Spacing.medium,
         borderWidth: 3,
+        borderColor: theme.colors.primary,
         backgroundColor: 'transparent',
     },
     avatarImage: {
@@ -394,48 +405,66 @@ const styles = StyleSheet.create({
         borderRadius: 50,
         justifyContent: 'center',
         alignItems: 'center',
+        backgroundColor: theme.colors.primary,
     },
     avatarText: {
-        color: 'white',
+        color: '#ffffff', // Always white on primary
         fontSize: 48,
         fontWeight: 'bold',
     },
-    nicknameText: { ...Typography.h2 },
-    emailText: { ...Typography.body, marginTop: Spacing.xSmall },
+    nicknameText: {
+        ...Typography.h2,
+        color: theme.colors.textPrimary,
+    },
+    emailText: {
+        ...Typography.body,
+        marginTop: Spacing.xSmall,
+        color: theme.colors.textSecondary,
+    },
     statsContainer: {
         flexDirection: 'row',
         paddingVertical: Spacing.medium,
-        backgroundColor: 'white',
+        backgroundColor: theme.colors.card,
         marginHorizontal: Spacing.medium,
         marginTop: Spacing.medium,
         borderRadius: 16,
         borderWidth: 1,
-        borderColor: '#e0e0e0',
-        shadowColor: "#000",
+        borderColor: theme.colors.border,
+        shadowColor: theme.colors.shadow,
         shadowOffset: { width: 0, height: 4 },
         shadowOpacity: 0.08,
         shadowRadius: 12,
         elevation: 2,
     },
     statCard: { alignItems: 'center', flex: 1 },
-    statValue: { ...Typography.h2, marginTop: Spacing.xSmall },
-    statLabel: { ...Typography.small, fontSize: 14, marginTop: 2 },
-    sectionTitle: { ...Typography.h3, marginBottom: Spacing.medium },
-    manageButton: { marginBottom: Spacing.small },
-    settingsButton: { backgroundColor: '#5bc0de' },
-    purpleButton: { backgroundColor: '#7e57c2' },
-    pairInfo: { ...Typography.body, textAlign: 'center', marginBottom: Spacing.medium },
-    dangerButton: { backgroundColor: '#e74c3c' },
+    statValue: { ...Typography.h2, marginTop: Spacing.xSmall, color: theme.colors.textPrimary },
+    statLabel: { ...Typography.small, fontSize: 14, marginTop: 2, color: theme.colors.textSecondary },
+    sectionTitle: { ...Typography.h3, marginBottom: Spacing.medium, color: theme.colors.textPrimary },
+    input: {
+        ...GlobalStyles.input,
+        backgroundColor: theme.colors.inputBackground,
+        borderColor: theme.colors.border,
+        color: theme.colors.textPrimary,
+    },
+    manageButton: { marginBottom: Spacing.small, backgroundColor: theme.colors.primary },
+    primaryButton: { marginTop: Spacing.small, backgroundColor: theme.colors.primary },
+    settingsButton: { backgroundColor: theme.colors.secondary },
+    purpleButton: { backgroundColor: theme.colors.purple },
+    pairInfo: { ...Typography.body, textAlign: 'center', marginBottom: Spacing.medium, color: theme.colors.textSecondary },
+    pairEmail: { ...Typography.bold, color: theme.colors.textPrimary },
+    dangerButton: { backgroundColor: theme.colors.danger },
     inviteContainer: {
         marginBottom: Spacing.medium,
         padding: Spacing.medium,
         borderWidth: 1,
         borderRadius: 8,
+        borderColor: theme.colors.border,
     },
-    inviteText: { ...Typography.body, marginBottom: Spacing.small },
+    inviteText: { ...Typography.body, marginBottom: Spacing.small, color: theme.colors.textSecondary },
     inviteActions: { flexDirection: 'row', justifyContent: 'space-around', gap: Spacing.small },
-    inviteActionButton: { flex: 1 },
-    successButton: { backgroundColor: '#28a745' },
+    successButton: { flex: 1, backgroundColor: theme.colors.success },
+    logoutButton: { marginHorizontal: Spacing.medium, marginTop: Spacing.medium, marginBottom: Spacing.small, backgroundColor: theme.colors.textSecondary },
+    separator: { height: 1, backgroundColor: theme.colors.border, marginTop: Spacing.medium },
 });
 
 export default ProfileScreen;

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, ActivityIndicator } from 'react-native';
 import Animated, { FadeInUp, Layout } from 'react-native-reanimated';
 import { getAuth } from '../utils/authCompat';
@@ -7,7 +7,7 @@ import { doc, onSnapshot, updateDoc } from '../utils/firestoreCompat';
 import Slider from '@react-native-community/slider';
 import { useToast } from '../contexts/ToastContext';
 import { Spacing, Typography, GlobalStyles } from '../styles/AppStyles';
-import { useTheme } from '../contexts/ThemeContext';
+import { useTheme, Theme } from '../contexts/ThemeContext';
 import AppHeader from '../components/AppHeader';
 
 export interface PrioritySettings {
@@ -29,6 +29,7 @@ const SettingsScreen = () => {
     const [saving, setSaving] = useState(false);
     const { showToast } = useToast();
     const theme = useTheme();
+    const styles = useMemo(() => createStyles(theme), [theme]);
 
     const currentUser = getAuth().currentUser;
 
@@ -140,15 +141,15 @@ const SettingsScreen = () => {
     }
 
     return (
-        <ScrollView style={[styles.container, { backgroundColor: theme.colors.background }]}>
+        <ScrollView style={styles.container}>
             <AppHeader title="Ustawienia priorytetów" />
-            <Animated.View layout={Layout.springify()} style={[GlobalStyles.card, { backgroundColor: theme.colors.card, borderColor: theme.colors.border }]}>
-                <Text style={[styles.sectionTitle, { color: theme.colors.textPrimary }]}>Priorytety - Deadline</Text>
-                <Text style={[styles.description, { color: theme.colors.textSecondary }]}>
+            <Animated.View layout={Layout.springify()} style={styles.card}>
+                <Text style={styles.sectionTitle}>Priorytety - Deadline</Text>
+                <Text style={styles.description}>
                     Dostosuj, jak bardzo priorytet zadania wzrośnie, gdy zbliża się jego termin wykonania. Przesuwanie jednego suwaka dostosuje pozostałe.
                 </Text>
 
-                <Text style={[styles.label, { color: theme.colors.textPrimary }]}>Wzrost o +{settings.criticalBoost} (krytyczny)</Text>
+                <Text style={styles.label}>Wzrost o +{settings.criticalBoost} (krytyczny)</Text>
                 <Text style={{ color: theme.colors.textSecondary }}>Gdy do terminu zostało mniej niż: {settings.criticalThreshold} dni</Text>
                 <Slider
                     value={settings.criticalThreshold}
@@ -161,9 +162,9 @@ const SettingsScreen = () => {
                     thumbTintColor={theme.colors.danger}
                 />
 
-                <View style={[styles.separator, { backgroundColor: theme.colors.border }]} />
+                <View style={styles.separator} />
 
-                <Text style={[styles.label, { color: theme.colors.textPrimary }]}>Wzrost o +{settings.urgentBoost} (pilny)</Text>
+                <Text style={styles.label}>Wzrost o +{settings.urgentBoost} (pilny)</Text>
                 <Text style={{ color: theme.colors.textSecondary }}>Gdy do terminu zostało mniej niż: {settings.urgentThreshold} dni</Text>
                 <Slider
                     value={settings.urgentThreshold}
@@ -176,9 +177,9 @@ const SettingsScreen = () => {
                     thumbTintColor={theme.colors.warning}
                 />
 
-                <View style={[styles.separator, { backgroundColor: theme.colors.border }]} />
+                <View style={styles.separator} />
 
-                <Text style={[styles.label, { color: theme.colors.textPrimary }]}>Wzrost o +{settings.soonBoost} (bliski)</Text>
+                <Text style={styles.label}>Wzrost o +{settings.soonBoost} (bliski)</Text>
                 <Text style={{ color: theme.colors.textSecondary }}>Gdy do terminu zostało mniej niż: {settings.soonThreshold} dni</Text>
                 <Slider
                     value={settings.soonThreshold}
@@ -191,9 +192,9 @@ const SettingsScreen = () => {
                     thumbTintColor={theme.colors.info}
                 />
 
-                <View style={[styles.separator, { backgroundColor: theme.colors.border }]} />
+                <View style={styles.separator} />
 
-                <Text style={[styles.label, { color: theme.colors.textPrimary }]}>Wzrost o +{settings.distantBoost} (wkrótce)</Text>
+                <Text style={styles.label}>Wzrost o +{settings.distantBoost} (wkrótce)</Text>
                 <Text style={{ color: theme.colors.textSecondary }}>Gdy do terminu zostało mniej niż: {settings.distantThreshold} dni</Text>
                 <Slider
                     value={settings.distantThreshold}
@@ -206,9 +207,9 @@ const SettingsScreen = () => {
                     thumbTintColor={theme.colors.secondary}
                 />
             </Animated.View>
-            <Animated.View layout={Layout.springify()} style={[GlobalStyles.card, { backgroundColor: theme.colors.card, borderColor: theme.colors.border }]}>
-                <Text style={[styles.sectionTitle, { color: theme.colors.textPrimary }]}>Priorytety - Zadania bez terminu</Text>
-                <Text style={[styles.label, { color: theme.colors.textPrimary }]}>Zwiększaj o +1 co {settings.agingBoostDays} dni</Text>
+            <Animated.View layout={Layout.springify()} style={styles.card}>
+                <Text style={styles.sectionTitle}>Priorytety - Zadania bez terminu</Text>
+                <Text style={styles.label}>Zwiększaj o +1 co {settings.agingBoostDays} dni</Text>
                 <Slider value={settings.agingBoostDays} onValueChange={(v) => handleThresholdChange('agingBoostDays', v)} minimumValue={1} maximumValue={30} step={1} minimumTrackTintColor={theme.colors.primary} maximumTrackTintColor={theme.colors.border} thumbTintColor={theme.colors.primary} />
             </Animated.View>
             <Animated.View layout={Layout.springify()}>
@@ -221,32 +222,40 @@ const SettingsScreen = () => {
 };
 
 
-const styles = StyleSheet.create({
+const createStyles = (theme: Theme) => StyleSheet.create({
     container: {
         ...GlobalStyles.container,
+        backgroundColor: theme.colors.background,
     },
     centered: {
         ...GlobalStyles.centered,
+        backgroundColor: theme.colors.background,
     },
-    section: {
-        ...GlobalStyles.section,
+    card: {
+        ...GlobalStyles.card,
+        backgroundColor: theme.colors.card,
+        borderColor: theme.colors.border,
     },
     sectionTitle: {
         ...Typography.h3,
         marginBottom: Spacing.small,
+        color: theme.colors.textPrimary,
     },
     description: {
         ...Typography.body,
         marginBottom: Spacing.large,
+        color: theme.colors.textSecondary,
     },
     label: {
         ...Typography.body,
         fontWeight: Typography.semiBold.fontWeight,
         marginTop: Spacing.medium,
+        color: theme.colors.textPrimary,
     },
     separator: {
         height: 1,
         marginVertical: Spacing.large,
+        backgroundColor: theme.colors.border,
     },
     saveButton: {
         ...GlobalStyles.button,
@@ -256,15 +265,6 @@ const styles = StyleSheet.create({
     },
     saveButtonText: {
         ...GlobalStyles.buttonText,
-    },
-    themeChip: {
-        paddingHorizontal: Spacing.medium,
-        paddingVertical: Spacing.small,
-        borderRadius: 20,
-        marginRight: Spacing.small,
-    },
-    themeChipText: {
-        ...Typography.body,
     },
 });
 

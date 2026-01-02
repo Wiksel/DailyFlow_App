@@ -3,8 +3,8 @@ import { View, Text, StyleSheet, FlatList, TextInput, TouchableOpacity, Activity
 import LabeledInput from '../components/LabeledInput';
 import ActionModal from '../components/ActionModal';
 import { useRoute, RouteProp } from '@react-navigation/native';
-import { getAuth } from '../utils/authCompat'; // ZMIANA
-import { db } from '../utils/firestoreCompat'; // <--- TEN IMPORT ZOSTAJE
+import { getAuth } from '../utils/authCompat';
+import { db } from '../utils/firestoreCompat';
 import { collection, query, where, onSnapshot, addDoc, deleteDoc, doc, updateDoc, QuerySnapshotCompat } from '../utils/firestoreCompat';
 import { enqueueAdd, enqueueUpdate, enqueueDelete } from '../utils/offlineQueue';
 import Slider from '@react-native-community/slider';
@@ -19,7 +19,7 @@ import { useUI } from '../contexts/UIContext';
 import { useCategories } from '../contexts/CategoryContext';
 import { useToast } from '../contexts/ToastContext';
 import { Colors, Spacing, Typography, GlobalStyles, isColorLight, densityScale } from '../styles/AppStyles';
-import { useTheme } from '../contexts/ThemeContext';
+import { useTheme, Theme } from '../contexts/ThemeContext';
 import AppHeader from '../components/AppHeader';
 
 type ChoreTemplatesScreenRouteProp = RouteProp<TaskStackParamList, 'ChoreTemplates'>;
@@ -41,8 +41,9 @@ const ChoreTemplatesScreen = () => {
     const [isSubmitting, setIsSubmitting] = useState(false);
     const { density } = useUI();
     const theme = useTheme();
+    const styles = useMemo(() => createStyles(theme), [theme]);
     const isCompact = density === 'compact';
-    const currentUser = getAuth().currentUser; // ZMIANA
+    const currentUser = getAuth().currentUser;
 
 
     useEffect(() => {
@@ -150,10 +151,10 @@ const ChoreTemplatesScreen = () => {
     const renderTemplate = ({ item }: { item: ChoreTemplate }) => {
         const category = categories.find(c => c.id === item.category);
         return (
-            <View style={[styles.templateItem, GlobalStyles.rowPress, isCompact && { paddingVertical: Spacing.medium, paddingHorizontal: Spacing.medium }, { backgroundColor: theme.colors.card, borderColor: theme.colors.border }]}>
+            <View style={[styles.templateItem, GlobalStyles.rowPress, isCompact && { paddingVertical: Spacing.medium, paddingHorizontal: Spacing.medium }]}>
                 <View style={{ flex: 1 }}>
-                    <Text style={[styles.templateName, { color: theme.colors.textPrimary }, isCompact && { fontSize: densityScale(Typography.body.fontSize, true) }]}>{item.name}</Text>
-                    <Text style={[styles.templateDifficulty, { color: theme.colors.textSecondary }, isCompact && { fontSize: densityScale(Typography.small.fontSize, true) }]}>Trudność: {item.difficulty}/10</Text>
+                    <Text style={[styles.templateName, isCompact && { fontSize: densityScale(Typography.body.fontSize, true) }]}>{item.name}</Text>
+                    <Text style={[styles.templateDifficulty, isCompact && { fontSize: densityScale(Typography.small.fontSize, true) }]}>Trudność: {item.difficulty}/10</Text>
                 </View>
                 {category && <View style={[styles.categoryTag, { backgroundColor: category.color }]}><Text style={styles.categoryTagText}>{category.name}</Text></View>}
                 <AnimatedIconButton icon="edit-2" size={22} color={theme.colors.primary} onPress={() => startEditing(item)} style={{ marginHorizontal: Spacing.medium }} accessibilityLabel="Edytuj szablon" />
@@ -171,10 +172,10 @@ const ChoreTemplatesScreen = () => {
     }
 
     return (
-        <View style={[GlobalStyles.container, { backgroundColor: theme.colors.background }]}>
+        <View style={styles.container}>
             <AppHeader title="Szablony" />
-            <Animated.View layout={Layout.springify()} style={[GlobalStyles.section, { backgroundColor: theme.colors.card, borderColor: theme.colors.border }]}>
-                <Text style={[styles.sectionTitle, { color: theme.colors.textPrimary }]}>{editingTemplate ? 'Edytuj szablon' : 'Dodaj nowy szablon'}</Text>
+            <Animated.View layout={Layout.springify()} style={styles.section}>
+                <Text style={styles.sectionTitle}>{editingTemplate ? 'Edytuj szablon' : 'Dodaj nowy szablon'}</Text>
                 <LabeledInput label="Nazwa szablonu" placeholder="Np. Zmywanie naczyń" value={newTemplateName} onChangeText={setNewTemplateName} editable={!isSubmitting} />
                 <Text style={styles.label}>Kategoria</Text>
                 <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.categoryContainer}>
@@ -214,7 +215,7 @@ const ChoreTemplatesScreen = () => {
                     thumbTintColor={theme.colors.primary}
                     disabled={isSubmitting}
                 />
-                <TouchableOpacity style={[GlobalStyles.button, { backgroundColor: theme.colors.primary, marginTop: Spacing.small }]} onPress={handleAddOrUpdateTemplate} disabled={isSubmitting}>
+                <TouchableOpacity style={[styles.addButton, { backgroundColor: theme.colors.primary }]} onPress={handleAddOrUpdateTemplate} disabled={isSubmitting}>
                     {isSubmitting ? <ActivityIndicator color="white" /> : <Text style={GlobalStyles.buttonText}>{editingTemplate ? 'Zapisz zmiany' : 'Dodaj szablon'}</Text>}
                 </TouchableOpacity>
                 {editingTemplate && (
@@ -236,8 +237,8 @@ const ChoreTemplatesScreen = () => {
                             </Animated.View>
                         )}
                         keyExtractor={item => item.id}
-                        ListHeaderComponent={<Text style={[styles.listHeader, { color: theme.colors.textPrimary }]}>Twoje szablony</Text>}
-                        ListEmptyComponent={<Text style={[styles.emptyText, { color: theme.colors.textSecondary }]}>Brak szablonów w tej kategorii.</Text>}
+                        ListHeaderComponent={<Text style={styles.listHeader}>Twoje szablony</Text>}
+                        ListEmptyComponent={<Text style={styles.emptyText}>Brak szablonów w tej kategorii.</Text>}
                         initialNumToRender={12}
                         windowSize={10}
                         removeClippedSubviews
@@ -259,14 +260,35 @@ const ChoreTemplatesScreen = () => {
     );
 };
 
-const styles = StyleSheet.create({
+const createStyles = (theme: Theme) => StyleSheet.create({
+    container: {
+        ...GlobalStyles.container,
+        backgroundColor: theme.colors.background,
+    },
+    section: {
+        backgroundColor: theme.colors.card,
+        padding: Spacing.large,
+        marginTop: Spacing.medium,
+        borderRadius: 10,
+        marginHorizontal: Spacing.medium,
+        shadowColor: theme.colors.shadow,
+        shadowOffset: { width: 0, height: 1 },
+        shadowOpacity: 0.22,
+        shadowRadius: 2.22,
+        elevation: 3,
+        borderColor: theme.colors.border,
+        borderWidth: 1, // Add explicit border
+    },
     addSection: {
-        backgroundColor: 'white',
+        backgroundColor: theme.colors.card,
+        borderColor: theme.colors.border,
+        borderBottomWidth: 1,
     },
     sectionTitle: {
         fontSize: Typography.h3.fontSize,
         fontWeight: Typography.bold.fontWeight,
         marginBottom: Spacing.small,
+        color: theme.colors.textPrimary,
     },
     listHeader: {
         fontSize: Typography.h3.fontSize,
@@ -274,8 +296,14 @@ const styles = StyleSheet.create({
         marginBottom: Spacing.small,
         paddingHorizontal: Spacing.large,
         paddingTop: Spacing.large,
+        color: theme.colors.textPrimary,
     },
-    label: { fontSize: Typography.body.fontSize, fontWeight: Typography.semiBold.fontWeight, marginVertical: Spacing.small },
+    label: {
+        fontSize: Typography.body.fontSize,
+        fontWeight: Typography.semiBold.fontWeight,
+        marginVertical: Spacing.small,
+        color: theme.colors.textPrimary,
+    },
     categoryContainer: { flexDirection: 'row', paddingVertical: Spacing.xSmall, marginBottom: Spacing.small },
     categoryButton: {
         paddingVertical: Spacing.xSmall,
@@ -288,20 +316,33 @@ const styles = StyleSheet.create({
         opacity: 1,
         transform: [{ scale: 1.05 }],
         elevation: 2,
-        shadowColor: Colors.shadow,
+        shadowColor: theme.colors.shadow,
         shadowOffset: { width: 0, height: 1 },
         shadowOpacity: 0.22,
         shadowRadius: 2.22,
     },
     categoryText: { color: 'white', fontWeight: Typography.bold.fontWeight },
+    addButton: {
+        ...GlobalStyles.button,
+        marginTop: Spacing.small,
+        backgroundColor: theme.colors.primary,
+    },
     cancelButton: { marginTop: Spacing.small, padding: Spacing.small },
-    cancelButtonText: { color: Colors.danger, textAlign: 'center', fontSize: Typography.body.fontSize },
-    templateItem: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', padding: Spacing.large, borderBottomWidth: 1, borderColor: Colors.border },
-    templateName: { fontSize: Typography.body.fontSize, fontWeight: Typography.semiBold.fontWeight },
-    templateDifficulty: { fontSize: Typography.small.fontSize },
+    cancelButtonText: { color: theme.colors.danger, textAlign: 'center', fontSize: Typography.body.fontSize },
+    templateItem: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        padding: Spacing.large,
+        borderBottomWidth: 1,
+        borderColor: theme.colors.border,
+        backgroundColor: theme.colors.card,
+    },
+    templateName: { fontSize: Typography.body.fontSize, fontWeight: Typography.semiBold.fontWeight, color: theme.colors.textPrimary },
+    templateDifficulty: { fontSize: Typography.small.fontSize, color: theme.colors.textSecondary },
     categoryTag: { paddingHorizontal: Spacing.small, paddingVertical: 3, borderRadius: 10 },
     categoryTagText: { color: 'white', fontSize: Typography.small.fontSize, fontWeight: Typography.bold.fontWeight },
-    emptyText: { textAlign: 'center', marginTop: Spacing.xLarge, fontSize: Typography.body.fontSize, color: Colors.textSecondary },
+    emptyText: { textAlign: 'center', marginTop: Spacing.xLarge, fontSize: Typography.body.fontSize, color: theme.colors.textSecondary },
 });
 
 export default ChoreTemplatesScreen;

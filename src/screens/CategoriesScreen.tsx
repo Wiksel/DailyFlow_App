@@ -1,5 +1,5 @@
 // src/screens/CategoriesScreen.tsx
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 // Dodano import ScrollView
 import { View, Text, StyleSheet, FlatList, TextInput, TouchableOpacity, ActivityIndicator, ScrollView } from 'react-native';
 import LabeledInput from '../components/LabeledInput';
@@ -15,7 +15,7 @@ import { Category } from '../types';
 import { useToast } from '../contexts/ToastContext';
 import ActionModal from '../components/ActionModal';
 import { Colors, Spacing, Typography, GlobalStyles, isColorLight, densityScale } from '../styles/AppStyles';
-import { useTheme } from '../contexts/ThemeContext';
+import { useTheme, Theme } from '../contexts/ThemeContext';
 import { useUI } from '../contexts/UIContext';
 import AppHeader from '../components/AppHeader';
 
@@ -28,6 +28,7 @@ const COLORS = [
 const CategoriesScreen = () => {
     const { categories, loading } = useCategories();
     const theme = useTheme();
+    const styles = useMemo(() => createStyles(theme), [theme]);
     const { density } = useUI();
     const isCompact = density === 'compact';
     const [newCategoryName, setNewCategoryName] = useState('');
@@ -93,11 +94,10 @@ const CategoriesScreen = () => {
     const renderCategory = ({ item }: { item: Category }) => (
         <View style={[
             styles.categoryItem,
-            { backgroundColor: theme.colors.card, borderColor: theme.colors.border },
             isCompact && { paddingVertical: Spacing.small, paddingHorizontal: Spacing.medium }
         ]}>
             <View style={[styles.colorDot, { backgroundColor: item.color }]} />
-            <Text style={[styles.categoryName, { color: theme.colors.textPrimary }, isCompact && { fontSize: densityScale(Typography.body.fontSize, true) }]}>{item.name}</Text>
+            <Text style={[styles.categoryName, isCompact && { fontSize: densityScale(Typography.body.fontSize, true) }]}>{item.name}</Text>
             <AnimatedIconButton icon="edit-2" size={22} color={theme.colors.primary} onPress={() => startEditing(item)} style={{ marginHorizontal: Spacing.medium }} accessibilityLabel={`Edytuj kategorię ${item.name}`} />
             <AnimatedIconButton icon="trash-2" size={22} color={theme.colors.danger} onPress={() => handleDeleteCategory(item)} accessibilityLabel={`Usuń kategorię ${item.name}`} />
         </View>
@@ -111,9 +111,9 @@ const CategoriesScreen = () => {
         );
     }
     return (
-        <View style={[GlobalStyles.container, { backgroundColor: theme.colors.background }]}>
+        <View style={styles.container}>
             <AppHeader title="Kategorie" />
-            <View style={[styles.addSection, { backgroundColor: theme.colors.card, borderColor: theme.colors.border, borderRadius: 12, marginHorizontal: Spacing.medium }]}>
+            <View style={styles.addSection}>
                 <Text style={styles.sectionTitle}>{editingCategory ? 'Edytuj kategorię' : 'Dodaj nową kategorię'}</Text>
                 <LabeledInput
                     label="Nazwa kategorii"
@@ -121,7 +121,7 @@ const CategoriesScreen = () => {
                     onChangeText={setNewCategoryName}
                     editable={!isSubmitting}
                 />
-                <Text style={[styles.label, { color: theme.colors.textPrimary }]} accessibilityRole="header">Wybierz kolor</Text>
+                <Text style={styles.label} accessibilityRole="header">Wybierz kolor</Text>
                 {/* Zmieniono View na ScrollView */}
                 <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.colorContainer}>
                     {COLORS.map(color => (
@@ -153,8 +153,8 @@ const CategoriesScreen = () => {
                     </Animated.View>
                 )}
                 keyExtractor={item => item.id}
-                ListHeaderComponent={<Text style={[styles.listHeader, { color: theme.colors.textPrimary, marginTop: Spacing.medium }]}>Twoje kategorie</Text>}
-                ListEmptyComponent={<Text style={[styles.emptyText, { color: theme.colors.textSecondary }]}>Brak własnych kategorii.</Text>}
+                ListHeaderComponent={<Text style={[styles.listHeader, { marginTop: Spacing.medium }]}>Twoje kategorie</Text>}
+                ListEmptyComponent={<Text style={styles.emptyText}>Brak własnych kategorii.</Text>}
                 contentContainerStyle={{ paddingBottom: Spacing.xLarge * 2 }}
             />
             {confirmDeleteCategory && (
@@ -206,19 +206,25 @@ const CategoriesScreen = () => {
 };
 
 // Styles
-const styles = StyleSheet.create({
+const createStyles = (theme: Theme) => StyleSheet.create({
+    container: {
+        ...GlobalStyles.container,
+        backgroundColor: theme.colors.background,
+    },
     // Usunięto 'container' stąd, bo jest w GlobalStyles.container
     addSection: {
         padding: Spacing.large,
-        backgroundColor: 'transparent',
+        backgroundColor: theme.colors.card,
         borderBottomWidth: 1,
-        borderColor: Colors.border,
+        borderColor: theme.colors.border,
+        borderRadius: 12, // From inline override
+        marginHorizontal: Spacing.medium, // From inline override
     },
     sectionTitle: {
         fontSize: Typography.h3.fontSize,
         fontWeight: Typography.bold.fontWeight, // <-- Zmiana tutaj
         marginBottom: Spacing.small,
-        color: Colors.textPrimary,
+        color: theme.colors.textPrimary,
     },
     listHeader: {
         fontSize: Typography.h3.fontSize,
@@ -226,15 +232,20 @@ const styles = StyleSheet.create({
         marginBottom: Spacing.small,
         paddingHorizontal: Spacing.large,
         paddingTop: Spacing.large,
+        color: theme.colors.textPrimary,
     },
     input: {
         ...GlobalStyles.input,
         marginBottom: Spacing.small,
+        backgroundColor: theme.colors.inputBackground,
+        borderColor: theme.colors.border,
+        color: theme.colors.textPrimary,
     },
     label: {
         fontSize: Typography.body.fontSize,
         fontWeight: Typography.semiBold.fontWeight, // <-- Zmiana tutaj
         marginVertical: Spacing.small,
+        color: theme.colors.textPrimary,
     },
     colorContainer: {
         flexDirection: 'row',
@@ -252,11 +263,11 @@ const styles = StyleSheet.create({
         borderColor: 'transparent',
     },
     colorSelected: {
-        borderColor: Colors.primary,
+        borderColor: theme.colors.primary,
     },
     addButton: {
         ...GlobalStyles.button,
-        backgroundColor: Colors.primary,
+        backgroundColor: theme.colors.primary,
     },
     addButtonText: {
         ...GlobalStyles.buttonText,
@@ -266,7 +277,7 @@ const styles = StyleSheet.create({
         padding: Spacing.small,
     },
     cancelButtonText: {
-        color: Colors.danger,
+        color: theme.colors.danger,
         textAlign: 'center',
         fontSize: Typography.body.fontSize,
     },
@@ -274,9 +285,9 @@ const styles = StyleSheet.create({
         flexDirection: 'row',
         alignItems: 'center',
         padding: Spacing.large,
-        backgroundColor: 'transparent',
+        backgroundColor: theme.colors.card,
         borderBottomWidth: 1,
-        borderColor: Colors.border,
+        borderColor: theme.colors.border,
     },
     colorDot: {
         width: 15,
@@ -288,12 +299,13 @@ const styles = StyleSheet.create({
         fontSize: Typography.body.fontSize,
         fontWeight: Typography.semiBold.fontWeight, // <-- Zmiana tutaj
         flex: 1,
+        color: theme.colors.textPrimary,
     },
     emptyText: {
         textAlign: 'center',
         marginTop: Spacing.xLarge,
         fontSize: Typography.body.fontSize,
-        color: Colors.textSecondary,
+        color: theme.colors.textSecondary,
     },
 });
 

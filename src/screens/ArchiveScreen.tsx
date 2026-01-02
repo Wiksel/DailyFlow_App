@@ -25,6 +25,7 @@ import FilterPresets from '../components/FilterPresets';
 import SearchBar from '../components/SearchBar'; // <-- Import SearchBar
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { toCsv, fromCsv } from '../utils/csv';
+import { safeToIsoString, safeToDate } from '../utils/dateUtils';
 import Animated, { FadeInUp, Layout, useSharedValue, useAnimatedStyle, withSpring } from 'react-native-reanimated';
 import AnimatedIconButton from '../components/AnimatedIconButton';
 import { useUI } from '../contexts/UIContext';
@@ -83,7 +84,7 @@ const ArchivedTaskItem = React.memo(({
                 </View>
                 {item.completedBy && item.completedAt && (
                     <Text style={[styles.completedText, { color: theme.colors.textSecondary }]}>
-                        Wykonane przez: {item.completedBy} dnia {item.completedAt?.toDate ? item.completedAt.toDate().toLocaleDateString('pl-PL') : ''}
+                        Wykonane przez: {item.completedBy} dnia {safeToDate(item.completedAt)?.toLocaleDateString('pl-PL') || ''}
                     </Text>
                 )}
             </View>
@@ -273,7 +274,7 @@ const ArchiveScreen = () => {
                 if (!matchesSearch) return false;
             }
 
-            const taskCompletedAt = task.completedAt?.toDate();
+            const taskCompletedAt = safeToDate(task.completedAt);
             if (taskCompletedAt) {
                 if (filterCompletedFromDate) {
                     const fromTime = new Date(filterCompletedFromDate);
@@ -357,9 +358,9 @@ const ArchiveScreen = () => {
                                 isShared: t.isShared ? 'tak' : 'nie',
                                 creatorNickname: t.creatorNickname,
                                 completedBy: t.completedBy || '',
-                                createdAt: t.createdAt?.toDate().toISOString() || '',
-                                completedAt: t.completedAt?.toDate().toISOString() || '',
-                                deadline: t.deadline?.toDate().toISOString() || '',
+                                createdAt: safeToIsoString(t.createdAt) || '',
+                                completedAt: safeToIsoString(t.completedAt) || '',
+                                deadline: safeToIsoString(t.deadline) || '',
                             }));
                             const csv = toCsv(rows);
                             const dir = (FileSystem as any).cacheDirectory || (FileSystem as any).documentDirectory || (FileSystem as any).cacheDirectory!;

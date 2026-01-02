@@ -4,6 +4,7 @@ import { getAuth } from '../utils/authCompat';
 import { collection, query, where, onSnapshot, Timestamp, db } from '../utils/firestoreCompat';
 import { Task, UserProfile } from '../types';
 import { scheduleTaskNotifications } from '../utils/notifications';
+import { safeToIsoString } from '../utils/dateUtils';
 
 const CACHED_TASKS_KEY = 'dailyflow_cached_tasks';
 
@@ -80,9 +81,9 @@ export const useTasks = (
             try {
                 const serializableTasks = tasksData.map((t: Task) => ({
                     ...t,
-                    createdAt: t.createdAt?.toDate().toISOString(),
-                    deadline: t.deadline?.toDate().toISOString(),
-                    completedAt: t.completedAt?.toDate().toISOString(),
+                    createdAt: safeToIsoString(t.createdAt),
+                    deadline: safeToIsoString(t.deadline),
+                    completedAt: safeToIsoString(t.completedAt),
                 }));
                 await AsyncStorage.setItem(`${CACHED_TASKS_KEY}_${currentUser?.uid}`, JSON.stringify(serializableTasks));
             } catch (e) {

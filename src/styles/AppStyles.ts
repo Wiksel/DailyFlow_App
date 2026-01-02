@@ -31,11 +31,13 @@ export const Colors = {
 };
 
 export const Typography = {
-    h1: { fontSize: 28, fontWeight: '700' as '700' }, // Removed rigid color
+    h1: { fontSize: 28, fontWeight: '700' as '700' },
     h2: { fontSize: 22, fontWeight: '700' as '700' },
     h3: { fontSize: 18, fontWeight: '700' as '700' },
     body: { fontSize: 16 },
     small: { fontSize: 12 },
+    regular: { fontWeight: '400' as '400' },
+    medium: { fontWeight: '500' as '500' },
     bold: { fontWeight: '700' as '700' },
     semiBold: { fontWeight: '600' as '600' },
 };
