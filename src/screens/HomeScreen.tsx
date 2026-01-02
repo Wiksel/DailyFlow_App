@@ -313,8 +313,8 @@ const HomeScreen = () => {
 
             {todayTasks.length > 0 && (
                 <LinearGradient
-                    colors={theme.colorScheme === 'dark' ? ['#1e3c72', '#2a5298'] : ['#a1c4fd', '#c2e9fb']}
-                    start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }}
+                    colors={theme.colorScheme === 'dark' ? [theme.colors.primary, theme.colors.purple] : [theme.colors.primary, theme.colors.purple]}
+                    start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}
                     style={[GlobalStyles.card, styles.todaySection, { borderWidth: 0, shadowOpacity: theme.colorScheme === 'dark' ? 0.25 : 0.18 }]}
                 >
                     <Text style={[styles.todayTitle, { color: 'white' }]}>Dzisiaj · {todayTasks.length} {pluralizeTasks(todayTasks.length)}</Text>

@@ -12,6 +12,7 @@ interface LabeledInputProps extends Omit<TextInputProps, 'style' | 'value' | 'on
   inputStyle?: TextStyle | TextStyle[];
   labelStyle?: TextStyle | TextStyle[];
   testID?: string;
+  themeAnim?: Animated.SharedValue<number>;
 }
 
 const AnimatedTextInput = Animated.createAnimatedComponent(TextInput);
@@ -27,14 +28,17 @@ const LabeledInput = ({
   placeholder,
   editable = true,
   testID,
+  themeAnim,
   ...props
 }: LabeledInputProps) => {
   const theme = useTheme();
   // We use a shared value to track theme changes for smooth interpolation
   // 0 = light, 1 = dark
-  const themeProgress = useDerivedValue(() => {
+  const internalThemeProgress = useDerivedValue(() => {
     return withTiming(theme.colorScheme === 'dark' ? 1 : 0, { duration: 300 });
   }, [theme.colorScheme]);
+
+  const themeProgress = themeAnim || internalThemeProgress;
 
   const animatedContainerStyle = useAnimatedStyle(() => {
     const borderColor = interpolateColor(

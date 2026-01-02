@@ -11,6 +11,7 @@ interface PasswordInputProps extends Omit<TextInputProps, 'style'> {
   containerStyle?: ViewStyle | ViewStyle[];
   inputStyle?: TextStyle | TextStyle[];
   testID?: string;
+  themeAnim?: Animated.SharedValue<number>;
 }
 
 const AnimatedTextInput = Animated.createAnimatedComponent(TextInput);
@@ -18,13 +19,15 @@ const AnimatedView = Animated.createAnimatedComponent(View);
 // Animated Feather Icon
 const AnimatedFeather = Animated.createAnimatedComponent(Feather);
 
-const PasswordInput = ({ value, onChangeText, containerStyle, inputStyle, placeholder = "Hasło", testID, ...props }: PasswordInputProps) => {
+const PasswordInput = ({ value, onChangeText, containerStyle, inputStyle, placeholder = "Hasło", testID, themeAnim, ...props }: PasswordInputProps) => {
   const [isPasswordVisible, setIsPasswordVisible] = useState(false);
   const theme = useTheme();
 
-  const themeProgress = useDerivedValue(() => {
+  const internalThemeProgress = useDerivedValue(() => {
     return withTiming(theme.colorScheme === 'dark' ? 1 : 0, { duration: 300 });
   }, [theme.colorScheme]);
+
+  const themeProgress = themeAnim || internalThemeProgress;
 
   const animatedContainerStyle = useAnimatedStyle(() => {
     const backgroundColor = interpolateColor(

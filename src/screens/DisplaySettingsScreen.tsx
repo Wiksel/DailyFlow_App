@@ -4,6 +4,7 @@ import { useTheme } from '../contexts/ThemeContext';
 import { useUI } from '../contexts/UIContext';
 import { Colors, GlobalStyles, Spacing, Typography } from '../styles/AppStyles';
 import AppHeader from '../components/AppHeader';
+import * as Haptics from 'expo-haptics';
 
 const DisplaySettingsScreen = () => {
   const theme = useTheme();
@@ -11,14 +12,14 @@ const DisplaySettingsScreen = () => {
   const compact = density === 'compact';
 
   return (
-    <View style={[GlobalStyles.container, { backgroundColor: theme.colors.background }]}> 
+    <View style={[GlobalStyles.container, { backgroundColor: theme.colors.background }]}>
       <AppHeader title="Wyświetlanie" />
-      <View style={[GlobalStyles.section, { backgroundColor: theme.colors.card }]}> 
+      <View style={[GlobalStyles.section, { backgroundColor: theme.colors.card }]}>
         <Text style={[styles.title, { color: theme.colors.textPrimary }]}>Ustawienia wyświetlania</Text>
         <Text style={[styles.label, { color: theme.colors.textPrimary }]}>Motyw</Text>
         <View style={styles.row}>
-          {(['system','light','dark'] as const).map(m => (
-            <TouchableOpacity key={m} style={[styles.chip, theme.mode === m && { backgroundColor: theme.colors.primary }]} onPress={async () => { try { const h = await import('expo-haptics'); await h.selectionAsync(); } catch {}; theme.setMode(m); }}>
+          {(['system', 'light', 'dark'] as const).map(m => (
+            <TouchableOpacity key={m} style={[styles.chip, theme.mode === m && { backgroundColor: theme.colors.primary }]} onPress={async () => { try { await Haptics.selectionAsync(); } catch { }; theme.setMode(m); }}>
               <Text style={[styles.chipText, theme.mode === m && { color: 'white' }]}>
                 {m === 'system' ? 'Systemowy' : m === 'light' ? 'Jasny' : 'Ciemny'}
               </Text>
@@ -27,29 +28,31 @@ const DisplaySettingsScreen = () => {
         </View>
         <Text style={[styles.label, { color: theme.colors.textPrimary, marginTop: Spacing.medium }]}>Motyw akcentu</Text>
         <View style={styles.row}>
-          {(['blue','purple','mint','orange'] as const).map(a => (
-            <TouchableOpacity key={a} style={[styles.chip, { backgroundColor: theme.accent === a ? theme.colors.primary : theme.colors.inputBackground }]} onPress={async () => { try { const h = await import('expo-haptics'); await h.selectionAsync(); } catch {}; theme.setAccent(a); }}>
-              <Text style={[styles.chipText, { color: theme.accent === a ? 'white' : theme.colors.textPrimary }]}>
-                {a === 'blue' ? 'Niebieski' : a === 'purple' ? 'Fiolet' : a === 'mint' ? 'Mięta' : 'Pomarańcz'}
-              </Text>
-            </TouchableOpacity>
-          ))}
+          <View style={styles.row}>
+            {(['rose', 'blue', 'purple', 'mint', 'orange'] as const).map(a => (
+              <TouchableOpacity key={a} style={[styles.chip, { backgroundColor: theme.accent === a ? theme.colors.primary : theme.colors.inputBackground }]} onPress={async () => { try { await Haptics.selectionAsync(); } catch { }; theme.setAccent(a); }}>
+                <Text style={[styles.chipText, { color: theme.accent === a ? 'white' : theme.colors.textPrimary }]}>
+                  {a === 'rose' ? 'Róż' : a === 'blue' ? 'Niebieski' : a === 'purple' ? 'Fiolet' : a === 'mint' ? 'Mięta' : 'Pomarańcz'}
+                </Text>
+              </TouchableOpacity>
+            ))}
+          </View>
         </View>
 
         <Text style={[styles.label, { color: theme.colors.textPrimary, marginTop: Spacing.medium }]}>Język</Text>
         <View style={styles.row}>
-          {['pl','en'].map(lng => (
-            <TouchableOpacity key={lng} style={[styles.chip, { backgroundColor: theme.colors.inputBackground }]} onPress={async () => { try { const h = await import('expo-haptics'); await h.selectionAsync(); } catch {} }}>
+          {['pl', 'en'].map(lng => (
+            <TouchableOpacity key={lng} style={[styles.chip, { backgroundColor: theme.colors.inputBackground }]} onPress={async () => { try { await Haptics.selectionAsync(); } catch { } }}>
               <Text style={[styles.chipText, { color: theme.colors.textPrimary }]}>{lng === 'pl' ? 'Polski' : 'English'}</Text>
             </TouchableOpacity>
           ))}
         </View>
         <Text style={[styles.label, { color: theme.colors.textPrimary, marginTop: Spacing.medium }]}>Gęstość interfejsu</Text>
         <View style={styles.row}>
-          {['standard','compact'].map(mode => (
-            <TouchableOpacity key={mode} style={[styles.chip, { backgroundColor: (density===mode) ? theme.colors.primary : theme.colors.inputBackground }]} onPress={async () => { try { const h = await import('expo-haptics'); await h.selectionAsync(); } catch {}; setDensity(mode as any); }}>
-              <Text style={[styles.chipText, { color: (density===mode) ? 'white' : theme.colors.textPrimary }]}>
-                {mode==='compact' ? 'Kompaktowy' : 'Standardowy'}
+          {['standard', 'compact'].map(mode => (
+            <TouchableOpacity key={mode} style={[styles.chip, { backgroundColor: (density === mode) ? theme.colors.primary : theme.colors.inputBackground }]} onPress={async () => { try { await Haptics.selectionAsync(); } catch { }; setDensity(mode as any); }}>
+              <Text style={[styles.chipText, { color: (density === mode) ? 'white' : theme.colors.textPrimary }]}>
+                {mode === 'compact' ? 'Kompaktowy' : 'Standardowy'}
               </Text>
             </TouchableOpacity>
           ))}
@@ -58,8 +61,8 @@ const DisplaySettingsScreen = () => {
         <Text style={[styles.label, { color: theme.colors.textPrimary, marginTop: Spacing.medium }]}>Tryb skupienia (Focus Mode)</Text>
         <View style={styles.row}>
           {[true, false].map(v => (
-            <TouchableOpacity key={String(v)} style={[styles.chip, { backgroundColor: (focusModeEnabled===v) ? theme.colors.primary : theme.colors.inputBackground }]} onPress={async () => { try { const h = await import('expo-haptics'); await h.selectionAsync(); } catch {}; setFocusModeEnabled(v); }}>
-              <Text style={[styles.chipText, { color: (focusModeEnabled===v) ? 'white' : theme.colors.textPrimary }]}>
+            <TouchableOpacity key={String(v)} style={[styles.chip, { backgroundColor: (focusModeEnabled === v) ? theme.colors.primary : theme.colors.inputBackground }]} onPress={async () => { try { await Haptics.selectionAsync(); } catch { }; setFocusModeEnabled(v); }}>
+              <Text style={[styles.chipText, { color: (focusModeEnabled === v) ? 'white' : theme.colors.textPrimary }]}>
                 {v ? 'Włączony' : 'Wyłączony'}
               </Text>
             </TouchableOpacity>
@@ -67,9 +70,9 @@ const DisplaySettingsScreen = () => {
         </View>
       </View>
 
-      <View style={[GlobalStyles.section, { backgroundColor: theme.colors.card, marginTop: Spacing.medium }]}> 
+      <View style={[GlobalStyles.section, { backgroundColor: theme.colors.card, marginTop: Spacing.medium }]}>
         <Text style={[styles.title, { color: theme.colors.textPrimary }]}>Podgląd</Text>
-        <View style={[styles.previewCard, { borderColor: theme.colors.border, backgroundColor: theme.colors.inputBackground }]}> 
+        <View style={[styles.previewCard, { borderColor: theme.colors.border, backgroundColor: theme.colors.inputBackground }]}>
           <Text style={[styles.previewTitle, { color: theme.colors.textPrimary }]}>Nagłówek</Text>
           <View style={styles.previewRow}>
             <View style={[styles.previewBadge, { backgroundColor: theme.colors.primary }]} />

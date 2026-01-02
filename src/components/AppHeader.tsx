@@ -9,7 +9,7 @@ import { Feather } from '@expo/vector-icons';
 
 interface AppHeaderProps {
   title: string;
-  rightActions?: Array<{ icon: keyof typeof Feather.glyphMap; onPress: () => void; accessibilityLabel?: string }>; 
+  rightActions?: Array<{ icon: keyof typeof Feather.glyphMap; onPress: () => void; accessibilityLabel?: string }>;
   avatarUrl?: string | null;
   onAvatarPress?: () => void;
   leftAction?: { icon: keyof typeof Feather.glyphMap; onPress: () => void; accessibilityLabel?: string } | null;
@@ -23,12 +23,14 @@ const AppHeader: React.FC<AppHeaderProps> = ({ title, rightActions = [], avatarU
     purple: ['#a18cd1', '#fbc2eb'],
     mint: ['#a8edea', '#fed6e3'],
     orange: ['#f6d365', '#fda085'],
+    rose: ['#C77D98', '#E8B8C6'],
   };
   const gradientByAccentDark: Record<string, [string, string]> = {
     blue: ['#0f2027', '#203a43'],
     purple: ['#41295a', '#2F0743'],
     mint: ['#0f2027', '#2c5364'],
     orange: ['#1f1c2c', '#928DAB'],
+    rose: ['#3E1F2B', '#C77D98'],
   };
   const gradientColors = (theme.colorScheme === 'dark' ? gradientByAccentDark : gradientByAccentLight)[theme.accent];
 
@@ -61,7 +63,7 @@ const AppHeader: React.FC<AppHeaderProps> = ({ title, rightActions = [], avatarU
         <View style={styles.actionsRow}>
           {isOffline && (
             <View style={{ paddingHorizontal: 10, paddingVertical: 4, borderRadius: 12, backgroundColor: 'rgba(0,0,0,0.25)', marginRight: Spacing.small }} accessibilityLabel="Tryb offline">
-              <Text style={{ color: 'white', fontWeight: '700', fontSize: 12 }}>Offline{pendingOpsCount>0?` · ${pendingOpsCount}`:''}</Text>
+              <Text style={{ color: 'white', fontWeight: '700', fontSize: 12 }}>Offline{pendingOpsCount > 0 ? ` · ${pendingOpsCount}` : ''}</Text>
             </View>
           )}
           {rightActions.map((action, idx) => (

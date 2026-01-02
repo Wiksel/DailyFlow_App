@@ -25,58 +25,41 @@ import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { doc, getDoc, collection, query, where, getDocs, limit } from '../utils/firestoreCompat';
 import { db } from '../utils/firestoreCompat';
 
-import Animated, { useSharedValue, useAnimatedStyle, withSpring, withTiming, interpolateColor, interpolate, useAnimatedReaction, runOnJS, useDerivedValue, useAnimatedProps } from 'react-native-reanimated';
+import Animated, { useSharedValue, useAnimatedStyle, withSpring, withTiming, interpolateColor, interpolate, useAnimatedReaction, runOnJS, useDerivedValue, useAnimatedProps, withRepeat, withSequence, Easing, withDelay, cancelAnimation, useFrameCallback } from 'react-native-reanimated';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 
 type LoginNavigationProp = NativeStackNavigationProp<AuthStackParamList, 'Login'>;
 
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT_FIXED } = Dimensions.get('window'); // Capture constant height
 const FORM_CONTAINER_WIDTH = SCREEN_WIDTH - 2 * Spacing.xLarge;
-const LOGO_DIAMETER = 260; // jeszcze odrobinę mniejszy okrąg
+
+const LOGO_WIDTH = SCREEN_WIDTH * 0.85; // Wider area
+const LOGO_HEIGHT = 310; // Fixed height
+const R_X = LOGO_WIDTH / 2;
+const R_Y = LOGO_HEIGHT / 2;
+
+const SPHERE_WOBBLE_X = 55;
+const SPHERE_WOBBLE_Y = 25;
+
 const SPRING_CONFIG = { damping: 20, stiffness: 150, mass: 1 };
-let cachedSphereConfigs: any[] | null = null; // Cache globally to prevent shift on logout
-let cachedTopPadding = 0; // Cache top padding to prevent layout shift on logout
+let cachedSphereConfigs: any[] | null = null;
+let cachedTopPadding = 0;
 
-// Palettes for spheres
-// Palettes for spheres - Reduced opacity for softer look
-
-
+// Palettes for spheres - Refined for "Premium" aesthetic
 const lightSphereColors = [
-    'rgba(199, 125, 152, 0.6)',  // Pastel Rose (Stronger)
-    '#C77D98',                   // Explicit Accent (Solid)
-    'rgba(216, 167, 177, 0.6)',  // Pale Pink
-    'rgba(227, 99, 139, 0.5)',   // Rose Red
-    'rgba(214, 51, 132, 0.5)',   // Fuchsia-ish
-    'rgba(199, 125, 152, 0.5)',  // Pastel Rose
-    '#C77D98',                   // Explicit Accent
-    'rgba(230, 180, 190, 0.5)',  // Pale Pink
-    'rgba(219, 112, 147, 0.5)',  // PaleVioletRed
-    'rgba(199, 125, 152, 0.6)',
-    '#C77D98',
-    'rgba(216, 167, 177, 0.6)',
-    'rgba(227, 99, 139, 0.5)',
-    'rgba(214, 51, 132, 0.5)',
-    'rgba(199, 125, 152, 0.5)',
-    '#C77D98',
+    'rgba(199, 125, 152, 0.75)',  // Accent - Primary (Stronger for color visibility)
+    'rgba(199, 125, 152, 0.65)',  // Pastel Rose 
+    'rgba(219, 112, 147, 0.55)',  // Clear PaleVioletRed
+    'rgba(255, 182, 193, 0.70)',  // Light Pink (Cleaner)
+    'rgba(199, 125, 152, 0.60)',  // Accent repeat
 ];
 
 const darkSphereColors = [
-    'rgba(227, 242, 253, 0.4)', // Very Light Blue (Increased opacity)
-    'rgba(187, 222, 251, 0.4)', // Blue 100
-    'rgba(144, 202, 249, 0.4)', // Blue 200
-    'rgba(100, 181, 246, 0.4)', // Blue 300
-    'rgba(66, 165, 245, 0.4)',  // Blue 400
-    'rgba(33, 150, 243, 0.4)',  // Blue 500
-    'rgba(30, 136, 229, 0.4)',  // Blue 600
-    'rgba(25, 118, 210, 0.4)',  // Blue 700
-    'rgba(21, 101, 192, 0.4)',  // Blue 800
-    'rgba(13, 71, 161, 0.4)',   // Blue 900
-    'rgba(130, 177, 255, 0.4)', // Blue A100
-    'rgba(68, 138, 255, 0.4)',  // Blue A200
-    'rgba(41, 121, 255, 0.4)',  // Blue A400
-    'rgba(41, 98, 255, 0.4)',   // Blue A700
-    'rgba(84, 110, 122, 0.4)',  // Blue Grey
-    'rgba(120, 144, 156, 0.4)'  // Blue Grey Light
+    'rgba(33, 150, 243, 0.3)',   // Blue 500
+    'rgba(25, 118, 210, 0.3)',   // Blue 700
+    'rgba(66, 165, 245, 0.2)',   // Blue 400
+    'rgba(13, 71, 161, 0.3)',    // Blue 900
+    'rgba(100, 181, 246, 0.2)',  // Blue 300
 ];
 
 const LIGHT_MODE_ACCENT = '#C77D98'; // Pastel Rose - Muted Pink/Purple
@@ -86,9 +69,29 @@ const AnimatedTouchableOpacity = Animated.createAnimatedComponent(TouchableOpaci
 const AnimatedView = Animated.createAnimatedComponent(View);
 const AnimatedText = Animated.createAnimatedComponent(Text);
 
-// New Animated Sphere Component
-const AnimatedSphere = React.memo(({ config, themeAnim }: { config: any, themeAnim: Animated.SharedValue<number> }) => {
-    const style = useAnimatedStyle(() => {
+// Individual Animated Sphere - Fully localized physics for maximum variety
+const Sphere = React.memo(({ config, themeAnim, globalClock, index }: { config: any, themeAnim: Animated.SharedValue<number>, globalClock: Animated.SharedValue<number>, index: number }) => {
+
+    // Optimization: Split style into Position (runs every frame) and Color (runs rarely)
+    const animatedPos = useAnimatedStyle(() => {
+        const t = globalClock.value;
+        const { speed, phaseX, phaseY } = config;
+
+        const primaryTermX = (index % 2 === 0) ? Math.sin(t * speed + phaseX) : Math.cos(t * speed + phaseX);
+        const primaryTermY = (index % 3 === 0) ? Math.cos(t * speed + phaseY) : Math.sin(t * speed + phaseY);
+
+        const chaosTermX = Math.sin(t * 0.5 * speed + index);
+        const chaosTermY = Math.cos(t * 0.3 * speed + index * 2);
+
+        const tx = primaryTermX * SPHERE_WOBBLE_X + chaosTermX * 10;
+        const ty = primaryTermY * SPHERE_WOBBLE_Y + chaosTermY * 10;
+
+        return {
+            transform: [{ translateX: tx }, { translateY: ty }]
+        };
+    });
+
+    const animatedColor = useAnimatedStyle(() => {
         const backgroundColor = interpolateColor(
             themeAnim.value,
             [0, 1],
@@ -107,12 +110,10 @@ const AnimatedSphere = React.memo(({ config, themeAnim }: { config: any, themeAn
             width: config.size,
             height: config.size,
             borderRadius: config.size / 2
-        }, style]}>
+        }, animatedPos, animatedColor]}>
             <LinearGradient
                 pointerEvents="none"
-                // We can't easily animate LinearGradient colors natively without a wrapper or props logic, 
-                // but we can animate opacity of two overlays if needed. For now, static gradient is subtle enough.
-                // Or we can use `AnimatedLinearGradient`. Let's stick to simple transparency for performance.
+                // Static gradient overlay
                 colors={['rgba(255,255,255,0.3)', 'rgba(255,255,255,0)']}
                 start={{ x: 0.2, y: 0.2 }}
                 end={{ x: 0.8, y: 0.8 }}
@@ -161,6 +162,7 @@ const LoginForm = React.memo(({ identifier, setIdentifier, loginPassword, setLog
                     autoCapitalize="none"
                     editable={!isLoading}
                     onFocus={() => { focusedOffset.value = -165; }}
+                    themeAnim={themeAnim}
                 />
             </View>
             <View style={styles.inputWrapper}>
@@ -171,6 +173,7 @@ const LoginForm = React.memo(({ identifier, setIdentifier, loginPassword, setLog
                     onChangeText={setLoginPassword}
                     editable={!isLoading}
                     onFocus={() => { focusedOffset.value = -165; }}
+                    themeAnim={themeAnim}
                 />
             </View>
             <TouchableOpacity
@@ -238,6 +241,7 @@ const RegisterForm = React.memo(({ registerData, handleRegisterDataChange, email
                     onChangeText={(val: string) => handleRegisterDataChange('nickname', val)}
                     editable={!isLoading}
                     onFocus={() => { focusedOffset.value = -165; }}
+                    themeAnim={themeAnim}
                 />
             </View>
             <View style={styles.inputWrapper}>
@@ -252,6 +256,7 @@ const RegisterForm = React.memo(({ registerData, handleRegisterDataChange, email
                     inputStyle={emailError ? styles.inputError : undefined}
                     placeholder="Adres e-mail"
                     onFocus={() => { focusedOffset.value = -165; }}
+                    themeAnim={themeAnim}
                 />
                 {!!emailError && <Text style={styles.errorText}>{emailError}</Text>}
             </View>
@@ -265,6 +270,7 @@ const RegisterForm = React.memo(({ registerData, handleRegisterDataChange, email
                     onBlur={() => validatePassword(registerData.password)}
                     containerStyle={passwordError ? (styles.inputError as any) : undefined}
                     onFocus={() => { focusedOffset.value = -165; }}
+                    themeAnim={themeAnim}
                 />
                 {!!passwordError && <Text style={styles.errorText}>{passwordError}</Text>}
             </View>
@@ -348,16 +354,58 @@ const LoginScreen = () => {
     // Removed currentTab state to improve performance (using shared values instead)
     const [dynamicTopPadding, setDynamicTopPadding] = useState(cachedTopPadding);
     const [topLocked, setTopLocked] = useState(!!cachedTopPadding);
-    const [logoDiameterState, setLogoDiameterState] = useState(LOGO_DIAMETER);
+    const [logoWidth, setLogoWidth] = useState(LOGO_WIDTH);
+    const [logoHeight, setLogoHeight] = useState(LOGO_HEIGHT);
 
-    // Theme Transition Logic
-    const themeAnim = useDerivedValue(() => {
-        return withTiming(theme.colorScheme === 'dark' ? 1 : 0, { duration: 300 });
+    // Single shared clock for ALL particles - drastic performance improvement
+    const globalClock = useSharedValue(0);
+
+    const [isPaused, setIsPaused] = useState(true);
+
+    // Optimizaton: Driver moved to UI thread via useFrameCallback
+    // This removes JS thread bottleneck and prevents lags
+    useFrameCallback((frameInfo) => {
+        if (!isPaused && frameInfo.timeSincePreviousFrame) {
+            const safeDelta = Math.min(frameInfo.timeSincePreviousFrame, 100);
+            globalClock.value += (safeDelta / 1000) * 0.05;
+        }
+    });
+
+    // Cleaned up old manual RAF refs/effects
+
+    const togglePause = () => {
+        if (isPaused) {
+            setIsPaused(false);
+            // Effect will re-trigger and start animation
+        } else {
+            setIsPaused(true);
+            // frameCallback activity is handled by useEffect
+        }
+    };
+
+    // Theme Transition Logic - Optimized for Memoization stability
+    const [displayMode, setDisplayMode] = useState(theme.colorScheme); // Local state for immediate icon switch
+    const themeAnim = useSharedValue(theme.colorScheme === 'dark' ? 1 : 0);
+
+    // Sync local state if theme changes externally (e.g. system)
+    useEffect(() => {
+        if (theme.colorScheme !== displayMode) {
+            setDisplayMode(theme.colorScheme);
+        }
+    }, [theme.colorScheme]);
+
+    useEffect(() => {
+        themeAnim.value = withTiming(theme.colorScheme === 'dark' ? 1 : 0, { duration: 300 });
     }, [theme.colorScheme]);
 
     const animatedMainBg = useAnimatedStyle(() => ({
         backgroundColor: interpolateColor(themeAnim.value, [0, 1], [lightColors.background, darkColors.background])
     }));
+
+    const animatedIconStyle = useAnimatedStyle(() => ({
+        color: interpolateColor(themeAnim.value, [0, 1], [lightColors.textPrimary, darkColors.textPrimary])
+    }));
+
 
     const headerLightStyle = useAnimatedStyle(() => ({
         opacity: interpolate(themeAnim.value, [0, 1], [1, 0])
@@ -375,11 +423,7 @@ const LoginScreen = () => {
         backgroundColor: interpolateColor(themeAnim.value, [0, 1], ['rgba(0,0,0,0.05)', 'rgba(255,255,255,0.1)'])
     }));
 
-    const animatedSwitcherIconProps = useAnimatedProps(() => {
-        const color = interpolateColor(themeAnim.value, [0, 1], [lightColors.textPrimary, darkColors.textPrimary]);
-        return { color } as any;
-    });
-
+    // Moved outside to prevent re-creation on render
     const AnimatedFeather = Animated.createAnimatedComponent(Feather);
 
 
@@ -389,67 +433,92 @@ const LoginScreen = () => {
 
     // Konfiguracje kulek – niejednorodna gęstość i dopuszczenie częściowych nakładan
     const sphereConfigs = useMemo(() => {
-        const targetCount = 64;
-        const r = logoDiameterState / 2;
+        const targetCount = 64; // Restored to original count
+        // Ellipse dimensions
+        const rX = logoWidth / 2;
+        const rY = logoHeight / 2;
 
         // START CACHING LOGIC
         if (cachedSphereConfigs) return cachedSphereConfigs;
 
-        type Sphere = { top: number; left: number; size: number; colorIndex: number; cx: number; cy: number };
+        type Sphere = { top: number; left: number; size: number; colorIndex: number; cx: number; cy: number; phaseX: number; phaseY: number; speed: number; radius: number };
         const items: Sphere[] = [];
-        const maxAttempts = 12000;
+        const maxAttempts = 15000;
         let attempts = 0;
-        const baseMinGap = 1.5; // może zachodzić
-        // zróżnicowanie gęstości: bias do centrum i do dwóch losowych hotspotów
-        const hotspot1 = { x: r + 0.35 * r, y: r - 0.15 * r };
-        const hotspot2 = { x: r - 0.30 * r, y: r + 0.20 * r };
+        const baseMinGap = 1.0;
+
+        // Define hotspots based on Ellipse
+        const hotspot1 = { x: rX + 0.35 * rX, y: rY - 0.15 * rY };
+        const hotspot2 = { x: rX - 0.30 * rX, y: rY + 0.20 * rY };
+
+        const boundaryPaddingX = SPHERE_WOBBLE_X + 2;
+        const boundaryPaddingY = SPHERE_WOBBLE_Y + 2;
+        const verticalReduction = 10;
 
         while (items.length < targetCount && attempts < maxAttempts) {
             attempts++;
             const size = 9 + Math.random() * 18;
-            // losowanie z biasem: mieszanka jednorodnego i hotspotów
             const mix = Math.random();
             let cx: number, cy: number;
+
+            // Generate within an ellipse
+            // Formula: x = rx * cos(t), y = ry * sin(t)
+            // Area distribution: r = sqrt(random)
+
+            const safeRx = rX - size / 2 - boundaryPaddingX;
+            const safeRy = rY - size / 2 - boundaryPaddingY;
+
             if (mix < 0.35) {
+                // Uniform Ellipse
                 const theta = Math.random() * Math.PI * 2;
-                const rr = Math.sqrt(Math.random()) * (r - size / 2 - 1);
-                cx = r + rr * Math.cos(theta);
-                cy = r + rr * Math.sin(theta);
+                const rr = Math.sqrt(Math.random()); // 0-1
+                cx = rX + (rr * safeRx) * Math.cos(theta);
+                cy = rY + (rr * safeRy) * Math.sin(theta);
             } else if (mix < 0.65) {
                 // hotspot 1
                 const theta = Math.random() * Math.PI * 2;
-                const rr = Math.sqrt(Math.random()) * (0.55 * r);
-                cx = hotspot1.x + rr * Math.cos(theta);
-                cy = hotspot1.y + rr * Math.sin(theta);
+                const rr = Math.sqrt(Math.random()) * 0.55;
+                cx = hotspot1.x + (rr * safeRx) * Math.cos(theta);
+                cy = hotspot1.y + (rr * safeRy) * Math.sin(theta);
             } else {
                 // hotspot 2
                 const theta = Math.random() * Math.PI * 2;
-                const rr = Math.sqrt(Math.random()) * (0.50 * r);
-                cx = hotspot2.x + rr * Math.cos(theta);
-                cy = hotspot2.y + rr * Math.sin(theta);
+                const rr = Math.sqrt(Math.random()) * 0.50;
+                cx = hotspot2.x + (rr * safeRx) * Math.cos(theta);
+                cy = hotspot2.y + (rr * safeRy) * Math.sin(theta);
             }
-            // trzymaj w okręgu
-            const dxc = cx - r, dyc = cy - r;
-            if (dxc * dxc + dyc * dyc > (r - size / 2 - 1) * (r - size / 2 - 1)) continue;
-            // kontrola kolizji: dopuszczamy nakładanie (mniejszy minGap, a nawet ujemny w 15% przypadków)
+
+            // Safety check against Elliptical boundaries
+            // (x-h)^2/rx^2 + (y-k)^2/ry^2 <= 1
+            const dx = cx - rX;
+            const dy = cy - rY;
+
+            const normalizedDist = (dx * dx) / (safeRx * safeRx) + (dy * dy) / (safeRy * safeRy);
+            if (normalizedDist > 1.0) continue;
+
+            // Vertical Restriction
+            if (cy < verticalReduction || cy > (2 * rY - verticalReduction)) continue;
+
             let ok = true;
             for (let i = 0; i < items.length; i++) {
                 const other = items[i];
-                const dx = other.cx - cx;
-                const dy = other.cy - cy;
-                const dist = Math.hypot(dx, dy);
+                const optDx = other.cx - cx;
+                const optDy = other.cy - cy;
+                const dist = Math.hypot(optDx, optDy);
                 const desiredGap = baseMinGap + (Math.random() < 0.15 ? -2 : 0);
                 const minDist = (other.size + size) / 2 + desiredGap;
                 if (dist < minDist) { ok = false; break; }
             }
             if (!ok && Math.random() < 0.35) {
-                // czasem celowo pozwólmy wejść bliżej aby stworzyć skupiska
                 ok = true;
             }
             if (!ok) continue;
 
-            // Random index for color selection later
-            const colorIndex = Math.floor(Math.random() * 16); // We have 16 colors in our palettes
+            const colorIndex = Math.floor(Math.random() * 5);
+            const phaseX = Math.random() * 2 * Math.PI;
+            const phaseY = Math.random() * 2 * Math.PI;
+            const speed = 0.5 + Math.random() * 1.5;
+            const radius = 5 + Math.random() * 6;
 
             items.push({
                 cx,
@@ -458,11 +527,15 @@ const LoginScreen = () => {
                 top: cy - size / 2,
                 size,
                 colorIndex,
+                phaseX,
+                phaseY,
+                speed,
+                radius
             });
         }
         cachedSphereConfigs = items.map(({ cx, cy, ...rest }) => rest);
         return cachedSphereConfigs;
-    }, []); // Removed specific dependency to rely on global cache logic (reset on app reload only)
+    }, []);
 
     const isEmailValidCheck = (email: string) => /\S+@\S+\.\S+/.test(email);
     const isPasswordValidCheck = (password: string) => getPasswordValidationError(password) === null;
@@ -914,6 +987,7 @@ const LoginScreen = () => {
         opacity: interpolate(keyboardProgress.value, [0, 0.5], [1, 0]),
         height: interpolate(keyboardProgress.value, [0, 1], [HEADER_HEIGHT_ESTIMATE, 0]),
         marginBottom: HEADER_MARGIN_BOTTOM,
+        transform: [{ translateY: -20 }], // Shift up visually without affecting form layout
     }));
 
     const animatedThemeSwitcherStyle = useAnimatedStyle(() => ({
@@ -1028,6 +1102,28 @@ const LoginScreen = () => {
                 ]}
             >
                 {/* Theme Switcher Button */}
+                {/* Pause/Play Animation Button - Placed Left */}
+                <AnimatedTouchableOpacity
+                    style={[
+                        styles.themeSwitcher, // Reuse style for consistent look
+                        {
+                            top: Platform.OS === 'ios' ? 65 : 45,
+                            left: 20, // Left side
+                            right: undefined, // Override right
+                        },
+                        animatedThemeSwitcherStyle, // Added to hide on keyboard
+                        animatedSwitcherStyle
+                    ]}
+                    onPress={togglePause}
+                >
+                    {/* Use explicit color interpolation via style to fix flicker */}
+                    <AnimatedFeather
+                        name={isPaused ? 'play' : 'pause'}
+                        size={22}
+                        style={animatedIconStyle}
+                    />
+                </AnimatedTouchableOpacity>
+
                 {/* Theme Switcher Button */}
                 <AnimatedTouchableOpacity
                     style={[
@@ -1042,17 +1138,28 @@ const LoginScreen = () => {
                         const now = Date.now();
                         if (now - (theme as any).lastSwitchTime > 500 || !(theme as any).lastSwitchTime) {
                             (theme as any).lastSwitchTime = now;
-                            theme.setMode(theme.colorScheme === 'dark' ? 'light' : 'dark');
+                            const nextScheme = displayMode === 'dark' ? 'light' : 'dark';
+
+                            // 1. Immediate local updates
+                            setDisplayMode(nextScheme);
+                            themeAnim.value = withTiming(nextScheme === 'dark' ? 1 : 0, { duration: 300 });
+
+                            // 2. Defer heavy React Context update
+                            requestAnimationFrame(() => {
+                                theme.setMode(nextScheme);
+                            });
                         }
                     }}
                 // disabled prop removed to prevent blocking
                 >
                     <AnimatedFeather
-                        name={theme.colorScheme === 'dark' ? 'sun' : 'moon'}
+                        name={displayMode === 'dark' ? 'sun' : 'moon'}
                         size={22}
-                        animatedProps={animatedSwitcherIconProps}
+                        style={animatedIconStyle}
                     />
                 </AnimatedTouchableOpacity>
+
+
 
                 <Animated.View
                     style={[styles.contentContainer, animatedContainerStyle]}
@@ -1060,23 +1167,26 @@ const LoginScreen = () => {
                 >
                     <Animated.View style={[animatedHeaderStyle, { marginTop: 0 }]}>
                         <View style={styles.headerContainer}>
-                            <View style={[styles.logoBackground, { width: logoDiameterState, height: logoDiameterState, marginBottom: Spacing.large }]}>
+                            <View style={[styles.logoBackground, { width: logoWidth, height: logoHeight, marginBottom: Spacing.large }]}>
                                 {/* Spheres Container - Memoized to prevent re-layout */}
                                 <View style={[
                                     styles.logoContainer,
                                     {
-                                        width: logoDiameterState,
-                                        height: logoDiameterState,
-                                        borderRadius: logoDiameterState / 2,
-                                        overflow: 'visible', // Changed to visible as requested to avoid circular crop look, user implies uniform background
-                                        backgroundColor: 'transparent', // Removed hard background
+                                        width: logoWidth,
+                                        height: logoHeight,
+                                        borderRadius: logoHeight / 2, // Pill shape or oval
+                                        overflow: 'visible',
+                                        backgroundColor: 'transparent',
                                     }
                                 ]}>
+                                    {/* Layer Approach: Direct mapping for individual variety */}
                                     {sphereConfigs.map((s, idx) => (
-                                        <AnimatedSphere
+                                        <Sphere
                                             key={idx}
                                             config={s}
                                             themeAnim={themeAnim}
+                                            globalClock={globalClock}
+                                            index={idx}
                                         />
                                     ))}
                                 </View>
@@ -1085,30 +1195,34 @@ const LoginScreen = () => {
                                         {/* Light Mode Title (Base backing) */}
                                         <AnimatedText style={[styles.header, {
                                             fontFamily: 'DancingScript_700Bold' as any,
-                                            fontSize: 68,
+                                            fontSize: 72, // Larger
                                             color: lightColors.textPrimary,
-                                            textShadowColor: 'rgba(255, 255, 255, 0.5)',
-                                            textShadowOffset: { width: 0, height: 1 },
-                                            textShadowRadius: 4,
+                                            textShadowColor: 'rgba(255, 255, 255, 0.6)',
+                                            textShadowOffset: { width: 0, height: 2 },
+                                            textShadowRadius: 6,
                                         }, headerLightStyle]}>Daily Flow</AnimatedText>
 
                                         {/* Dark Mode Title (Overlay) */}
                                         <AnimatedText style={[styles.header, {
                                             fontFamily: 'DancingScript_700Bold' as any,
-                                            fontSize: 68,
+                                            fontSize: 72,
                                             position: 'absolute',
                                             top: 0,
                                             color: darkColors.textPrimary,
-                                            textShadowColor: 'rgba(0, 0, 0, 0.8)',
-                                            textShadowOffset: { width: 0, height: 1 },
-                                            textShadowRadius: 4,
+                                            textShadowColor: 'rgba(0, 0, 0, 0.9)',
+                                            textShadowOffset: { width: 0, height: 2 },
+                                            textShadowRadius: 6,
                                         }, headerDarkStyle]}>Daily Flow</AnimatedText>
 
                                         <AnimatedText style={[styles.subtitle, {
-                                            fontFamily: 'DancingScript_400Regular' as any,
-                                            fontSize: 28,
-                                            marginTop: -5
-                                        }, animatedHeaderSubtitle]}>Twoje centrum organizacji</AnimatedText>
+                                            fontFamily: 'Outfit_500Medium' as any,
+                                            fontSize: 14,
+                                            letterSpacing: 4,
+                                            marginTop: 0,
+                                            textTransform: 'uppercase',
+                                        }, animatedHeaderSubtitle]}>
+                                            Twoje centrum organizacji
+                                        </AnimatedText>
                                     </View>
                                 </View>
                             </View>
@@ -1116,7 +1230,7 @@ const LoginScreen = () => {
                     </Animated.View>
 
                     <GestureDetector gesture={gesture}>
-                        <View style={[styles.formContainer, { marginTop: Spacing.xxLarge + Spacing.xxLarge }]}>
+                        <View style={[styles.formContainer, { marginTop: Spacing.xxLarge + Spacing.xxLarge + Spacing.small }]}>
                             <AnimatedView style={[
                                 styles.modeSwitcher,
                                 { borderWidth: 1 },
@@ -1278,8 +1392,8 @@ const styles = StyleSheet.create({
     },
     headerContainer: {
         alignItems: 'center',
-        overflow: 'hidden',
-        marginTop: Spacing.large,
+        overflow: 'visible', // Changed to visible so wide spheres don't get clipped
+        marginTop: 0, // Reset to 0 (Lowered further)
         marginBottom: Spacing.small,
     },
 
@@ -1386,16 +1500,16 @@ const styles = StyleSheet.create({
         bottom: 4, // Adjusted from 0 to 4
     },
     logoContainer: {
-        width: LOGO_DIAMETER,
-        height: LOGO_DIAMETER,
+        width: LOGO_WIDTH,
+        height: LOGO_HEIGHT,
         justifyContent: 'center',
         alignItems: 'center',
         marginTop: Spacing.small,
         position: 'relative',
     },
     logoBackground: {
-        width: LOGO_DIAMETER,
-        height: LOGO_DIAMETER,
+        width: LOGO_WIDTH,
+        height: LOGO_HEIGHT,
         justifyContent: 'center',
         alignItems: 'center',
         position: 'relative',

@@ -255,7 +255,7 @@ const ProfileScreen = () => {
                     {userProfile?.photoURL ? (
                         <Image source={{ uri: userProfile.photoURL }} style={styles.avatarImage} />
                     ) : (
-                        <View style={styles.avatarPlaceholder}>
+                        <View style={[styles.avatarPlaceholder, { backgroundColor: theme.colors.primary }]}>
                             <Text style={styles.avatarText}>
                                 {userProfile?.nickname ? userProfile.nickname.charAt(0).toUpperCase() : '?'}
                             </Text>
@@ -268,14 +268,14 @@ const ProfileScreen = () => {
 
             <Animated.View layout={Layout.springify()} style={[GlobalStyles.card, styles.statsContainer, { backgroundColor: theme.colors.card, borderColor: theme.colors.border }]}>
                 <View style={styles.statCard}>
-                    <Feather name="star" size={24} color={Colors.warning} />
-                    <Text style={styles.statValue}>{userProfile?.points ?? 0}</Text>
-                    <Text style={styles.statLabel}>Zdobyte punkty</Text>
+                    <Feather name="star" size={24} color={theme.colors.warning} />
+                    <Text style={[styles.statValue, { color: theme.colors.textPrimary }]}>{userProfile?.points ?? 0}</Text>
+                    <Text style={[styles.statLabel, { color: theme.colors.textSecondary }]}>Zdobyte punkty</Text>
                 </View>
                 <View style={styles.statCard}>
-                    <Feather name="check-circle" size={24} color={Colors.success} />
-                    <Text style={styles.statValue}>{userProfile?.completedTasksCount ?? 0}</Text>
-                    <Text style={styles.statLabel}>Ukończone zadania</Text>
+                    <Feather name="check-circle" size={24} color={theme.colors.success} />
+                    <Text style={[styles.statValue, { color: theme.colors.textPrimary }]}>{userProfile?.completedTasksCount ?? 0}</Text>
+                    <Text style={[styles.statLabel, { color: theme.colors.textSecondary }]}>Ukończone zadania</Text>
                 </View>
             </Animated.View>
 
@@ -318,7 +318,7 @@ const ProfileScreen = () => {
                         title="Opuść parę"
                         onPress={handleLeavePair}
                         isLoading={isPairActionLoading}
-                        style={styles.dangerButton}
+                        style={{ backgroundColor: theme.colors.danger }}
                     />
                 </Animated.View>
             ) : (

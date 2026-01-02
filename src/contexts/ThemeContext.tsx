@@ -23,7 +23,7 @@ export interface ThemeColors {
   placeholder: string;
 }
 
-export type Accent = 'blue' | 'purple' | 'mint' | 'orange';
+export type Accent = 'blue' | 'purple' | 'mint' | 'orange' | 'rose';
 
 export interface Theme {
   mode: ThemeMode;
@@ -38,7 +38,7 @@ const THEME_STORAGE_KEY = 'dailyflow_theme_mode';
 const ACCENT_STORAGE_KEY = 'dailyflow_theme_accent';
 
 export const lightColors: ThemeColors = {
-  primary: '#0782F9',        // Standard Blue
+  primary: '#0782F9',        // Standard Blue (Restored)
   purple: '#7e57c2',
   secondary: '#17a2b8',      // Teal/Cyan for info
   success: '#28a745',
@@ -80,7 +80,7 @@ export const ThemeReactContext = ThemeContext;
 export const ThemeProvider: React.FC<React.PropsWithChildren<{}>> = ({ children }) => {
   const [mode, setModeState] = useState<ThemeMode>('dark');
   const [systemScheme, setSystemScheme] = useState<Exclude<ColorSchemeName, null>>((Appearance as any).getColorScheme?.() || 'light');
-  const [accent, setAccentState] = useState<Accent>('blue');
+  const [accent, setAccentState] = useState<Accent>('rose'); // Default to Rose
 
   useEffect(() => {
     (async () => {
@@ -90,8 +90,8 @@ export const ThemeProvider: React.FC<React.PropsWithChildren<{}>> = ({ children 
           setModeState(stored);
         }
         const storedAccent = await AsyncStorage.getItem(ACCENT_STORAGE_KEY);
-        if (storedAccent === 'blue' || storedAccent === 'purple' || storedAccent === 'mint' || storedAccent === 'orange') {
-          setAccentState(storedAccent);
+        if (storedAccent === 'blue' || storedAccent === 'purple' || storedAccent === 'mint' || storedAccent === 'orange' || storedAccent === 'rose') {
+          setAccentState(storedAccent as Accent);
         }
       } catch { }
     })();
@@ -128,6 +128,7 @@ export const ThemeProvider: React.FC<React.PropsWithChildren<{}>> = ({ children 
     purple: base.purple,
     mint: effectiveScheme === 'dark' ? '#5bd8b2' : '#2ec4b6',
     orange: effectiveScheme === 'dark' ? '#ff9f43' : '#ff7f11',
+    rose: effectiveScheme === 'dark' ? '#4DA3FF' : '#C77D98', // Pastel Rose (Light) / Blue (Dark)
   };
   const colors: ThemeColors = { ...base, primary: primaryByAccent[accent] };
 

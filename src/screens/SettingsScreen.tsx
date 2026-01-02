@@ -204,7 +204,7 @@ const SettingsScreen = () => {
                 <Slider value={settings.agingBoostDays} onValueChange={(v) => handleThresholdChange('agingBoostDays', v)} minimumValue={1} maximumValue={30} step={1} />
             </Animated.View>
             <Animated.View layout={Layout.springify()}>
-                <TouchableOpacity style={[styles.saveButton, saving && GlobalStyles.disabledButton]} onPress={handleSave} disabled={saving}>
+                <TouchableOpacity style={[styles.saveButton, { backgroundColor: theme.colors.success }, saving && GlobalStyles.disabledButton]} onPress={handleSave} disabled={saving}>
                     <Text style={styles.saveButtonText}>{saving ? 'Zapisywanie…' : 'Zapisz ustawienia'}</Text>
                 </TouchableOpacity>
             </Animated.View>
@@ -246,7 +246,8 @@ const styles = StyleSheet.create({
     },
     saveButton: {
         ...GlobalStyles.button,
-        backgroundColor: Colors.success,
+        backgroundColor: 'transparent', // Will be overridden by inline style or if we pass theme color
+
         marginHorizontal: Spacing.medium,
         marginTop: Spacing.large,
         marginBottom: Spacing.xLarge,

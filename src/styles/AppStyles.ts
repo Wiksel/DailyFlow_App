@@ -62,14 +62,16 @@ export const GlobalStyles = StyleSheet.create({
     card: {
         backgroundColor: 'white',
         padding: Spacing.large,
-        borderRadius: 12,
+        borderRadius: 16, // More rounded (Premium feel)
         marginHorizontal: Spacing.medium,
         marginTop: Spacing.medium,
         shadowColor: Colors.shadow,
-        shadowOffset: { width: 0, height: 2 },
-        shadowOpacity: 0.15,
-        shadowRadius: 4,
-        elevation: 4,
+        shadowOffset: { width: 0, height: 4 }, // Deeper shadow
+        shadowOpacity: 0.08, // Softer shadow
+        shadowRadius: 12,
+        elevation: 2,
+        borderWidth: 1,
+        borderColor: 'rgba(0,0,0,0.03)', // Subtle border
     },
     rowPress: {
         borderRadius: 12,
