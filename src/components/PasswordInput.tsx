@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { View, TextInput, TouchableOpacity, StyleSheet, TextInputProps, ViewStyle, TextStyle } from 'react-native';
 import { Feather } from '@expo/vector-icons';
-import Animated, { useAnimatedProps, useAnimatedStyle, useDerivedValue, withTiming, interpolateColor, createAnimatedComponent } from 'react-native-reanimated';
+import Animated, { useAnimatedProps, useAnimatedStyle, useDerivedValue, withTiming, interpolateColor } from 'react-native-reanimated';
 import { Colors, Spacing, Typography, GlobalStyles } from '../styles/AppStyles';
 import { useTheme, lightColors, darkColors } from '../contexts/ThemeContext';
 
