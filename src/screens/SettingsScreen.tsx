@@ -1,12 +1,12 @@
 import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, ActivityIndicator } from 'react-native';
 import Animated, { FadeInUp, Layout } from 'react-native-reanimated';
-import { getAuth } from '../utils/authCompat'; // ZMIANA
+import { getAuth } from '../utils/authCompat';
 import { db } from '../utils/firestoreCompat';
 import { doc, onSnapshot, updateDoc } from '../utils/firestoreCompat';
 import Slider from '@react-native-community/slider';
 import { useToast } from '../contexts/ToastContext';
-import { Colors, Spacing, Typography, GlobalStyles } from '../styles/AppStyles';
+import { Spacing, Typography, GlobalStyles } from '../styles/AppStyles';
 import { useTheme } from '../contexts/ThemeContext';
 import AppHeader from '../components/AppHeader';
 
@@ -142,74 +142,80 @@ const SettingsScreen = () => {
     return (
         <ScrollView style={[styles.container, { backgroundColor: theme.colors.background }]}>
             <AppHeader title="Ustawienia priorytetów" />
-            <Animated.View layout={Layout.springify()} style={[GlobalStyles.card, { backgroundColor: theme.colors.card }]}>
-                <Text style={styles.sectionTitle}>Priorytety - Deadline</Text>
-                <Text style={styles.description}>
+            <Animated.View layout={Layout.springify()} style={[GlobalStyles.card, { backgroundColor: theme.colors.card, borderColor: theme.colors.border }]}>
+                <Text style={[styles.sectionTitle, { color: theme.colors.textPrimary }]}>Priorytety - Deadline</Text>
+                <Text style={[styles.description, { color: theme.colors.textSecondary }]}>
                     Dostosuj, jak bardzo priorytet zadania wzrośnie, gdy zbliża się jego termin wykonania. Przesuwanie jednego suwaka dostosuje pozostałe.
                 </Text>
 
-                <Text style={styles.label}>Wzrost o +{settings.criticalBoost} (krytyczny)</Text>
-                <Text>Gdy do terminu zostało mniej niż: {settings.criticalThreshold} dni</Text>
-                {/* ZMIANA: Ujednolicono maximumValue */}
+                <Text style={[styles.label, { color: theme.colors.textPrimary }]}>Wzrost o +{settings.criticalBoost} (krytyczny)</Text>
+                <Text style={{ color: theme.colors.textSecondary }}>Gdy do terminu zostało mniej niż: {settings.criticalThreshold} dni</Text>
                 <Slider
                     value={settings.criticalThreshold}
                     onValueChange={(v) => handleThresholdChange('criticalThreshold', v)}
                     minimumValue={1}
                     maximumValue={90}
                     step={1}
+                    minimumTrackTintColor={theme.colors.danger}
+                    maximumTrackTintColor={theme.colors.border}
+                    thumbTintColor={theme.colors.danger}
                 />
 
-                <View style={styles.separator} />
+                <View style={[styles.separator, { backgroundColor: theme.colors.border }]} />
 
-                <Text style={styles.label}>Wzrost o +{settings.urgentBoost} (pilny)</Text>
-                <Text>Gdy do terminu zostało mniej niż: {settings.urgentThreshold} dni</Text>
-                {/* ZMIANA: Ujednolicono maximumValue */}
+                <Text style={[styles.label, { color: theme.colors.textPrimary }]}>Wzrost o +{settings.urgentBoost} (pilny)</Text>
+                <Text style={{ color: theme.colors.textSecondary }}>Gdy do terminu zostało mniej niż: {settings.urgentThreshold} dni</Text>
                 <Slider
                     value={settings.urgentThreshold}
                     onValueChange={(v) => handleThresholdChange('urgentThreshold', v)}
                     minimumValue={2}
                     maximumValue={90}
                     step={1}
+                    minimumTrackTintColor={theme.colors.warning}
+                    maximumTrackTintColor={theme.colors.border}
+                    thumbTintColor={theme.colors.warning}
                 />
 
-                <View style={styles.separator} />
+                <View style={[styles.separator, { backgroundColor: theme.colors.border }]} />
 
-                <Text style={styles.label}>Wzrost o +{settings.soonBoost} (bliski)</Text>
-                <Text>Gdy do terminu zostało mniej niż: {settings.soonThreshold} dni</Text>
-                {/* ZMIANA: Ujednolicono maximumValue */}
+                <Text style={[styles.label, { color: theme.colors.textPrimary }]}>Wzrost o +{settings.soonBoost} (bliski)</Text>
+                <Text style={{ color: theme.colors.textSecondary }}>Gdy do terminu zostało mniej niż: {settings.soonThreshold} dni</Text>
                 <Slider
                     value={settings.soonThreshold}
                     onValueChange={(v) => handleThresholdChange('soonThreshold', v)}
                     minimumValue={3}
                     maximumValue={90}
                     step={1}
+                    minimumTrackTintColor={theme.colors.info}
+                    maximumTrackTintColor={theme.colors.border}
+                    thumbTintColor={theme.colors.info}
                 />
 
-                <View style={styles.separator} />
+                <View style={[styles.separator, { backgroundColor: theme.colors.border }]} />
 
-                <Text style={styles.label}>Wzrost o +{settings.distantBoost} (wkrótce)</Text>
-                <Text>Gdy do terminu zostało mniej niż: {settings.distantThreshold} dni</Text>
-                {/* ZMIANA: Ujednolicono maximumValue */}
+                <Text style={[styles.label, { color: theme.colors.textPrimary }]}>Wzrost o +{settings.distantBoost} (wkrótce)</Text>
+                <Text style={{ color: theme.colors.textSecondary }}>Gdy do terminu zostało mniej niż: {settings.distantThreshold} dni</Text>
                 <Slider
                     value={settings.distantThreshold}
                     onValueChange={(v) => handleThresholdChange('distantThreshold', v)}
                     minimumValue={4}
                     maximumValue={90}
                     step={1}
+                    minimumTrackTintColor={theme.colors.secondary}
+                    maximumTrackTintColor={theme.colors.border}
+                    thumbTintColor={theme.colors.secondary}
                 />
             </Animated.View>
-            <Animated.View layout={Layout.springify()} style={[GlobalStyles.card, { backgroundColor: theme.colors.card }]}>
-                <Text style={styles.sectionTitle}>Priorytety - Zadania bez terminu</Text>
-                <Text style={styles.label}>Zwiększaj o +1 co {settings.agingBoostDays} dni</Text>
-                <Slider value={settings.agingBoostDays} onValueChange={(v) => handleThresholdChange('agingBoostDays', v)} minimumValue={1} maximumValue={30} step={1} />
+            <Animated.View layout={Layout.springify()} style={[GlobalStyles.card, { backgroundColor: theme.colors.card, borderColor: theme.colors.border }]}>
+                <Text style={[styles.sectionTitle, { color: theme.colors.textPrimary }]}>Priorytety - Zadania bez terminu</Text>
+                <Text style={[styles.label, { color: theme.colors.textPrimary }]}>Zwiększaj o +1 co {settings.agingBoostDays} dni</Text>
+                <Slider value={settings.agingBoostDays} onValueChange={(v) => handleThresholdChange('agingBoostDays', v)} minimumValue={1} maximumValue={30} step={1} minimumTrackTintColor={theme.colors.primary} maximumTrackTintColor={theme.colors.border} thumbTintColor={theme.colors.primary} />
             </Animated.View>
             <Animated.View layout={Layout.springify()}>
                 <TouchableOpacity style={[styles.saveButton, { backgroundColor: theme.colors.success }, saving && GlobalStyles.disabledButton]} onPress={handleSave} disabled={saving}>
                     <Text style={styles.saveButtonText}>{saving ? 'Zapisywanie…' : 'Zapisz ustawienia'}</Text>
                 </TouchableOpacity>
             </Animated.View>
-
-            {/* Usunięto ustawienia wyświetlania z ekranu priorytetów */}
         </ScrollView>
     );
 };
@@ -231,7 +237,6 @@ const styles = StyleSheet.create({
     },
     description: {
         ...Typography.body,
-        color: Colors.textSecondary,
         marginBottom: Spacing.large,
     },
     label: {
@@ -241,13 +246,10 @@ const styles = StyleSheet.create({
     },
     separator: {
         height: 1,
-        backgroundColor: Colors.border,
         marginVertical: Spacing.large,
     },
     saveButton: {
         ...GlobalStyles.button,
-        backgroundColor: 'transparent', // Will be overridden by inline style or if we pass theme color
-
         marginHorizontal: Spacing.medium,
         marginTop: Spacing.large,
         marginBottom: Spacing.xLarge,
@@ -259,7 +261,6 @@ const styles = StyleSheet.create({
         paddingHorizontal: Spacing.medium,
         paddingVertical: Spacing.small,
         borderRadius: 20,
-        backgroundColor: Colors.inputBackground,
         marginRight: Spacing.small,
     },
     themeChipText: {
