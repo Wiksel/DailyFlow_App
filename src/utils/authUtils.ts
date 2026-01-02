@@ -127,15 +127,19 @@ export const findUserEmailByIdentifier = async (identifier: string): Promise<str
     const cleanIdentifier = identifier.trim();
     if (/\S+@\S+\.\S+/.test(cleanIdentifier)) {
         try {
-            const methods = await auth().fetchSignInMethodsForEmail(cleanIdentifier);
-            if (methods && methods.length > 0) {
-                return cleanIdentifier;
+            const q = query(
+                collection(db, 'users'),
+                where('emailLower', '==', cleanIdentifier.toLowerCase()),
+                limit(1)
+            );
+            const snapshot = await getDocs(q);
+            if (!snapshot.empty) {
+                return snapshot.docs[0].data().email || cleanIdentifier;
             }
             return null;
         } catch (error) {
-            // Handle error (e.g. rate limit, network).
-            // Returning null allows caller to decide (usually failing).
-            return null;
+            // Permission denied or offline -> return identifier to let auth handle it
+            return cleanIdentifier;
         }
     }
 
