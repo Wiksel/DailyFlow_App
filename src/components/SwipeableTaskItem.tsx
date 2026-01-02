@@ -6,7 +6,7 @@ import Animated, { Layout, FadeInUp } from 'react-native-reanimated';
 import * as Haptics from 'expo-haptics';
 import { useTheme } from '../contexts/ThemeContext';
 import { Colors, Spacing } from '../styles/AppStyles';
-import TaskListItem from './TaskListItem';
+import ModernTaskItem from './ModernTaskItem';
 import { Task, Category } from '../types';
 
 type Props = {
@@ -43,56 +43,68 @@ const SwipeableTaskItem = React.memo(({
   onTogglePinned,
 }: Props) => {
   const theme = useTheme();
-
-  const renderLeft = useCallback(() => (
-    <View style={[styles.swipeLeft, { backgroundColor: theme.colors.success }]}>
-      <Feather name="check" size={22} color={'white'} />
-      <Text style={styles.swipeText}>Ukończ</Text>
-    </View>
-  ), [theme.colors.success]);
+  const swipeableRef = React.useRef<Swipeable>(null);
 
   const renderRight = useCallback(() => (
-    <View style={[styles.swipeRight, { backgroundColor: theme.colors.danger }]}>
-      <Feather name="trash-2" size={22} color={'white'} />
-      <Text style={styles.swipeText}>{task.completed ? 'Usuń' : 'Usuń'}</Text>
+    <View style={styles.swipeRight}>
+      <View style={[styles.swipeAction, { backgroundColor: task.completed ? Colors.warning : Colors.danger, justifyContent: 'flex-end', paddingRight: 24 }]}>
+        <Text style={[styles.swipeText, { marginRight: 8 }]}>{task.completed ? 'Archiwum' : 'Usuń'}</Text>
+        <Feather name={task.completed ? "archive" : "trash-2"} size={22} color={'white'} />
+      </View>
     </View>
-  ), [theme.colors.danger, task.completed]);
+  ), [task.completed]);
+
+  const renderLeft = useCallback(() => (
+    <View style={styles.swipeLeft}>
+      {/* Undo uses Purple #8A4FFF, Complete uses Success Green */}
+      <View style={[styles.swipeAction, { backgroundColor: task.completed ? '#8A4FFF' : theme.colors.success, justifyContent: 'flex-start', paddingLeft: 24 }]}>
+        <Feather name={task.completed ? "rotate-ccw" : "check"} size={22} color={'white'} />
+        <Text style={[styles.swipeText, { marginLeft: 8 }]}>{task.completed ? 'Cofnij' : 'Ukończ'}</Text>
+      </View>
+    </View>
+  ), [theme.colors.success, task.completed]);
 
   const handleSwipeableOpen = useCallback((direction: 'left' | 'right') => {
     try { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); } catch { }
-    if (direction === 'left') { onToggleComplete(task); }
-    if (direction === 'right') { onConfirmAction(task); }
+
+    // Close swipeable immediately to prevent it from getting stuck
+    swipeableRef.current?.close();
+
+    // Use requestAnimationFrame or setTimeout to allow close animation to start before action
+    requestAnimationFrame(() => {
+      if (direction === 'left') { onToggleComplete(task); }
+      if (direction === 'right') { onConfirmAction(task); }
+    });
   }, [task, onToggleComplete, onConfirmAction]);
 
   return (
     <Swipeable
+      ref={swipeableRef}
       renderLeftActions={renderLeft}
       renderRightActions={renderRight}
       onSwipeableOpen={handleSwipeableOpen}
-      leftThreshold={64}
-      rightThreshold={64}
+      leftThreshold={60}
+      rightThreshold={60}
       overshootLeft={false}
       overshootRight={false}
+      containerStyle={{ overflow: 'visible' }}
     >
       <Animated.View
         layout={Layout.springify()}
         entering={FadeInUp.delay(Math.min(300, index * 20))}
-        style={[styles.itemContainer, { backgroundColor: theme.colors.card, borderColor: theme.colors.border, shadowColor: Colors.shadow }]}
+        style={styles.itemContainer}
       >
-        <TaskListItem
+        <ModernTaskItem
           task={task}
           category={category}
           onPress={onPress}
           onLongPress={onToggleSelect}
           onToggleComplete={onToggleComplete}
-          onConfirmAction={onConfirmAction}
           isCompact={isCompact}
           selectionMode={selectionMode}
           selected={selected}
           onToggleSelect={onToggleSelect}
-          onOpenMenu={!selectionMode ? onOpenMenu : undefined}
           pinned={isPinned}
-          onTogglePinned={onTogglePinned}
           highlightQuery={highlightQuery}
         />
       </Animated.View>
@@ -101,42 +113,33 @@ const SwipeableTaskItem = React.memo(({
 });
 
 const styles = StyleSheet.create({
-  itemContainer: {
-    marginHorizontal: Spacing.medium,
-    marginTop: Spacing.small,
-    paddingHorizontal: Spacing.medium,
-    paddingVertical: Spacing.small,
-    borderWidth: 1,
-    borderRadius: 12,
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.08,
-    shadowRadius: 3,
-    elevation: 1,
-  },
+  itemContainer: {},
   swipeLeft: {
-    justifyContent: 'center',
-    alignItems: 'flex-start',
-    paddingLeft: 20,
-    marginHorizontal: Spacing.medium,
-    marginTop: Spacing.small,
-    borderRadius: 12,
+    width: '100%',
     height: '100%',
-    flex: 1,
+    justifyContent: 'center',
   },
   swipeRight: {
+    width: '100%',
+    height: '100%',
     justifyContent: 'center',
     alignItems: 'flex-end',
-    paddingRight: 20,
-    marginHorizontal: Spacing.medium,
-    marginTop: Spacing.small,
-    borderRadius: 12,
-    height: '100%',
+  },
+  swipeAction: {
     flex: 1,
+    width: '100%',
+    justifyContent: 'center', // Updated in inline styles for specific sides
+    paddingHorizontal: 0, // Handled by paddingLeft/Right
+    marginTop: 0,
+    marginBottom: Spacing.small,
+    marginHorizontal: Spacing.medium,
+    borderRadius: 16,
+    flexDirection: 'row',
+    alignItems: 'center',
   },
   swipeText: {
     color: 'white',
     fontWeight: '700',
-    marginLeft: 6,
   },
 });
 

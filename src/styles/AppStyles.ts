@@ -53,6 +53,38 @@ export const Spacing = {
     xxLarge: 60, // Dla paddingTop w headerach
 };
 
+export const Glass = {
+    light: {
+        background: 'rgba(255, 255, 255, 0.60)', // More transparent
+        border: 'rgba(255, 255, 255, 0.4)',
+        textPrimary: '#333333',
+        textSecondary: '#666666',
+        inputBackground: 'rgba(255, 255, 255, 0.5)',
+    },
+    dark: {
+        background: 'rgba(30, 30, 30, 0.50)', // More transparent
+        border: 'rgba(255, 255, 255, 0.1)',
+        textPrimary: '#ffffff',
+        textSecondary: '#aaaaaa',
+        inputBackground: 'rgba(0, 0, 0, 0.3)',
+    },
+};
+
+export const Effects = {
+    shadow: {
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.1,
+        shadowRadius: 12,
+        elevation: 5,
+    },
+    glassBorder: {
+        borderTopWidth: 1,
+        borderLeftWidth: 1,
+        borderColor: 'rgba(255, 255, 255, 0.2)',
+    }
+};
+
 export const GlobalStyles = StyleSheet.create({
     container: {
         flex: 1,
@@ -62,7 +94,7 @@ export const GlobalStyles = StyleSheet.create({
         paddingHorizontal: 16,
     },
     card: {
-        backgroundColor: 'white',
+        backgroundColor: 'rgba(255, 255, 255, 0.8)', // Semitransparent default, but preferred component override
         padding: Spacing.large,
         borderRadius: 16, // More rounded (Premium feel)
         marginHorizontal: Spacing.medium,

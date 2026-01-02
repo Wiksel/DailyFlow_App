@@ -1,14 +1,14 @@
 import React, { useMemo, forwardRef, useImperativeHandle } from 'react';
-import { View, Text, SectionList, StyleSheet, TouchableOpacity } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, useWindowDimensions } from 'react-native';
 import { Task, Category } from '../types';
 import SwipeableTaskItem from './SwipeableTaskItem';
 import { useTheme } from '../contexts/ThemeContext';
-import { Typography, Spacing, GlobalStyles } from '../styles/AppStyles';
+import { Typography, Spacing } from '../styles/AppStyles';
 import { Feather } from '@expo/vector-icons';
-import Animated, { FadeIn } from 'react-native-reanimated';
+import Animated, { FadeInUp, Layout, FadeOut } from 'react-native-reanimated';
 
 export interface TaskSectionListHandle {
-    scrollToTaskId: (taskId: string) => void;
+    scrollToTaskId: (taskId: string) => void; // Placeholder
 }
 
 interface Props {
@@ -27,6 +27,10 @@ interface Props {
     onTogglePinned: (task: Task) => void;
     highlightQuery?: string;
 }
+
+type ListItem =
+    | { type: 'header', key: string, title: string, icon?: string, color?: string, data: Task[] }
+    | { type: 'task', id: string, data: Task, index: number }; // index relative to list or section? Global index is better for animation delay
 
 const SectionedTaskList = forwardRef<TaskSectionListHandle, Props>(({
     tasks,
@@ -47,18 +51,16 @@ const SectionedTaskList = forwardRef<TaskSectionListHandle, Props>(({
     const theme = useTheme();
 
     useImperativeHandle(ref, () => ({
-        scrollToTaskId: (taskId: string) => {
-            // Implementation specific to SectionList finding index...
-            // Simplified for now or requires complex index lookup
-        }
+        scrollToTaskId: () => { }
     }));
 
+    // 1. Group Data
     const sections = useMemo(() => {
         const pinned: Task[] = [];
         const overdue: Task[] = [];
         const today: Task[] = [];
         const tomorrow: Task[] = [];
-        const upcoming: Task[] = []; // Next 7 days
+        const upcoming: Task[] = [];
         const later: Task[] = [];
         const noDate: Task[] = [];
         const completed: Task[] = [];
@@ -71,19 +73,10 @@ const SectionedTaskList = forwardRef<TaskSectionListHandle, Props>(({
         nextWeekDate.setDate(now.getDate() + 7);
 
         tasks.forEach(t => {
-            if (t.completed) {
-                completed.push(t);
-                return;
-            }
-            if (pinnedIds.has(t.id)) {
-                pinned.push(t);
-                return; // Pinned tasks only appear in Pinned section? Or duplicate? Let's say exclusive for now.
-            }
+            if (t.completed) { completed.push(t); return; }
+            if (pinnedIds.has(t.id)) { pinned.push(t); return; }
 
-            if (!t.deadline) {
-                noDate.push(t);
-                return;
-            }
+            if (!t.deadline) { noDate.push(t); return; }
 
             const d = (t.deadline as any)?.toDate ? (t.deadline as any).toDate() : new Date(t.deadline as any);
             d.setHours(0, 0, 0, 0);
@@ -104,50 +97,73 @@ const SectionedTaskList = forwardRef<TaskSectionListHandle, Props>(({
         if (noDate.length > 0) res.push({ title: 'Bez terminu', key: 'nodate', data: noDate, icon: 'layers' });
         if (later.length > 0) res.push({ title: 'Później', key: 'later', data: later, icon: 'chevrons-right' });
         if (completed.length > 0) res.push({ title: 'Ukończone', key: 'completed', data: completed, icon: 'check-circle' });
-
         return res;
     }, [tasks, pinnedIds, theme.colors]);
 
-    const renderSectionHeader = ({ section: { title, key, data, icon, color } }: any) => (
-        <View style={[styles.sectionHeader, { backgroundColor: theme.colors.background }]}>
-            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, flex: 1 }}>
-                {icon && <Feather name={icon as any} size={16} color={color || theme.colors.textSecondary} />}
-                <Text style={{ ...Typography.h3, fontSize: 13, color: color || theme.colors.textSecondary, fontWeight: '700', textTransform: 'uppercase', letterSpacing: 0.5 }}>{title} ({data.length})</Text>
-            </View>
-            {onQuickAdd && (key === 'today' || key === 'tomorrow' || key === 'nodate') && (
-                <TouchableOpacity onPress={() => onQuickAdd(key)} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
-                    <Feather name="plus" size={18} color={theme.colors.primary} />
-                </TouchableOpacity>
-            )}
-        </View>
-    );
+    // 2. Flatten Data
+    const flattenedData: ListItem[] = useMemo(() => {
+        const flat: ListItem[] = [];
+        sections.forEach(sec => {
+            flat.push({ type: 'header', key: sec.key, title: sec.title, icon: sec.icon, color: sec.color, data: sec.data });
+            sec.data.forEach((t, i) => {
+                flat.push({ type: 'task', id: t.id, data: t, index: i });
+            });
+        });
+        return flat;
+    }, [sections]);
+
+    // 3. Render Item
+    const renderItem = ({ item, index }: { item: ListItem, index: number }) => {
+        if (item.type === 'header') {
+            return (
+                <View style={styles.sectionHeader}>
+                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, flex: 1 }}>
+                        {item.icon && <Feather name={item.icon as any} size={16} color={item.color || theme.colors.textSecondary} />}
+                        <Text style={{ ...Typography.h3, fontSize: 13, color: item.color || theme.colors.textSecondary, fontWeight: '700', textTransform: 'uppercase', letterSpacing: 0.5 }}>
+                            {item.title} ({item.data.length})
+                        </Text>
+                    </View>
+                    {onQuickAdd && (item.key === 'today' || item.key === 'tomorrow' || item.key === 'nodate') && (
+                        <TouchableOpacity onPress={() => onQuickAdd(item.key)} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
+                            <Feather name="plus" size={18} color={theme.colors.primary} />
+                        </TouchableOpacity>
+                    )}
+                </View>
+            );
+        } else {
+            return (
+                <View style={{ marginBottom: 0 }}>
+                    <SwipeableTaskItem
+                        task={item.data}
+                        category={categories.find(c => c.id === item.data.category)}
+                        index={index}
+                        isCompact={false}
+                        selectionMode={selectionMode}
+                        selected={selectedIds.has(item.data.id)}
+                        isPinned={pinnedIds.has(item.data.id)}
+                        onPress={onPressTask}
+                        onToggleComplete={onToggleComplete}
+                        onConfirmAction={onConfirmAction}
+                        onToggleSelect={onToggleSelect}
+                        // Menu Logic could be passed here if needed
+                        onOpenMenu={onOpenTaskMenu}
+                        onTogglePinned={onTogglePinned}
+                        highlightQuery={highlightQuery}
+                    />
+                </View>
+            );
+        }
+    };
 
     return (
-        <SectionList
-            sections={sections}
-            keyExtractor={item => item.id}
-            renderItem={({ item, index }) => (
-                <SwipeableTaskItem
-                    task={item}
-                    category={categories.find(c => c.id === item.category)}
-                    index={index}
-                    isCompact={false} // Force standard for modern look
-                    selectionMode={selectionMode}
-                    selected={selectedIds.has(item.id)}
-                    isPinned={pinnedIds.has(item.id)}
-                    onPress={onPressTask}
-                    onToggleComplete={onToggleComplete}
-                    onConfirmAction={onConfirmAction}
-                    onToggleSelect={onToggleSelect}
-                    onOpenMenu={onOpenTaskMenu}
-                    onTogglePinned={onTogglePinned}
-                    highlightQuery={highlightQuery}
-                />
-            )}
-            renderSectionHeader={renderSectionHeader}
-            contentContainerStyle={{ paddingBottom: 100 }}
-            stickySectionHeadersEnabled={false}
+        <Animated.FlatList
+            itemLayoutAnimation={Layout.springify().damping(20).mass(0.8)}
+            data={flattenedData}
+            keyExtractor={(item) => item.type === 'header' ? `header-${item.key}` : item.id}
+            renderItem={renderItem}
+            contentContainerStyle={{ paddingBottom: 100, paddingTop: 10 }}
             showsVerticalScrollIndicator={false}
+            keyboardShouldPersistTaps="handled"
         />
     );
 });
@@ -160,6 +176,7 @@ const styles = StyleSheet.create({
         paddingHorizontal: Spacing.medium,
         paddingTop: Spacing.large,
         paddingBottom: Spacing.small,
+        backgroundColor: 'transparent',
     },
 });
 

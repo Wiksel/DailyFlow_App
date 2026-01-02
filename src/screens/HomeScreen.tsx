@@ -1,34 +1,33 @@
 import React, { useState, useRef, useCallback, useEffect, useMemo } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, FlatList, TextInput, ScrollView, Vibration } from 'react-native';
 import * as Haptics from 'expo-haptics';
-import { LinearGradient } from 'expo-linear-gradient';
 import { isOnboardingDone, setOnboardingDone } from '../utils/authUtils';
-import { Swipeable } from 'react-native-gesture-handler';
 import { useNavigation } from '@react-navigation/native';
 import { getAuth } from '../utils/authCompat';
-import { doc, getDoc, onSnapshot, collection, query, where, orderBy, limit, getDocs, Timestamp, db, addDoc } from '../utils/firestoreCompat';
+import { doc, getDoc, onSnapshot, collection, query, where, Timestamp, db, addDoc } from '../utils/firestoreCompat';
 import { Feather } from '@expo/vector-icons';
 import { TaskStackNavigationProp } from '../types/navigation';
-import { Task, UserProfile, ChoreTemplate, Category } from '../types';
+import { Task, UserProfile, ChoreTemplate } from '../types';
 import { useCategories } from '../contexts/CategoryContext';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useToast } from '../contexts/ToastContext';
-import { Spacing, GlobalStyles, Typography } from '../styles/AppStyles';
+import { Spacing, GlobalStyles, Typography, Colors } from '../styles/AppStyles';
 import { useUI } from '../contexts/UIContext';
 import { useTheme, Theme } from '../contexts/ThemeContext';
 
 // Components
 import SectionedTaskList, { TaskSectionListHandle } from '../components/SectionedTaskList';
-import FilterChips from '../components/FilterChips';
 import AddTaskModal from './AddTaskModal';
 import CalendarRangeModal from '../components/CalendarRangeModal';
 import EmptyState from '../components/EmptyState';
 import ActionModal from '../components/ActionModal';
-import SearchBar from '../components/SearchBar';
-import FilterPresets from '../components/FilterPresets';
-import AppHeader from '../components/AppHeader';
-import BottomQuickAdd from '../components/BottomQuickAdd';
 import TaskListSkeleton from '../components/TaskListSkeleton';
+
+// New Components
+import { HomeBackground } from '../components/HomeBackground';
+import HomeHeader from '../components/HomeHeader';
+import FilterBar from '../components/FilterBar';
+import ModernFab from '../components/ModernFab';
 
 // Hooks
 import { useTasks } from '../hooks/useTasks';
@@ -56,12 +55,10 @@ const HomeScreen = () => {
     const [templatesModalVisible, setTemplatesModalVisible] = useState(false);
     const [templates, setTemplates] = useState<ChoreTemplate[]>([]);
     const [pendingDeadline, setPendingDeadline] = useState<any>(null);
-    const [quickTaskText, setQuickTaskText] = useState('');
-    // const [showFilters, setShowFilters] = useState(false); // Removed
-    const [activeQuickFilter, setActiveQuickFilter] = useState<'all' | 'today' | 'upcoming' | 'overdue'>('all'); // NEW
+
+    const [activeQuickFilter, setActiveQuickFilter] = useState<'all' | 'today' | 'upcoming' | 'overdue'>('all');
     const [globalSearchVisible, setGlobalSearchVisible] = useState(false);
     const [globalSearchQuery, setGlobalSearchQuery] = useState('');
-    const [presetsRefreshToken, setPresetsRefreshToken] = useState<number>(0);
     const [calendarModal, setCalendarModal] = useState<{ visible: boolean; type: 'created' | 'deadline' | 'completed' | null }>({ visible: false, type: null });
 
     const [selectionMode, setSelectionMode] = useState(false);
@@ -77,6 +74,10 @@ const HomeScreen = () => {
     const [categorySearch, setCategorySearch] = useState('');
     const [recentCategoryIds, setRecentCategoryIds] = useState<string[]>([]);
     const [recentDifficulties, setRecentDifficulties] = useState<number[]>([]);
+
+    // Undo State
+    const [undoTask, setUndoTask] = useState<Task | null>(null);
+    const undoTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
     const taskListRef = useRef<TaskSectionListHandle | null>(null);
 
@@ -140,7 +141,7 @@ const HomeScreen = () => {
     const { tasks, loading: tasksLoading } = useTasks(effectiveTaskType, userProfile);
 
     const {
-        filters, setFilters, processedAndSortedTasks, todayTasks,
+        filters, setFilters, processedAndSortedTasks,
         setTaskType, setActiveCategories, setDifficultyFilter, setCreatorFilter, setSearchQuery,
         setFilterFromDate, setFilterToDate, setDeadlineFromDate, setDeadlineToDate, setCompletedFromDate, setCompletedToDate
     } = useTaskFilters(tasks, userProfile, focusModeEnabled);
@@ -163,33 +164,11 @@ const HomeScreen = () => {
 
     const actions = useTaskActions();
 
-    // --- Computed ---
-    const sharedCreators = useMemo(() => {
-        const setNames = new Set<string>();
-        tasks.filter(t => t.isShared).forEach(t => { if (t.creatorNickname) setNames.add(t.creatorNickname); });
-        return Array.from(setNames);
-    }, [tasks]);
-
     const filteredTemplates = templates.filter(t => filters.activeCategories.length === 0 || filters.activeCategories.includes(t.category));
 
     // --- Handlers ---
     const handleAddTask = async (taskData: any) => {
         await actions.addTask(taskData, userProfile, filters.taskType);
-    };
-
-    const handleQuickAdd = async () => {
-        if (!quickTaskText.trim()) return;
-        const defaultCategoryId = filters.activeCategories[0] || (categories.find(c => c.name === 'Inne')?.id || 'default');
-        const payload = {
-            text: quickTaskText.trim(),
-            description: '',
-            category: defaultCategoryId,
-            basePriority: 3,
-            difficulty: 2,
-            deadline: null,
-        };
-        const newId = await actions.addTask(payload, userProfile, filters.taskType);
-        if (newId || newId === null) setQuickTaskText('');
     };
 
     const handleAddTaskFromTemplate = async (template: ChoreTemplate) => {
@@ -280,18 +259,11 @@ const HomeScreen = () => {
         if (difficultyPickerTask || difficultyPickerBulk) { loadRecentDifficulties(); }
     }, [difficultyPickerTask, difficultyPickerBulk, loadRecentDifficulties]);
 
-    const jumpToFirstMatch = useCallback((q: string) => {
-        const match = processedAndSortedTasks.find(t => t.text.toLowerCase().includes(q.toLowerCase()));
-        if (match) taskListRef.current?.scrollToTaskId(match.id);
-    }, [processedAndSortedTasks]);
-
-    // Format helpers for Quick Filter
     const applyQuickFilter = useCallback((type: 'all' | 'today' | 'upcoming' | 'overdue') => {
         setActiveQuickFilter(type);
         const now = new Date();
         now.setHours(0, 0, 0, 0);
 
-        // Reset all dates first
         setFilterFromDate(null); setFilterToDate(null);
         setDeadlineFromDate(null); setDeadlineToDate(null);
         setCompletedFromDate(null); setCompletedToDate(null);
@@ -307,11 +279,6 @@ const HomeScreen = () => {
                 setDeadlineToDate(nextWeek);
                 break;
             case 'overdue':
-                // Handled usually by logic, but essentially deadline < now. 
-                // useTaskFilters might need robust "overdue" toggle, or we imply it by date range?
-                // For now, let's just use TODAY as the anchor.
-                // Actually, "Overdue" is tricky with just range if we don't have an upper bound of "Yesterday".
-                // Let's set deadlineTo = yesterday.
                 const yesterday = new Date(now); yesterday.setDate(now.getDate() - 1); yesterday.setHours(23, 59, 59);
                 setDeadlineToDate(yesterday);
                 break;
@@ -322,47 +289,48 @@ const HomeScreen = () => {
     }, [setDeadlineFromDate, setDeadlineToDate, setCompletedFromDate, setCompletedToDate, setFilterFromDate, setFilterToDate]);
 
     return (
-        <View style={[GlobalStyles.container, { backgroundColor: theme.colors.background }]}>
-            <AppHeader
-                title="Twoje zadania"
-                rightActions={[
-                    { icon: globalSearchVisible ? 'x' : 'search', onPress: async () => { try { await Haptics.selectionAsync(); } catch { }; setGlobalSearchVisible(v => !v); if (globalSearchVisible) setGlobalSearchQuery(''); }, accessibilityLabel: 'Szukaj' },
-                    { icon: 'archive', onPress: () => navigation.navigate('Archive'), accessibilityLabel: 'Archiwum zadań' },
-                    { icon: 'settings', onPress: () => navigation.navigate('Profile'), accessibilityLabel: 'Ustawienia' },
-                ]}
+        <HomeBackground>
+            <HomeHeader
+                title={filters.taskType === 'shared' ? 'Wspólne Zadania' : 'Twoje Zadania'}
+                subtitle={undefined}
                 avatarUrl={userProfile?.photoURL || null}
                 onAvatarPress={() => navigation.navigate('Profile')}
+                isSearchActive={globalSearchVisible}
+                onToggleSearch={() => {
+                    const next = !globalSearchVisible;
+                    setGlobalSearchVisible(next);
+                    if (next) {
+                        try { Haptics.selectionAsync() } catch { }
+                    } else {
+                        setGlobalSearchQuery('');
+                        setSearchQuery('');
+                    }
+                }}
+                searchQuery={globalSearchQuery || filters.searchQuery}
+                onSearchChange={(t) => {
+                    setGlobalSearchQuery(t);
+                    setSearchQuery(t);
+                }}
+                onArchivePress={() => navigation.navigate('Archive')}
             />
 
-            {/* Search Bar Area */}
-            <View style={{ paddingHorizontal: Spacing.medium, paddingBottom: Spacing.small }}>
-                {globalSearchVisible && (
-                    <SearchBar
-                        placeholder="Szukaj zadań..."
-                        value={globalSearchQuery || filters.searchQuery}
-                        onChangeText={(t) => { setGlobalSearchQuery(t); setSearchQuery(t); }}
-                        debounceMs={150}
-                        showBottomBorder={false}
-                        style={{ backgroundColor: theme.colors.inputBackground, borderRadius: 12, borderWidth: 1, borderColor: theme.colors.border }}
-                    />
-                )}
-            </View>
-
-            <View style={styles.tabContainer}>
-                <TouchableOpacity style={[styles.tab, filters.taskType === 'personal' && styles.tabActive]} onPress={() => setTaskType('personal')} activeOpacity={0.8}>
-                    <Text style={[styles.tabText, filters.taskType === 'personal' && styles.tabTextActive]}>Osobiste</Text>
-                </TouchableOpacity>
-                <TouchableOpacity style={[styles.tab, filters.taskType === 'shared' && styles.tabActive]} onPress={() => setTaskType('shared')} activeOpacity={0.8}>
-                    <Text style={[styles.tabText, filters.taskType === 'shared' && styles.tabTextActive]}>Wspólne</Text>
-                </TouchableOpacity>
-            </View>
-
-            <FilterChips
+            <FilterBar
+                taskType={filters.taskType}
+                onTaskTypeChange={setTaskType}
+                activeCategoryIds={filters.activeCategories}
                 categories={categories}
-                activeCategories={filters.activeCategories}
-                onToggleCategory={(id) => setActiveCategories(prev => prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id])}
-                activeFilter={activeQuickFilter}
-                onSetFilter={applyQuickFilter}
+                onToggleCategory={(id: string) => setActiveCategories(prev => prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id])}
+                activeTimeFilter={activeQuickFilter}
+                onTimeFilterChange={applyQuickFilter}
+                onClearAll={() => {
+                    setActiveCategories([]);
+                    setActiveQuickFilter('all');
+                    setGlobalSearchQuery('');
+                    setSearchQuery('');
+                    setFilterFromDate(null); setFilterToDate(null);
+                    setDeadlineFromDate(null); setDeadlineToDate(null);
+                    setCompletedFromDate(null); setCompletedToDate(null);
+                }}
             />
 
             {tasksLoading ? <TaskListSkeleton rows={8} /> : (
@@ -407,24 +375,16 @@ const HomeScreen = () => {
             )}
 
             <View style={styles.fabContainer}>
-                <TouchableOpacity
-                    style={styles.templateFab}
-                    onPress={() => {
-                        if (filters.taskType === 'shared' && !userProfile?.pairId) { showToast('Musisz być w parze...', 'info'); return; }
-                        setTemplatesModalVisible(true);
-                    }}
-                >
-                    <Feather name="file-text" size={24} color="white" />
-                </TouchableOpacity>
-                <TouchableOpacity
-                    style={styles.fab}
-                    onPress={() => {
+                <ModernFab
+                    onAddPress={() => {
                         if (filters.taskType === 'shared' && !userProfile?.pairId) { showToast('Musisz być w parze...', 'info'); return; }
                         setAddTaskModalVisible(true);
                     }}
-                >
-                    <Feather name="plus" size={30} color="white" />
-                </TouchableOpacity>
+                    onTemplatePress={() => {
+                        if (filters.taskType === 'shared' && !userProfile?.pairId) { showToast('Musisz być w parze...', 'info'); return; }
+                        setTemplatesModalVisible(true);
+                    }}
+                />
             </View>
 
             <AddTaskModal
@@ -467,12 +427,15 @@ const HomeScreen = () => {
                             if (!confirmModalTask) return;
                             if (confirmModalTask.completed) await actions.archiveTask(confirmModalTask.id);
                             else {
+                                // Undo Logic
+                                const taskToRestore = { ...confirmModalTask };
                                 await actions.deleteTask(confirmModalTask.id);
-                                try {
-                                    const key = `undo_last_task_${currentUser?.uid || 'anon'}`;
-                                    await AsyncStorage.setItem(key, JSON.stringify(confirmModalTask));
-                                    showToast('Zadanie usunięte. Cofnij?', 'info');
-                                } catch { }
+
+                                setUndoTask(taskToRestore);
+                                if (undoTimeoutRef.current) clearTimeout(undoTimeoutRef.current);
+                                undoTimeoutRef.current = setTimeout(() => {
+                                    setUndoTask(null);
+                                }, 5000);
                             }
                             setConfirmModalTask(null);
                         }
@@ -480,7 +443,6 @@ const HomeScreen = () => {
                 ]}
             />
 
-            {/* Menu Task Modal */}
             {menuTask && (
                 <ActionModal
                     visible={!!menuTask}
@@ -526,7 +488,6 @@ const HomeScreen = () => {
                 />
             )}
 
-            {/* Category Picker */}
             {categoryPickerTask && (
                 <ActionModal
                     visible={!!categoryPickerTask}
@@ -579,7 +540,6 @@ const HomeScreen = () => {
                 </ActionModal>
             )}
 
-            {/* Difficulty Picker */}
             {difficultyPickerTask && (
                 <ActionModal
                     visible={!!difficultyPickerTask}
@@ -613,7 +573,6 @@ const HomeScreen = () => {
                 </ActionModal>
             )}
 
-            {/* Bulk Pickers */}
             {categoryPickerBulk && (
                 <ActionModal
                     visible={categoryPickerBulk}
@@ -629,26 +588,6 @@ const HomeScreen = () => {
                             onChangeText={setCategorySearch}
                             style={[GlobalStyles.input, { marginBottom: Spacing.small, backgroundColor: theme.colors.inputBackground, color: theme.colors.textPrimary, borderColor: theme.colors.border }]}
                         />
-                        {recentCategoryIds.length > 0 && (
-                            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingVertical: 6 }}>
-                                {recentCategoryIds.map(id => {
-                                    const cat = categories.find(c => c.id === id);
-                                    if (!cat) return null;
-                                    return (
-                                        <TouchableOpacity key={id} onPress={async () => {
-                                            const ids = Array.from(selectedIds);
-                                            for (const tid of ids) await actions.updateTask(tid, { category: id });
-                                            await saveRecentCategory(id);
-                                            clearSelection();
-                                            setCategoryPickerBulk(false);
-                                        }} style={{ paddingHorizontal: 10, paddingVertical: 6, borderRadius: 999, borderWidth: 1, borderColor: theme.colors.border, marginRight: 8, flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-                                            <View style={{ width: 10, height: 10, borderRadius: 5, backgroundColor: cat.color }} />
-                                            <Text style={{ color: theme.colors.textPrimary, fontWeight: '600' }}>{cat.name}</Text>
-                                        </TouchableOpacity>
-                                    );
-                                })}
-                            </ScrollView>
-                        )}
                         <FlatList
                             data={categories.filter(c => c.name.toLowerCase().includes(categorySearch.toLowerCase())).sort((a, b) => a.name.localeCompare(b.name))}
                             keyExtractor={item => item.id}
@@ -677,21 +616,6 @@ const HomeScreen = () => {
                     onRequestClose={() => setDifficultyPickerBulk(false)}
                 >
                     <View style={{ paddingHorizontal: Spacing.medium }}>
-                        {recentDifficulties.length > 0 && (
-                            <View style={{ flexDirection: 'row', alignItems: 'center', paddingVertical: Spacing.small }}>
-                                {recentDifficulties.map(lvl => (
-                                    <TouchableOpacity key={`rdb-${lvl}`} onPress={async () => {
-                                        const ids = Array.from(selectedIds);
-                                        for (const id of ids) await actions.updateTask(id, { difficulty: lvl });
-                                        await saveRecentDifficulty(lvl);
-                                        clearSelection();
-                                        setDifficultyPickerBulk(false);
-                                    }} style={{ paddingHorizontal: 10, paddingVertical: 6, borderRadius: 999, borderWidth: 1, borderColor: theme.colors.border, marginRight: 8 }}>
-                                        <Text style={{ color: theme.colors.textPrimary, fontWeight: '600' }}>Poziom {lvl}</Text>
-                                    </TouchableOpacity>
-                                ))}
-                            </View>
-                        )}
                         {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map((lvl) => (
                             <TouchableOpacity key={`dlb-${lvl}`} style={styles.templateItem} onPress={async () => {
                                 const ids = Array.from(selectedIds);
@@ -739,42 +663,55 @@ const HomeScreen = () => {
                 />
             )}
 
-            {/* Selection Mode Bar */}
             {selectionMode && (
-                <View style={{ position: 'absolute', left: 0, right: 0, bottom: 0, padding: Spacing.medium, backgroundColor: theme.colors.card, borderTopWidth: 1, borderColor: theme.colors.border, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
-                    <Text style={{ color: theme.colors.textPrimary, fontWeight: '700' }}>{selectedIds.size} wybranych</Text>
+                <View style={{ position: 'absolute', left: 0, right: 0, bottom: 0, paddingTop: 16, paddingBottom: 32, paddingHorizontal: 16, backgroundColor: theme.colors.card, borderTopLeftRadius: 24, borderTopRightRadius: 24, shadowColor: "#000", shadowOffset: { width: 0, height: -4 }, shadowOpacity: 0.1, elevation: 10, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', zIndex: 100 }}>
+                    <Text style={{ color: theme.colors.textPrimary, fontWeight: '700', fontSize: 16 }}>{selectedIds.size} wybranych</Text>
                     <View style={{ flexDirection: 'row', alignItems: 'center' }}>
                         <TouchableOpacity style={{ padding: 8, marginHorizontal: 4 }} onPress={() => setCategoryPickerBulk(true)}>
-                            <Feather name="tag" size={20} color={theme.colors.textSecondary} />
+                            <Feather name="tag" size={24} color={theme.colors.textSecondary} />
                         </TouchableOpacity>
                         <TouchableOpacity style={{ padding: 8, marginHorizontal: 4 }} onPress={() => setDifficultyPickerBulk(true)}>
-                            <Feather name="bar-chart-2" size={20} color={theme.colors.textSecondary} />
+                            <Feather name="bar-chart-2" size={24} color={theme.colors.textSecondary} />
                         </TouchableOpacity>
                         <TouchableOpacity style={{ padding: 8, marginHorizontal: 4 }} onPress={() => setBulkSnoozeVisible(true)}>
-                            <Feather name="clock" size={20} color={theme.colors.textSecondary} />
+                            <Feather name="clock" size={24} color={theme.colors.textSecondary} />
                         </TouchableOpacity>
                         <TouchableOpacity style={{ padding: 8, marginHorizontal: 4 }} onPress={async () => {
                             const ids = Array.from(selectedIds);
                             for (const id of ids) await actions.archiveTask(id);
                             clearSelection();
                         }}>
-                            <Feather name="archive" size={20} color={theme.colors.textSecondary} />
+                            <Feather name="archive" size={24} color={theme.colors.textSecondary} />
                         </TouchableOpacity>
                         <TouchableOpacity style={{ padding: 8, marginHorizontal: 4 }} onPress={async () => {
                             const ids = Array.from(selectedIds);
                             for (const id of ids) await actions.deleteTask(id);
                             clearSelection();
                         }}>
-                            <Feather name="trash-2" size={20} color={theme.colors.danger} />
+                            <Feather name="trash-2" size={24} color={theme.colors.danger} />
                         </TouchableOpacity>
                         <TouchableOpacity style={{ padding: 8, marginHorizontal: 4 }} onPress={clearSelection}>
-                            <Feather name="x" size={22} color={theme.colors.textSecondary} />
+                            <Feather name="x" size={28} color={theme.colors.textSecondary} />
                         </TouchableOpacity>
                     </View>
                 </View>
             )}
 
-            <UndoLastDeleted />
+            {/* Undo Snackbar */}
+            {undoTask && (
+                <View style={{ position: 'absolute', left: 16, right: 16, bottom: 24, backgroundColor: '#333', borderRadius: 12, padding: 16, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', elevation: 6, zIndex: 200, shadowColor: "#000", shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.25 }}>
+                    <Text style={{ color: 'white', fontWeight: '500' }}>Usunięto zadanie</Text>
+                    <TouchableOpacity onPress={async () => {
+                        const { id, ...restorePayload } = undoTask;
+                        await actions.addTask(restorePayload, userProfile, filters.taskType);
+                        if (undoTimeoutRef.current) clearTimeout(undoTimeoutRef.current);
+                        setUndoTask(null);
+                        showToast('Zadanie przywrócone', 'success');
+                    }}>
+                        <Text style={{ color: '#8A4FFF', fontWeight: '700' }}>COFNIJ</Text>
+                    </TouchableOpacity>
+                </View>
+            )}
 
             <CalendarRangeModal
                 visible={calendarModal.visible}
@@ -788,273 +725,40 @@ const HomeScreen = () => {
                 }}
                 onRequestClose={() => setCalendarModal({ visible: false, type: null })}
             />
-        </View>
+        </HomeBackground>
     );
 };
 
 const createStyles = (theme: Theme) => StyleSheet.create({
     container: { flex: 1, backgroundColor: theme.colors.background },
-    headerContainer: {
-        paddingTop: Spacing.xxLarge,
-        paddingBottom: Spacing.medium,
-        paddingHorizontal: Spacing.large,
-        backgroundColor: theme.colors.card,
-        flexDirection: 'row',
-        justifyContent: 'space-between',
-        alignItems: 'center',
-        borderBottomWidth: 1,
-        borderColor: theme.colors.border,
-    },
-    headerTitle: {
-        fontSize: Typography.h1.fontSize,
-        fontWeight: '700',
-        color: theme.colors.textPrimary,
-    },
-    headerIcons: { flexDirection: 'row', alignItems: 'center' },
-    headerAvatar: {
-        width: 32,
-        height: 32,
-        borderRadius: 16,
-    },
-    headerAvatarPlaceholder: {
-        width: 32,
-        height: 32,
-        borderRadius: 16,
-        backgroundColor: theme.colors.secondary,
-        justifyContent: 'center',
-        alignItems: 'center',
-    },
-    headerAvatarText: {
-        color: 'white',
-        fontSize: 16,
-        fontWeight: 'bold',
-    },
-    partnerInfoBanner: {
-        backgroundColor: theme.colors.background, // theme.colors.light does not exist
-        padding: Spacing.small,
-        alignItems: 'center',
-        borderBottomWidth: 1,
-        borderColor: theme.colors.border,
-    },
-    partnerInfoText: {
-        fontSize: Typography.body.fontSize,
-        color: theme.colors.textSecondary,
-        fontWeight: '600',
-    },
-    tabContainer: {
-        flexDirection: 'row',
-        justifyContent: 'space-around',
-        paddingVertical: Spacing.small,
-        backgroundColor: theme.colors.card,
-        borderBottomWidth: 1,
-        borderColor: theme.colors.border,
-    },
-    tab: { paddingVertical: Spacing.small, paddingHorizontal: Spacing.large, borderRadius: 20 },
-    tabActive: { backgroundColor: theme.colors.primary },
-    tabText: {
-        fontSize: Typography.body.fontSize,
-        fontWeight: '600',
-        color: theme.colors.textSecondary,
-    },
-    tabTextActive: { color: 'white' },
-    list: { flex: 1 },
-    taskContainer: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        paddingVertical: Spacing.small,
-        paddingHorizontal: Spacing.medium,
-        backgroundColor: theme.colors.card,
-        borderBottomWidth: 1,
-        borderColor: theme.colors.border,
-        borderLeftWidth: 2,
-        borderLeftColor: 'transparent',
-        borderRadius: 12,
-        shadowColor: theme.colors.shadow,
-        shadowOffset: { width: 0, height: 1 },
-        shadowOpacity: 0.08,
-        shadowRadius: 2,
-        elevation: 1,
-    },
-    taskContainerCompleted: { opacity: 0.6 },
-    checkboxTouchable: { padding: Spacing.small },
-    checkbox: {
-        width: 28,
-        height: 28,
-        borderRadius: 14,
-        borderWidth: 2,
-        borderColor: theme.colors.primary,
-        justifyContent: 'center',
-        alignItems: 'center'
-    },
-    checkboxCompleted: { backgroundColor: theme.colors.success, borderColor: theme.colors.success },
-    taskContent: { flex: 1, marginLeft: Spacing.xSmall },
-    taskText: {
-        fontSize: Typography.body.fontSize,
-        fontWeight: '600',
-        color: theme.colors.textPrimary
-    },
-    taskTextCompleted: { textDecorationLine: 'line-through', color: theme.colors.textSecondary, fontWeight: 'normal' },
-    descriptionText: {
-        fontSize: Typography.small.fontSize,
-        color: theme.colors.textSecondary,
-        marginTop: 2,
-        paddingRight: Spacing.small,
-    },
-    metaRowTop: { flexDirection: 'row', alignItems: 'center', marginTop: 4 },
-    metaRowBottom: { flexDirection: 'row', alignItems: 'center', gap: 12, marginTop: 4 },
-    categoryChip: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 8, paddingVertical: 3, borderRadius: 10, borderWidth: 1, marginRight: 8 },
-    categoryDot: { width: 8, height: 8, borderRadius: 4, marginRight: 6 },
-    categoryChipText: { fontSize: Typography.small.fontSize, fontWeight: '600' },
-    creatorText: { fontSize: Typography.small.fontSize },
-    metaDateText: { fontSize: Typography.small.fontSize },
-    overdueBadge: { marginLeft: 8, paddingHorizontal: 6, paddingVertical: 2, borderRadius: 6 },
-    overdueBadgeText: { color: 'white', fontSize: Typography.small.fontSize - 1, fontWeight: '700' },
-    rightSection: { alignItems: 'center', justifyContent: 'space-between', alignSelf: 'stretch' },
-    actionButton: { marginTop: Spacing.xSmall, padding: Spacing.xSmall },
-    emptyListText: { textAlign: 'center', marginTop: Spacing.xLarge, fontSize: Typography.body.fontSize, color: theme.colors.textSecondary },
     fabContainer: {
         position: 'absolute',
-        right: Spacing.large,
-        bottom: Spacing.large,
+        right: 16,
+        bottom: 16,
         width: 110,
         height: 110,
         justifyContent: 'flex-end',
         alignItems: 'flex-end',
+        pointerEvents: 'box-none',
+        zIndex: 50,
     },
-    templateFab: {
-        position: 'absolute',
-        top: 0,
-        right: 0,
-        width: 48,
-        height: 48,
-        borderRadius: 24,
-        backgroundColor: theme.colors.info,
-        justifyContent: 'center',
-        alignItems: 'center',
-        elevation: 7,
-        shadowColor: theme.colors.shadow,
-        shadowOffset: { width: 0, height: 3 },
-        shadowOpacity: 0.25,
-        shadowRadius: 3.84,
-        zIndex: 10,
-    },
-    fab: {
-        position: 'absolute',
-        bottom: 0,
-        left: 0,
-        width: 60,
-        height: 60,
-        borderRadius: 30,
-        backgroundColor: theme.colors.primary,
-        justifyContent: 'center',
-        alignItems: 'center',
-        elevation: 8,
-        shadowColor: theme.colors.shadow,
-        shadowOffset: { width: 0, height: 4 },
-        shadowOpacity: 0.3,
-        shadowRadius: 4.65,
-        zIndex: 10,
-    },
-    modalContainer: { flex: 1, justifyContent: 'flex-end', backgroundColor: 'rgba(0,0,0,0.5)' },
-    modalContent: { backgroundColor: theme.colors.card, borderTopLeftRadius: 20, borderTopRightRadius: 20, padding: Spacing.large, maxHeight: '50%' },
-    modalTitle: { fontSize: Typography.h3.fontSize, fontWeight: '700', textAlign: 'center', marginBottom: Spacing.medium, color: theme.colors.textPrimary },
     templateItem: { padding: Spacing.medium, borderBottomWidth: 1, borderColor: theme.colors.border },
     templateName: { fontSize: Typography.body.fontSize, color: theme.colors.textPrimary },
-    closeButton: { marginTop: Spacing.medium, padding: Spacing.small },
-    closeButtonText: { textAlign: 'center', color: theme.colors.danger, fontSize: Typography.body.fontSize },
-    todaySection: {
-        marginHorizontal: Spacing.medium,
-        marginTop: Spacing.medium,
-        padding: Spacing.medium,
-        borderRadius: 10,
-        borderWidth: 1,
-        borderColor: theme.colors.border,
-    },
-    todayTitle: {
-        ...Typography.h3,
-        marginBottom: Spacing.small,
-    },
-    todayItem: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        paddingVertical: 6,
-    },
-    todayText: {
-        ...Typography.body,
-        flex: 1,
-        color: theme.colors.textPrimary,
-    },
-    swipeAction: {
-        flex: 1,
-        flexDirection: 'row',
-        alignItems: 'center',
-        paddingHorizontal: Spacing.medium,
-    },
-    swipeActionText: {
-        color: 'white',
-        fontWeight: '700',
-    },
-    swipeActionWidth: {
-        width: 140,
-        justifyContent: 'center',
-    },
-    quickAddContainer: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        backgroundColor: theme.colors.card,
-        paddingHorizontal: Spacing.medium,
-        paddingVertical: Spacing.small,
-        borderBottomWidth: 1,
-        borderTopWidth: 1,
-        borderColor: theme.colors.border,
-    },
-    quickAddInput: {
-        flex: 1,
-        paddingVertical: 10,
-        paddingRight: Spacing.small,
-        color: theme.colors.textPrimary,
-    },
-    quickAddButton: {
-        width: 36,
-        height: 36,
-        borderRadius: 18,
-        backgroundColor: theme.colors.primary,
-        alignItems: 'center',
-        justifyContent: 'center',
-    },
-    quickAddButtonDisabled: {
-        backgroundColor: theme.colors.textSecondary,
-        opacity: 0.5,
-    },
+    emptyListText: { textAlign: 'center', marginTop: Spacing.xLarge, fontSize: Typography.body.fontSize, color: theme.colors.textSecondary },
 });
 
 export default HomeScreen;
 
-// Onboarding-aware empty state for Home
 const HomeEmptyState = ({ onAddTask, onOpenTemplates }: { onAddTask: () => void; onOpenTemplates: () => void }) => {
-    const theme = useTheme();
     const [done, setDone] = React.useState<boolean | null>(null);
     React.useEffect(() => { (async () => setDone(await isOnboardingDone()))(); }, []);
     if (done === null) return null;
-    if (done) {
-        return (
-            <EmptyState
-                icon="inbox"
-                title="Pusta skrzynka"
-                subtitle="Brak zadań w tej kategorii. Czas dodać nowe!"
-                actions={[
-                    { title: 'Dodaj zadanie', onPress: onAddTask },
-                    { title: 'Szablony', onPress: onOpenTemplates, variant: 'secondary' },
-                ]}
-                illustration={require('../../assets/icon.png')}
-            />
-        );
-    }
+
     return (
         <EmptyState
             icon="inbox"
-            title="Zacznijmy!"
-            subtitle="Szybki start: dodaj pierwsze zadanie lub wybierz gotowy szablon."
+            title={done ? "Pusta skrzynka" : "Zacznijmy!"}
+            subtitle={done ? "Brak zadań w tej kategorii. Czas dodać nowe!" : "Szybki start: dodaj pierwsze zadanie lub wybierz gotowy szablon."}
             actions={[
                 { title: 'Dodaj zadanie', onPress: async () => { try { await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium); } catch { }; onAddTask(); setOnboardingDone(); } },
                 { title: 'Otwórz szablony', onPress: async () => { onOpenTemplates(); setOnboardingDone(); }, variant: 'secondary' },
@@ -1062,69 +766,4 @@ const HomeEmptyState = ({ onAddTask, onOpenTemplates }: { onAddTask: () => void;
             illustration={require('../../assets/icon.png')}
         />
     );
-}
-
-// Simple undo bar (restores last deleted task from AsyncStorage)
-const UndoLastDeleted = () => {
-    const theme = useTheme();
-    const [payload, setPayload] = React.useState<any | null>(null);
-    const [visible, setVisible] = React.useState(false);
-    React.useEffect(() => {
-        (async () => {
-            try {
-                const uid = getAuth().currentUser?.uid || 'anon';
-                const raw = await AsyncStorage.getItem(`undo_last_task_${uid}`);
-                if (raw) { setPayload(JSON.parse(raw)); setVisible(true); }
-            } catch { }
-        })();
-    }, []);
-    if (!visible || !payload) return null;
-    return (
-        <View style={{ position: 'absolute', left: 16, right: 16, bottom: 76, backgroundColor: theme.colors.card, borderColor: theme.colors.border, borderWidth: 1, borderRadius: 12, padding: 10, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
-            <Text style={{ color: theme.colors.textPrimary, flex: 1 }} numberOfLines={1}>Cofnij usunięcie: {String(payload?.text || '')}</Text>
-            <TouchableOpacity onPress={async () => {
-                try {
-                    await addDoc(collection(db, 'tasks'), payload);
-                } catch { }
-                try { const uid = getAuth().currentUser?.uid || 'anon'; await AsyncStorage.removeItem(`undo_last_task_${uid}`); } catch { }
-                setVisible(false); setPayload(null);
-            }} style={{ paddingHorizontal: 10, paddingVertical: 6 }}>
-                <Text style={{ color: theme.colors.primary, fontWeight: '700' }}>COFNIJ</Text>
-            </TouchableOpacity>
-            <TouchableOpacity onPress={async () => { try { const uid = getAuth().currentUser?.uid || 'anon'; await AsyncStorage.removeItem(`undo_last_task_${uid}`); } catch { }; setVisible(false); setPayload(null); }} style={{ paddingHorizontal: 6, paddingVertical: 6 }}>
-                <Feather name="x" size={18} color={theme.colors.textSecondary} />
-            </TouchableOpacity>
-        </View>
-    );
 };
-
-// Small pill-like tile for Today's tasks
-const TodayTile = ({ text, onPress }: { text: string; onPress: () => void }) => (
-    <TouchableOpacity onPress={onPress} style={{ backgroundColor: 'rgba(255,255,255,0.2)', paddingHorizontal: 12, paddingVertical: 8, borderRadius: 12, marginRight: 8 }}>
-        <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-            <Feather name="clock" size={16} color={'#ffffffcc'} style={{ marginRight: 6 }} />
-            <Text style={{ color: 'white', fontWeight: '600' }} numberOfLines={1}>{text}</Text>
-        </View>
-    </TouchableOpacity>
-);
-
-function pluralizeTasks(n: number) {
-    if (n === 1) return 'zadanie';
-    if (n % 10 >= 2 && n % 10 <= 4 && (n % 100 < 10 || n % 100 >= 20)) return 'zadania';
-    return 'zadań';
-}
-
-function formatRelativePl(date: Date): string {
-    const now = new Date();
-    const startOfDay = (d: Date) => { const x = new Date(d); x.setHours(0, 0, 0, 0); return x; };
-    const d = startOfDay(date).getTime();
-    const n = startOfDay(now).getTime();
-    const diffDays = Math.round((d - n) / (1000 * 60 * 60 * 24));
-    if (diffDays === 0) return 'dzisiaj';
-    if (diffDays === 1) return 'jutro';
-    if (diffDays === -1) return 'wczoraj';
-    if (diffDays > 1 && diffDays <= 7) return `za ${diffDays} dni`;
-    if (diffDays < -1 && diffDays >= -7) return `${Math.abs(diffDays)} dni temu`;
-    if (diffDays > 7) return `za ${Math.ceil(diffDays / 7)} tyg.`;
-    return `${Math.ceil(Math.abs(diffDays) / 7)} tyg. temu`;
-}
