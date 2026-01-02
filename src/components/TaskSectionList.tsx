@@ -43,7 +43,8 @@ const TaskSectionListInner = ({ tasks, categories, onPressTask, onToggleComplete
     return map;
   }, [categories]);
 
-  const sections = useMemo(() => {
+  // Separate heavy bucket calculation from section structure
+  const { buckets, pinned } = useMemo(() => {
     const now = new Date();
     const startOf = (d: Date) => { const x = new Date(d); x.setHours(0, 0, 0, 0); return x; };
     const endOf = (d: Date) => { const x = new Date(d); x.setHours(23, 59, 59, 999); return x; };
@@ -66,7 +67,10 @@ const TaskSectionListInner = ({ tasks, categories, onPressTask, onToggleComplete
       if (dl > tomorrowEnd && dl <= weekEnd) { buckets.week.push(t); continue; }
       buckets.later.push(t);
     }
+    return { buckets, pinned };
+  }, [tasks, pinnedIds]);
 
+  const sections = useMemo(() => {
     const order: { key: SectionKey; title: string }[] = [
       { key: 'overdue', title: 'Po terminie' },
       { key: 'today', title: 'Dzisiaj' },
@@ -76,14 +80,34 @@ const TaskSectionListInner = ({ tasks, categories, onPressTask, onToggleComplete
       { key: 'none', title: 'Bez terminu' },
       { key: 'completed', title: 'Ukończone' },
     ];
-    const sections = order.map(({ key, title }) => ({ key, title, data: (buckets as any)[key] }));
-    if (pinned.length > 0) sections.unshift({ key: 'pinned', title: 'Przypięte', data: pinned });
+
+    const mappedSections = order.map(({ key, title }) => {
+      const allData = (buckets as any)[key];
+      return {
+        key,
+        title,
+        data: collapsed[key] ? [] : allData,
+        originalData: allData,
+        count: allData.length
+      };
+    });
+
+    if (pinned.length > 0) {
+      mappedSections.unshift({
+        key: 'pinned',
+        title: 'Przypięte',
+        data: collapsed['pinned'] ? [] : pinned,
+        originalData: pinned,
+        count: pinned.length
+      });
+    }
+
     // Build index map
     const map: Record<string, { sectionIndex: number; itemIndex: number }> = {};
-    sections.forEach((sec, si) => sec.data.forEach((t: Task, ii: number) => { map[t.id] = { sectionIndex: si, itemIndex: ii }; }));
+    mappedSections.forEach((sec, si) => sec.data.forEach((t: Task, ii: number) => { map[t.id] = { sectionIndex: si, itemIndex: ii }; }));
     indexMapRef.current = map;
-    return sections;
-  }, [tasks, pinnedIds]);
+    return mappedSections;
+  }, [buckets, pinned, collapsed]);
 
   useImperativeHandle(ref, () => ({
     scrollToTaskId: (id: string) => {
@@ -122,7 +146,7 @@ const TaskSectionListInner = ({ tasks, categories, onPressTask, onToggleComplete
       ref={sectionListRef}
       renderSectionHeader={({ section }: any) => {
         const isCollapsed = collapsed[section.key as SectionKey];
-        const count = (section.data as Task[]).length;
+        const count = section.count;
         if (count === 0) return null;
         const accent = getSectionAccent(section.key as SectionKey);
         return (
@@ -138,7 +162,7 @@ const TaskSectionListInner = ({ tasks, categories, onPressTask, onToggleComplete
               <TouchableOpacity onPress={() => onQuickAdd && onQuickAdd(section.key)} style={styles.collapseBtn} accessibilityLabel="Dodaj zadanie w tej sekcji">
                 <Feather name="plus" size={18} color={theme.colors.textSecondary} />
               </TouchableOpacity>
-              <TouchableOpacity onPress={() => onSelectAllSection && onSelectAllSection(section.key, section.data)} style={styles.collapseBtn} accessibilityLabel="Zaznacz sekcję">
+              <TouchableOpacity onPress={() => onSelectAllSection && onSelectAllSection(section.key, section.originalData)} style={styles.collapseBtn} accessibilityLabel="Zaznacz sekcję">
                 <Feather name="check-square" size={18} color={theme.colors.textSecondary} />
               </TouchableOpacity>
               <TouchableOpacity onPress={() => toggleSection(section.key)} style={styles.collapseBtn}>
@@ -149,7 +173,7 @@ const TaskSectionListInner = ({ tasks, categories, onPressTask, onToggleComplete
         );
       }}
       renderItem={({ item, index, section }) => {
-        if (collapsed[section.key as SectionKey]) return null;
+        // No longer needed check: if (collapsed[section.key as SectionKey]) return null;
         const cat = categoryMap[item.category];
         const selected = !!selectedIds?.has(item.id);
         const isPinned = !!pinnedIds?.has(item.id);
