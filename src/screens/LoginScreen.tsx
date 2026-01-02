@@ -1115,6 +1115,9 @@ const LoginScreen = () => {
                         animatedSwitcherStyle
                     ]}
                     onPress={togglePause}
+                    accessibilityRole="button"
+                    accessibilityLabel={isPaused ? "Wznów animację tła" : "Zatrzymaj animację tła"}
+                    accessibilityHint="Włącza lub wyłącza animowane kulki w tle"
                 >
                     {/* Use explicit color interpolation via style to fix flicker */}
                     <AnimatedFeather
@@ -1134,6 +1137,9 @@ const LoginScreen = () => {
                         animatedThemeSwitcherStyle,
                         animatedSwitcherStyle
                     ]}
+                    accessibilityRole="button"
+                    accessibilityLabel={displayMode === 'dark' ? "Przełącz na jasny motyw" : "Przełącz na ciemny motyw"}
+                    accessibilityHint="Zmienia kolorystykę aplikacji pomiędzy trybem jasnym i ciemnym"
                     onPress={() => {
                         const now = Date.now();
                         if (now - (theme as any).lastSwitchTime > 500 || !(theme as any).lastSwitchTime) {

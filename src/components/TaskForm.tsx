@@ -85,6 +85,10 @@ const TaskForm = ({ taskData, onDataChange, showDatePicker, onDatePickerChange, 
                 minimumTrackTintColor={theme.colors.primary}
                 maximumTrackTintColor={theme.colors.border}
                 thumbTintColor={theme.colors.primary}
+                accessibilityLabel="Wybierz poziom trudności zadania"
+                accessibilityRole="adjustable"
+                accessibilityValue={{ min: 1, max: 10, now: taskData.difficulty }}
+                accessibilityHint="Przesuń, aby zmienić trudność od 1 do 10"
             />
 
             <Text style={[styles.label, { color: theme.colors.textSecondary }]}>Priorytet bazowy</Text>
