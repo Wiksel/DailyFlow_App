@@ -12,7 +12,7 @@ import { UserProfile, Comment } from '../types';
 import { Feather } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import { useToast } from '../contexts/ToastContext';
-import { Colors, Spacing, Typography, GlobalStyles } from '../styles/AppStyles';
+import { Spacing, Typography, GlobalStyles } from '../styles/AppStyles';
 import FormActionBar from '../components/FormActionBar';
 import AppHeader from '../components/AppHeader';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -140,7 +140,7 @@ const TaskDetailScreen = () => {
             const querySnapshot = await getDocs(q);
             if (!querySnapshot.empty) {
                 showToast("Szablon o tej nazwie już istnieje.", 'error');
-                setIsSavingTemplate(false); // ZMIANA: Zakończ ładowanie w przypadku błędu
+                setIsSavingTemplate(false);
                 return;
             }
 
@@ -171,7 +171,6 @@ const TaskDetailScreen = () => {
             today.setHours(0, 0, 0, 0);
             const picked = new Date(selectedDate);
             picked.setHours(0, 0, 0, 0);
-            // prosta walidacja: nie pozwalaj na daty w przeszłości bez potwierdzenia; ustaw dzisiaj jeśli przeszłość
             const finalDate = picked.getTime() < today.getTime() ? today : picked;
             handleDataChange('deadline', Timestamp.fromDate(finalDate));
         }
@@ -209,14 +208,14 @@ const TaskDetailScreen = () => {
                     onDatePickerChange={onDateChange}
                 />
 
-                <View style={styles.commentsSection}>
+                <View style={[styles.commentsSection, { borderColor: theme.colors.border }]}>
                     <Text style={[styles.sectionTitle, { color: theme.colors.textPrimary }]}>Komentarze</Text>
                     <FlatList
                         ref={commentsFlatListRef}
                         data={comments}
                         renderItem={renderComment}
                         keyExtractor={item => item.id}
-                        ListEmptyComponent={<Text style={styles.emptyCommentText}>Brak komentarzy. Bądź pierwszy!</Text>}
+                        ListEmptyComponent={<Text style={[styles.emptyCommentText, { color: theme.colors.textSecondary }]}>Brak komentarzy. Bądź pierwszy!</Text>}
                         scrollEnabled={false}
                     />
                     <View style={styles.addCommentContainer}>
@@ -256,12 +255,10 @@ const styles = StyleSheet.create({
     actionsContainer: {
         paddingVertical: Spacing.large
     },
-    // przeniesione do FormActionBar
     commentsSection: {
         marginTop: Spacing.large,
         paddingTop: Spacing.large,
         borderTopWidth: 1,
-        borderColor: Colors.border,
         paddingBottom: Spacing.xLarge,
     },
     sectionTitle: {
@@ -284,7 +281,6 @@ const styles = StyleSheet.create({
     },
     commentDate: {
         fontSize: Typography.small.fontSize,
-        color: Colors.textSecondary,
     },
     commentText: {
         fontSize: Typography.body.fontSize,

@@ -1,5 +1,5 @@
 import React, { useMemo, useState, useCallback, useRef, useImperativeHandle, forwardRef } from 'react';
-import { View, Text, SectionList, StyleSheet, TouchableOpacity } from 'react-native';
+import { View, Text, SectionList, StyleSheet, TouchableOpacity, LayoutAnimation } from 'react-native';
 import { Feather } from '@expo/vector-icons';
 import { Colors, Spacing, Typography } from '../styles/AppStyles';
 import { Task, Category } from '../types';
@@ -93,7 +93,12 @@ const TaskSectionListInner = ({ tasks, categories, onPressTask, onToggleComplete
     }
   }));
 
-  const toggleSection = useCallback((key: SectionKey) => { try { Haptics.selectionAsync(); } catch { }; setCollapsed(prev => ({ ...prev, [key]: !prev[key] })); }, []);
+  const toggleSection = useCallback((key: SectionKey) => {
+    try { Haptics.selectionAsync(); } catch { }
+    // Add simple LayoutAnimation for collapse/expand
+    LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
+    setCollapsed(prev => ({ ...prev, [key]: !prev[key] }));
+  }, []);
 
   const getSectionAccent = useCallback((key: SectionKey) => {
     switch (key) {
@@ -163,7 +168,7 @@ const TaskSectionListInner = ({ tasks, categories, onPressTask, onToggleComplete
             onPress={onPressTask}
             onToggleComplete={onToggleComplete}
             onConfirmAction={onConfirmAction}
-            onToggleSelect={onToggleSelect!} // These handlers are always passed
+            onToggleSelect={onToggleSelect!}
             onOpenMenu={onOpenTaskMenu}
             onTogglePinned={onTogglePinned}
           />

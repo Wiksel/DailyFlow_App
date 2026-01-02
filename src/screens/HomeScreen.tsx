@@ -1,8 +1,8 @@
 import React, { useState, useRef, useCallback, useEffect, useMemo } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, FlatList, TextInput, ScrollView, Vibration } from 'react-native';
-import * as Haptics from 'expo-haptics'; // Fixed import
+import * as Haptics from 'expo-haptics';
 import { LinearGradient } from 'expo-linear-gradient';
-import { isOnboardingDone, setOnboardingDone } from '../utils/authUtils'; // Fixed import
+import { isOnboardingDone, setOnboardingDone } from '../utils/authUtils';
 import { Swipeable } from 'react-native-gesture-handler';
 import { useNavigation } from '@react-navigation/native';
 import { getAuth } from '../utils/authCompat';
@@ -13,9 +13,9 @@ import { Task, UserProfile, ChoreTemplate, Category } from '../types';
 import { useCategories } from '../contexts/CategoryContext';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useToast } from '../contexts/ToastContext';
-import { Colors, Spacing, GlobalStyles, Typography } from '../styles/AppStyles';
+import { Spacing, GlobalStyles, Typography } from '../styles/AppStyles';
 import { useUI } from '../contexts/UIContext';
-import { useTheme } from '../contexts/ThemeContext';
+import { useTheme, Theme } from '../contexts/ThemeContext';
 
 // Components
 import AddTaskModal from './AddTaskModal';
@@ -48,6 +48,8 @@ const HomeScreen = () => {
     const { categories } = useCategories();
     const { showToast } = useToast();
     const currentUser = getAuth().currentUser;
+
+    const styles = useMemo(() => createStyles(theme), [theme]);
 
     // Component State
     const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
@@ -291,23 +293,23 @@ const HomeScreen = () => {
                     { icon: density === 'compact' ? 'maximize-2' : 'minimize-2', onPress: async () => { try { await Haptics.selectionAsync(); } catch { }; setDensity(density === 'compact' ? 'standard' : 'compact'); }, accessibilityLabel: density === 'compact' ? 'Tryb komfortowy' : 'Tryb kompaktowy' },
                     { icon: globalSearchVisible ? 'x' : 'search', onPress: async () => { try { await Haptics.selectionAsync(); } catch { }; setGlobalSearchVisible(v => !v); if (globalSearchVisible) setGlobalSearchQuery(''); }, accessibilityLabel: 'Szukaj' },
                     { icon: 'archive', onPress: () => navigation.navigate('Archive'), accessibilityLabel: 'Archiwum zadań' },
-                    { icon: 'settings', onPress: () => navigation.navigate('Profile'), accessibilityLabel: 'Ustawienia' }, // Changed to settings icon for clarity
+                    { icon: 'settings', onPress: () => navigation.navigate('Profile'), accessibilityLabel: 'Ustawienia' },
                 ]}
                 avatarUrl={userProfile?.photoURL || null}
                 onAvatarPress={() => navigation.navigate('Profile')}
             />
 
-            <View style={[styles.tabContainer, { backgroundColor: theme.colors.card, borderColor: theme.colors.border }]}>
-                <TouchableOpacity style={[styles.tab, filters.taskType === 'personal' && { backgroundColor: theme.colors.primary }]} onPress={() => setTaskType('personal')} activeOpacity={0.8}>
-                    <Text style={[styles.tabText, filters.taskType === 'personal' && { color: '#fff' }]}>Osobiste</Text>
+            <View style={styles.tabContainer}>
+                <TouchableOpacity style={[styles.tab, filters.taskType === 'personal' && styles.tabActive]} onPress={() => setTaskType('personal')} activeOpacity={0.8}>
+                    <Text style={[styles.tabText, filters.taskType === 'personal' && styles.tabTextActive]}>Osobiste</Text>
                 </TouchableOpacity>
-                <TouchableOpacity style={[styles.tab, filters.taskType === 'shared' && { backgroundColor: theme.colors.primary }]} onPress={() => setTaskType('shared')} activeOpacity={0.8}>
-                    <Text style={[styles.tabText, filters.taskType === 'shared' && { color: '#fff' }]}>Wspólne</Text>
+                <TouchableOpacity style={[styles.tab, filters.taskType === 'shared' && styles.tabActive]} onPress={() => setTaskType('shared')} activeOpacity={0.8}>
+                    <Text style={[styles.tabText, filters.taskType === 'shared' && styles.tabTextActive]}>Wspólne</Text>
                 </TouchableOpacity>
             </View>
             {filters.taskType === 'shared' && userProfile?.partnerNickname ? (
-                <View style={[styles.partnerInfoBanner, { backgroundColor: theme.colors.card, borderColor: theme.colors.border }]}>
-                    <Text style={[styles.partnerInfoText, { color: theme.colors.textSecondary }]}>Dzielone z: <Text style={{ fontWeight: '700', color: theme.colors.textPrimary }}>{userProfile.partnerNickname}</Text></Text>
+                <View style={styles.partnerInfoBanner}>
+                    <Text style={styles.partnerInfoText}>Dzielone z: <Text style={{ fontWeight: '700', color: theme.colors.textPrimary }}>{userProfile.partnerNickname}</Text></Text>
                 </View>
             ) : null}
 
@@ -315,7 +317,7 @@ const HomeScreen = () => {
                 <LinearGradient
                     colors={theme.colorScheme === 'dark' ? [theme.colors.primary, theme.colors.purple] : [theme.colors.primary, theme.colors.purple]}
                     start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}
-                    style={[GlobalStyles.card, styles.todaySection, { borderWidth: 0, shadowOpacity: theme.colorScheme === 'dark' ? 0.25 : 0.18 }]}
+                    style={[GlobalStyles.card, styles.todaySection, { borderWidth: 0, shadowOpacity: theme.colorScheme === 'dark' ? 0.25 : 0.18, backgroundColor: theme.colors.card }]} // Overrode GlobalStyles.card white bg
                 >
                     <Text style={[styles.todayTitle, { color: 'white' }]}>Dzisiaj · {todayTasks.length} {pluralizeTasks(todayTasks.length)}</Text>
                     <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingVertical: 6 }}>
@@ -408,8 +410,6 @@ const HomeScreen = () => {
                     creatorFilter: 'all', searchQuery: ''
                 })}
             />
-
-            {/* BottomQuickAdd REMOVED as requested */}
 
             {showFilters && (
                 <InlineFilters
@@ -543,7 +543,6 @@ const HomeScreen = () => {
                             if (confirmModalTask.completed) await actions.archiveTask(confirmModalTask.id);
                             else {
                                 await actions.deleteTask(confirmModalTask.id);
-                                // Simple undo snapshot
                                 try {
                                     const key = `undo_last_task_${currentUser?.uid || 'anon'}`;
                                     await AsyncStorage.setItem(key, JSON.stringify(confirmModalTask));
@@ -613,9 +612,10 @@ const HomeScreen = () => {
                     <View style={{ paddingHorizontal: Spacing.medium }}>
                         <TextInput
                             placeholder="Szukaj kategorii..."
+                            placeholderTextColor={theme.colors.placeholder}
                             value={categorySearch}
                             onChangeText={setCategorySearch}
-                            style={[GlobalStyles.input, { marginBottom: Spacing.small }]}
+                            style={[GlobalStyles.input, { marginBottom: Spacing.small, backgroundColor: theme.colors.inputBackground, color: theme.colors.textPrimary, borderColor: theme.colors.border }]}
                         />
                         {recentCategoryIds.length > 0 && (
                             <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingVertical: 6 }}>
@@ -699,9 +699,10 @@ const HomeScreen = () => {
                     <View style={{ paddingHorizontal: Spacing.medium }}>
                         <TextInput
                             placeholder="Szukaj kategorii..."
+                            placeholderTextColor={theme.colors.placeholder}
                             value={categorySearch}
                             onChangeText={setCategorySearch}
-                            style={[GlobalStyles.input, { marginBottom: Spacing.small }]}
+                            style={[GlobalStyles.input, { marginBottom: Spacing.small, backgroundColor: theme.colors.inputBackground, color: theme.colors.textPrimary, borderColor: theme.colors.border }]}
                         />
                         {recentCategoryIds.length > 0 && (
                             <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingVertical: 6 }}>
@@ -866,23 +867,23 @@ const HomeScreen = () => {
     );
 };
 
-const styles = StyleSheet.create({
-    container: { flex: 1, backgroundColor: Colors.backgroundLight },
+const createStyles = (theme: Theme) => StyleSheet.create({
+    container: { flex: 1, backgroundColor: theme.colors.background },
     headerContainer: {
         paddingTop: Spacing.xxLarge,
         paddingBottom: Spacing.medium,
         paddingHorizontal: Spacing.large,
-        backgroundColor: 'white',
+        backgroundColor: theme.colors.card,
         flexDirection: 'row',
         justifyContent: 'space-between',
         alignItems: 'center',
         borderBottomWidth: 1,
-        borderColor: Colors.border,
+        borderColor: theme.colors.border,
     },
     headerTitle: {
         fontSize: Typography.h1.fontSize,
         fontWeight: '700',
-        color: Colors.textPrimary,
+        color: theme.colors.textPrimary,
     },
     headerIcons: { flexDirection: 'row', alignItems: 'center' },
     headerAvatar: {
@@ -894,7 +895,7 @@ const styles = StyleSheet.create({
         width: 32,
         height: 32,
         borderRadius: 16,
-        backgroundColor: Colors.secondary,
+        backgroundColor: theme.colors.secondary,
         justifyContent: 'center',
         alignItems: 'center',
     },
@@ -904,31 +905,31 @@ const styles = StyleSheet.create({
         fontWeight: 'bold',
     },
     partnerInfoBanner: {
-        backgroundColor: Colors.light,
+        backgroundColor: theme.colors.background, // theme.colors.light does not exist
         padding: Spacing.small,
         alignItems: 'center',
         borderBottomWidth: 1,
-        borderColor: Colors.border,
+        borderColor: theme.colors.border,
     },
     partnerInfoText: {
         fontSize: Typography.body.fontSize,
-        color: Colors.textSecondary,
+        color: theme.colors.textSecondary,
         fontWeight: '600',
     },
     tabContainer: {
         flexDirection: 'row',
         justifyContent: 'space-around',
         paddingVertical: Spacing.small,
-        backgroundColor: 'white',
+        backgroundColor: theme.colors.card,
         borderBottomWidth: 1,
-        borderColor: Colors.border,
+        borderColor: theme.colors.border,
     },
     tab: { paddingVertical: Spacing.small, paddingHorizontal: Spacing.large, borderRadius: 20 },
-    tabActive: { backgroundColor: Colors.primary },
+    tabActive: { backgroundColor: theme.colors.primary },
     tabText: {
         fontSize: Typography.body.fontSize,
         fontWeight: '600',
-        color: Colors.textSecondary,
+        color: theme.colors.textSecondary,
     },
     tabTextActive: { color: 'white' },
     list: { flex: 1 },
@@ -937,13 +938,13 @@ const styles = StyleSheet.create({
         alignItems: 'center',
         paddingVertical: Spacing.small,
         paddingHorizontal: Spacing.medium,
-        backgroundColor: 'white',
+        backgroundColor: theme.colors.card,
         borderBottomWidth: 1,
-        borderColor: Colors.border,
+        borderColor: theme.colors.border,
         borderLeftWidth: 2,
         borderLeftColor: 'transparent',
         borderRadius: 12,
-        shadowColor: '#000',
+        shadowColor: theme.colors.shadow,
         shadowOffset: { width: 0, height: 1 },
         shadowOpacity: 0.08,
         shadowRadius: 2,
@@ -956,21 +957,21 @@ const styles = StyleSheet.create({
         height: 28,
         borderRadius: 14,
         borderWidth: 2,
-        borderColor: Colors.primary,
+        borderColor: theme.colors.primary,
         justifyContent: 'center',
         alignItems: 'center'
     },
-    checkboxCompleted: { backgroundColor: Colors.success, borderColor: Colors.success },
+    checkboxCompleted: { backgroundColor: theme.colors.success, borderColor: theme.colors.success },
     taskContent: { flex: 1, marginLeft: Spacing.xSmall },
     taskText: {
         fontSize: Typography.body.fontSize,
         fontWeight: '600',
-        color: Colors.textPrimary
+        color: theme.colors.textPrimary
     },
-    taskTextCompleted: { textDecorationLine: 'line-through', color: Colors.textSecondary, fontWeight: 'normal' },
+    taskTextCompleted: { textDecorationLine: 'line-through', color: theme.colors.textSecondary, fontWeight: 'normal' },
     descriptionText: {
         fontSize: Typography.small.fontSize,
-        color: Colors.textSecondary,
+        color: theme.colors.textSecondary,
         marginTop: 2,
         paddingRight: Spacing.small,
     },
@@ -985,7 +986,7 @@ const styles = StyleSheet.create({
     overdueBadgeText: { color: 'white', fontSize: Typography.small.fontSize - 1, fontWeight: '700' },
     rightSection: { alignItems: 'center', justifyContent: 'space-between', alignSelf: 'stretch' },
     actionButton: { marginTop: Spacing.xSmall, padding: Spacing.xSmall },
-    emptyListText: { textAlign: 'center', marginTop: Spacing.xLarge, fontSize: Typography.body.fontSize, color: Colors.textSecondary },
+    emptyListText: { textAlign: 'center', marginTop: Spacing.xLarge, fontSize: Typography.body.fontSize, color: theme.colors.textSecondary },
     fabContainer: {
         position: 'absolute',
         right: Spacing.large,
@@ -1002,11 +1003,11 @@ const styles = StyleSheet.create({
         width: 48,
         height: 48,
         borderRadius: 24,
-        backgroundColor: Colors.info,
+        backgroundColor: theme.colors.info,
         justifyContent: 'center',
         alignItems: 'center',
         elevation: 7,
-        shadowColor: Colors.shadow,
+        shadowColor: theme.colors.shadow,
         shadowOffset: { width: 0, height: 3 },
         shadowOpacity: 0.25,
         shadowRadius: 3.84,
@@ -1019,35 +1020,35 @@ const styles = StyleSheet.create({
         width: 60,
         height: 60,
         borderRadius: 30,
-        backgroundColor: Colors.primary,
+        backgroundColor: theme.colors.primary,
         justifyContent: 'center',
         alignItems: 'center',
         elevation: 8,
-        shadowColor: Colors.shadow,
+        shadowColor: theme.colors.shadow,
         shadowOffset: { width: 0, height: 4 },
         shadowOpacity: 0.3,
         shadowRadius: 4.65,
         zIndex: 10,
     },
     modalContainer: { flex: 1, justifyContent: 'flex-end', backgroundColor: 'rgba(0,0,0,0.5)' },
-    modalContent: { backgroundColor: 'white', borderTopLeftRadius: 20, borderTopRightRadius: 20, padding: Spacing.large, maxHeight: '50%' },
-    modalTitle: { fontSize: Typography.h3.fontSize, fontWeight: '700', textAlign: 'center', marginBottom: Spacing.medium },
-    templateItem: { padding: Spacing.medium, borderBottomWidth: 1, borderColor: Colors.border },
-    templateName: { fontSize: Typography.body.fontSize },
+    modalContent: { backgroundColor: theme.colors.card, borderTopLeftRadius: 20, borderTopRightRadius: 20, padding: Spacing.large, maxHeight: '50%' },
+    modalTitle: { fontSize: Typography.h3.fontSize, fontWeight: '700', textAlign: 'center', marginBottom: Spacing.medium, color: theme.colors.textPrimary },
+    templateItem: { padding: Spacing.medium, borderBottomWidth: 1, borderColor: theme.colors.border },
+    templateName: { fontSize: Typography.body.fontSize, color: theme.colors.textPrimary },
     closeButton: { marginTop: Spacing.medium, padding: Spacing.small },
-    closeButtonText: { textAlign: 'center', color: Colors.danger, fontSize: Typography.body.fontSize },
+    closeButtonText: { textAlign: 'center', color: theme.colors.danger, fontSize: Typography.body.fontSize },
     todaySection: {
         marginHorizontal: Spacing.medium,
         marginTop: Spacing.medium,
         padding: Spacing.medium,
         borderRadius: 10,
         borderWidth: 1,
+        borderColor: theme.colors.border,
     },
     todayTitle: {
         ...Typography.h3,
         marginBottom: Spacing.small,
     },
-    // Focus Mode UI zostało przeniesione do ustawień, style nie są już używane
     todayItem: {
         flexDirection: 'row',
         alignItems: 'center',
@@ -1056,6 +1057,7 @@ const styles = StyleSheet.create({
     todayText: {
         ...Typography.body,
         flex: 1,
+        color: theme.colors.textPrimary,
     },
     swipeAction: {
         flex: 1,
@@ -1074,29 +1076,29 @@ const styles = StyleSheet.create({
     quickAddContainer: {
         flexDirection: 'row',
         alignItems: 'center',
-        backgroundColor: 'white',
+        backgroundColor: theme.colors.card,
         paddingHorizontal: Spacing.medium,
         paddingVertical: Spacing.small,
         borderBottomWidth: 1,
         borderTopWidth: 1,
-        borderColor: Colors.border,
+        borderColor: theme.colors.border,
     },
     quickAddInput: {
         flex: 1,
         paddingVertical: 10,
         paddingRight: Spacing.small,
-        color: Colors.textPrimary,
+        color: theme.colors.textPrimary,
     },
     quickAddButton: {
         width: 36,
         height: 36,
         borderRadius: 18,
-        backgroundColor: Colors.primary,
+        backgroundColor: theme.colors.primary,
         alignItems: 'center',
         justifyContent: 'center',
     },
     quickAddButtonDisabled: {
-        backgroundColor: Colors.textSecondary,
+        backgroundColor: theme.colors.textSecondary,
         opacity: 0.5,
     },
 });

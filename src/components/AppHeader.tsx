@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Image } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, Image, StatusBar } from 'react-native';
 import Animated, { useSharedValue, useAnimatedStyle, withSpring } from 'react-native-reanimated';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useTheme } from '../contexts/ThemeContext';
@@ -26,11 +26,11 @@ const AppHeader: React.FC<AppHeaderProps> = ({ title, rightActions = [], avatarU
     rose: ['#C77D98', '#E8B8C6'],
   };
   const gradientByAccentDark: Record<string, [string, string]> = {
-    blue: ['#0f2027', '#203a43'],
-    purple: ['#41295a', '#2F0743'],
-    mint: ['#0f2027', '#2c5364'],
-    orange: ['#1f1c2c', '#928DAB'],
-    rose: ['#3E1F2B', '#C77D98'],
+    blue: ['#0A192F', '#112240'], // Significantly Darker Navy
+    purple: ['#1A0B2E', '#2D1B4E'], // Deep Purple
+    mint: ['#0A1F1C', '#132C33'], // Dark Teal
+    orange: ['#291400', '#4A2500'], // Dark Brown/Orange
+    rose: ['#2E0B16', '#4A1224'], // Dark Maroon
   };
   const gradientColors = (theme.colorScheme === 'dark' ? gradientByAccentDark : gradientByAccentLight)[theme.accent];
 
@@ -46,41 +46,44 @@ const AppHeader: React.FC<AppHeaderProps> = ({ title, rightActions = [], avatarU
   const avatarAnim = mkScale();
 
   return (
-    <LinearGradient colors={gradientColors} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={[styles.container]}
-      accessibilityRole="header"
-    >
-      <View style={styles.row}>
-        <View style={styles.leftRow}>
-          {leftAction ? (
-            <Animated.View style={leftAnim.style}>
-              <TouchableOpacity onPressIn={leftAnim.onPressIn} onPressOut={leftAnim.onPressOut} onPress={leftAction.onPress} accessibilityLabel={leftAction.accessibilityLabel} style={{ marginRight: Spacing.small }}>
-                <Feather name={leftAction.icon} size={24} color={'#ffffff'} />
+    <>
+      <StatusBar barStyle="light-content" />
+      <LinearGradient colors={gradientColors} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={[styles.container]}
+        accessibilityRole="header"
+      >
+        <View style={styles.row}>
+          <View style={styles.leftRow}>
+            {leftAction ? (
+              <Animated.View style={leftAnim.style}>
+                <TouchableOpacity onPressIn={leftAnim.onPressIn} onPressOut={leftAnim.onPressOut} onPress={leftAction.onPress} accessibilityLabel={leftAction.accessibilityLabel} style={{ marginRight: Spacing.small }}>
+                  <Feather name={leftAction.icon} size={24} color={'#ffffff'} />
+                </TouchableOpacity>
+              </Animated.View>
+            ) : null}
+            <Text style={[styles.title, { color: 'white' }]} accessibilityRole="header" numberOfLines={1} ellipsizeMode="tail">{title}</Text>
+          </View>
+          <View style={styles.actionsRow}>
+            {isOffline && (
+              <View style={{ paddingHorizontal: 10, paddingVertical: 4, borderRadius: 12, backgroundColor: 'rgba(0,0,0,0.25)', marginRight: Spacing.small }} accessibilityLabel="Tryb offline">
+                <Text style={{ color: 'white', fontWeight: '700', fontSize: 12 }}>Offline{pendingOpsCount > 0 ? ` · ${pendingOpsCount}` : ''}</Text>
+              </View>
+            )}
+            {rightActions.map((action, idx) => (
+              <AnimatedPress key={`${action.icon}-${idx}`} icon={action.icon} color={'#ffffff'} onPress={action.onPress} accessibilityLabel={action.accessibilityLabel} style={{ marginLeft: Spacing.small }} />
+            ))}
+            <Animated.View style={avatarAnim.style}>
+              <TouchableOpacity testID="avatar-button" onPressIn={avatarAnim.onPressIn} onPressOut={avatarAnim.onPressOut} onPress={onAvatarPress} accessibilityLabel="Profil" style={{ marginLeft: Spacing.small }}>
+                {avatarUrl ? (
+                  <Image source={{ uri: avatarUrl }} style={styles.avatar} />
+                ) : (
+                  <View style={styles.avatarPlaceholder} />
+                )}
               </TouchableOpacity>
             </Animated.View>
-          ) : null}
-          <Text style={[styles.title, { color: 'white' }]} accessibilityRole="header" numberOfLines={1} ellipsizeMode="tail">{title}</Text>
+          </View>
         </View>
-        <View style={styles.actionsRow}>
-          {isOffline && (
-            <View style={{ paddingHorizontal: 10, paddingVertical: 4, borderRadius: 12, backgroundColor: 'rgba(0,0,0,0.25)', marginRight: Spacing.small }} accessibilityLabel="Tryb offline">
-              <Text style={{ color: 'white', fontWeight: '700', fontSize: 12 }}>Offline{pendingOpsCount > 0 ? ` · ${pendingOpsCount}` : ''}</Text>
-            </View>
-          )}
-          {rightActions.map((action, idx) => (
-            <AnimatedPress key={`${action.icon}-${idx}`} icon={action.icon} color={'#ffffff'} onPress={action.onPress} accessibilityLabel={action.accessibilityLabel} style={{ marginLeft: Spacing.small }} />
-          ))}
-          <Animated.View style={avatarAnim.style}>
-            <TouchableOpacity testID="avatar-button" onPressIn={avatarAnim.onPressIn} onPressOut={avatarAnim.onPressOut} onPress={onAvatarPress} accessibilityLabel="Profil" style={{ marginLeft: Spacing.small }}>
-              {avatarUrl ? (
-                <Image source={{ uri: avatarUrl }} style={styles.avatar} />
-              ) : (
-                <View style={styles.avatarPlaceholder} />
-              )}
-            </TouchableOpacity>
-          </Animated.View>
-        </View>
-      </View>
-    </LinearGradient>
+      </LinearGradient>
+    </>
   );
 };
 
@@ -130,5 +133,3 @@ const styles = StyleSheet.create({
 });
 
 export default AppHeader;
-
-
