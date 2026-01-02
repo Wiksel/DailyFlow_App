@@ -1,6 +1,6 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { doc, setDoc, collection, writeBatch, query, where, getDocs, limit, getDoc, db } from "./firestoreCompat";
-import { FirebaseAuthTypes } from '../utils/authCompat';
+import auth, { FirebaseAuthTypes } from '../utils/authCompat';
 import { DEFAULT_CATEGORIES } from '../constants/categories';
 
 export function mapFirebaseAuthErrorToMessage(code: string): { message: string; level: 'error' | 'info' } {
@@ -126,10 +126,26 @@ export const upsertAuthProvidersForUser = async (user: FirebaseAuthTypes.User) =
 export const findUserEmailByIdentifier = async (identifier: string): Promise<string | null> => {
     const cleanIdentifier = identifier.trim();
     if (/\S+@\S+\.\S+/.test(cleanIdentifier)) {
-        return cleanIdentifier;
+        try {
+            const q = query(
+                collection(db, 'users'),
+                where('emailLower', '==', cleanIdentifier.toLowerCase()),
+                limit(1)
+            );
+            const snapshot = await getDocs(q);
+            if (!snapshot.empty) {
+                return snapshot.docs[0].data().email || cleanIdentifier;
+            }
+            return null;
+        } catch (error) {
+            // Permission denied or offline -> return identifier to let auth handle it
+            return cleanIdentifier;
+        }
     }
-    // Fallback: if user enters something that is not email, treat is as invalid or try to use it as is
-    return cleanIdentifier;
+
+    // Phone number support is removed.
+    // Invalid format or unsupported identifier type
+    return null;
 };
 
 
@@ -168,5 +184,3 @@ export const isOnboardingDone = async (): Promise<boolean> => {
 export const setOnboardingDone = async (): Promise<void> => {
     try { await AsyncStorage.setItem(ONBOARD_FLAG_KEY, '1'); } catch { }
 };
-
-
