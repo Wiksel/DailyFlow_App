@@ -11,8 +11,7 @@ if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental
 }
 
 interface Props {
-    taskType: 'personal' | 'shared';
-    onTaskTypeChange: (type: 'personal' | 'shared') => void;
+
     activeCategoryIds: string[];
     categories: Category[];
     onToggleCategory: (id: string) => void;
@@ -22,8 +21,6 @@ interface Props {
 }
 
 const FilterBar: React.FC<Props> = ({
-    taskType,
-    onTaskTypeChange,
     activeCategoryIds,
     categories,
     onToggleCategory,
@@ -65,26 +62,10 @@ const FilterBar: React.FC<Props> = ({
 
     return (
         <View style={styles.container}>
-            {/* Task Type Switcher - Glass Segmented Control */}
-            <View style={styles.segmentedContainer}>
-                <View style={[styles.segmentedTrack, { backgroundColor: glassStyle.inputBackground }]}>
-                    <TouchableOpacity
-                        style={[styles.segment, taskType === 'personal' && styles.segmentActive, taskType === 'personal' && { backgroundColor: theme.colors.card }]}
-                        onPress={() => onTaskTypeChange('personal')}
-                    >
-                        <Text style={[styles.segmentText, { color: taskType === 'personal' ? theme.colors.textPrimary : glassStyle.textSecondary }]}>Osobiste</Text>
-                    </TouchableOpacity>
-                    <TouchableOpacity
-                        style={[styles.segment, taskType === 'shared' && styles.segmentActive, taskType === 'shared' && { backgroundColor: theme.colors.card }]}
-                        onPress={() => onTaskTypeChange('shared')}
-                    >
-                        <Text style={[styles.segmentText, { color: taskType === 'shared' ? theme.colors.textPrimary : glassStyle.textSecondary }]}>Wspólne</Text>
-                    </TouchableOpacity>
-                </View>
-            </View>
+
 
             {/* Horizontal Scroll Filters - Row 1: More + Time Filters */}
-            <View style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: Spacing.medium, marginBottom: 8 }}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: Spacing.medium, marginBottom: 2 }}>
                 <TouchableOpacity style={[styles.iconButton, { backgroundColor: glassStyle.inputBackground, marginRight: 8 }]} onPress={() => setMoreVisible(true)}>
                     <Feather name="sliders" size={18} color={glassStyle.textPrimary} />
                 </TouchableOpacity>
@@ -134,39 +115,9 @@ const FilterBar: React.FC<Props> = ({
 
 const styles = StyleSheet.create({
     container: {
-        marginBottom: 8,
+        marginBottom: 0,
     },
-    segmentedContainer: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        paddingHorizontal: Spacing.medium,
-        marginBottom: 12,
-        gap: 12,
-    },
-    segmentedTrack: {
-        flex: 1,
-        flexDirection: 'row',
-        height: 40,
-        borderRadius: 12,
-        padding: 3,
-    },
-    segment: {
-        flex: 1,
-        justifyContent: 'center',
-        alignItems: 'center',
-        borderRadius: 10,
-    },
-    segmentActive: {
-        shadowColor: "#000",
-        shadowOffset: { width: 0, height: 1 },
-        shadowOpacity: 0.1,
-        shadowRadius: 2,
-        elevation: 2,
-    },
-    segmentText: {
-        fontWeight: '600',
-        fontSize: 14,
-    },
+
     iconButton: {
         width: 40,
         height: 40,

@@ -43,7 +43,14 @@ const HomeHeader: React.FC<Props> = ({
     const theme = useTheme();
     const insets = useSafeAreaInsets();
     const isDark = theme.colorScheme === 'dark';
-    const glassStyle = isDark ? Glass.dark : Glass.light;
+
+    // Softer, more "organic" button backgrounds that blend with the gradient
+    const buttonBg = isDark ? 'rgba(0, 0, 0, 0.2)' : 'rgba(255, 255, 255, 0.5)';
+    const buttonBgActive = isDark ? 'rgba(255, 255, 255, 0.15)' : 'rgba(255, 255, 255, 0.9)';
+
+    // Text colors that are distinct but not harsh solid black/white
+    const textColorPrimary = isDark ? '#E0E0E0' : '#2D2D2D';
+    const textColorSecondary = isDark ? 'rgba(224, 224, 224, 0.6)' : 'rgba(45, 45, 45, 0.6)';
 
     const dateStr = subtitle || format(new Date(), 'EEEE, d MMMM', { locale: pl });
 
@@ -52,6 +59,18 @@ const HomeHeader: React.FC<Props> = ({
 
     useEffect(() => {
         searchWidth.value = withSpring(isSearchActive ? 1 : 0, { damping: 15 });
+    }, [isSearchActive]);
+
+    // Focus Management
+    const inputRef = React.useRef<TextInput>(null);
+
+    useEffect(() => {
+        if (isSearchActive) {
+            const timer = setTimeout(() => {
+                inputRef.current?.focus();
+            }, 50); // Small delay to ensure layout is ready
+            return () => clearTimeout(timer);
+        }
     }, [isSearchActive]);
 
     const titleStyle = useAnimatedStyle(() => ({
@@ -71,15 +90,15 @@ const HomeHeader: React.FC<Props> = ({
 
     return (
         <View style={[styles.container, {
-            paddingTop: insets.top + Spacing.small,
+            paddingTop: insets.top + Spacing.large,
         }]}>
             {/* Standard Title / Date */}
             <View style={[styles.textContainer, isSearchActive && styles.hidden]}>
                 <Animated.View style={titleStyle}>
-                    <Text style={[styles.dateText, { color: glassStyle.textSecondary }]}>
+                    <Text numberOfLines={isSearchActive ? 1 : undefined} style={[styles.dateText, { color: textColorSecondary }]}>
                         {dateStr.charAt(0).toUpperCase() + dateStr.slice(1)}
                     </Text>
-                    <Text style={[styles.titleText, { color: glassStyle.textPrimary }]}>
+                    <Text numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.8} style={[styles.titleText, { color: textColorPrimary }]}>
                         {title}
                     </Text>
                 </Animated.View>
@@ -89,7 +108,8 @@ const HomeHeader: React.FC<Props> = ({
             {isSearchActive && (
                 <Animated.View style={[styles.searchContainer, searchContainerStyle]}>
                     <TextInput
-                        autoFocus
+                        ref={inputRef}
+                        autoFocus={false} // Handled by effect
                         placeholder="Szukaj zadań..."
                         placeholderTextColor={theme.colors.placeholder}
                         value={searchQuery}
@@ -102,28 +122,28 @@ const HomeHeader: React.FC<Props> = ({
             {/* Actions Section */}
             <View style={styles.actionsContainer}>
                 {!isSearchActive && (
-                    <Animated.View entering={FadeIn} exiting={FadeOut} style={{ flexDirection: 'row', gap: 12 }}>
+                    <Animated.View entering={FadeIn} exiting={FadeOut} style={{ flexDirection: 'row', gap: 8 }}>
                         <TouchableOpacity
-                            style={[styles.iconButton, { backgroundColor: glassStyle.inputBackground, marginRight: 0 }]}
+                            style={[styles.iconButton, { backgroundColor: buttonBg, marginRight: 0 }]}
                             onPress={toggleTheme}
                         >
-                            <Feather name={isDark ? "sun" : "moon"} size={20} color={glassStyle.textPrimary} />
+                            <Feather name={isDark ? "sun" : "moon"} size={20} color={textColorPrimary} />
                         </TouchableOpacity>
 
                         <TouchableOpacity
-                            style={[styles.iconButton, { backgroundColor: glassStyle.inputBackground }]}
+                            style={[styles.iconButton, { backgroundColor: buttonBg }]}
                             onPress={onArchivePress}
                         >
-                            <Feather name="archive" size={20} color={glassStyle.textPrimary} />
+                            <Feather name="archive" size={20} color={textColorPrimary} />
                         </TouchableOpacity>
                     </Animated.View>
                 )}
 
                 <TouchableOpacity
-                    style={[styles.iconButton, { backgroundColor: isSearchActive ? theme.colors.primary : glassStyle.inputBackground }]}
+                    style={[styles.iconButton, { backgroundColor: isSearchActive ? buttonBgActive : buttonBg }]}
                     onPress={onToggleSearch}
                 >
-                    <Feather name={isSearchActive ? "x" : "search"} size={20} color={isSearchActive ? 'white' : glassStyle.textPrimary} />
+                    <Feather name={isSearchActive ? "x" : "search"} size={20} color={isSearchActive ? theme.colors.primary : textColorPrimary} />
                 </TouchableOpacity>
 
                 <TouchableOpacity onPress={onAvatarPress} style={styles.avatarContainer}>
@@ -148,19 +168,22 @@ const styles = StyleSheet.create({
         paddingHorizontal: Spacing.medium,
         paddingBottom: Spacing.medium,
         zIndex: 10,
-        height: 80, // Enforce min height to prevent jumps
     },
     textContainer: {
         flex: 1,
         justifyContent: 'center',
+        minHeight: 48,
     },
     hidden: {
-        display: 'none' // Or opacity 0 absolute
+        width: 0,
+        flex: 0,
+        opacity: 0,
+        overflow: 'hidden',
     },
     searchContainer: {
         flex: 1,
         marginRight: 10,
-        height: 40,
+        height: 48,
         justifyContent: 'center',
     },
     searchInput: {
@@ -181,17 +204,14 @@ const styles = StyleSheet.create({
     actionsContainer: {
         flexDirection: 'row',
         alignItems: 'center',
-        gap: 12,
+        gap: 8,
     },
     iconButton: {
         width: 40,
         height: 40,
-        borderRadius: 20,
+        borderRadius: 14,
         justifyContent: 'center',
         alignItems: 'center',
-        ...Effects.shadow,
-        shadowOpacity: 0.05,
-        elevation: 2,
     },
     avatarContainer: {
         marginLeft: 4,

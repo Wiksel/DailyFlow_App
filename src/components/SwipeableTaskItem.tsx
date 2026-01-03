@@ -131,7 +131,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center', // Updated in inline styles for specific sides
     paddingHorizontal: 0, // Handled by paddingLeft/Right
     marginTop: 0,
-    marginBottom: Spacing.small,
+    marginBottom: 2,
     marginHorizontal: Spacing.medium,
     borderRadius: 16,
     flexDirection: 'row',

@@ -1,10 +1,12 @@
 import React, { useState, useRef, useCallback, useEffect, useMemo } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, FlatList, TextInput, ScrollView, Vibration } from 'react-native';
+import { LinearGradient } from 'expo-linear-gradient';
 import * as Haptics from 'expo-haptics';
 import { isOnboardingDone, setOnboardingDone } from '../utils/authUtils';
 import { useNavigation } from '@react-navigation/native';
 import { getAuth } from '../utils/authCompat';
 import { doc, getDoc, onSnapshot, collection, query, where, Timestamp, db, addDoc } from '../utils/firestoreCompat';
+import { hexToRgb } from '../utils/themeUtils';
 import { Feather } from '@expo/vector-icons';
 import { TaskStackNavigationProp } from '../types/navigation';
 import { Task, UserProfile, ChoreTemplate } from '../types';
@@ -22,6 +24,7 @@ import CalendarRangeModal from '../components/CalendarRangeModal';
 import EmptyState from '../components/EmptyState';
 import ActionModal from '../components/ActionModal';
 import TaskListSkeleton from '../components/TaskListSkeleton';
+import TaskTypeTabs from '../components/TaskTypeTabs';
 
 // New Components
 import { HomeBackground } from '../components/HomeBackground';
@@ -288,35 +291,63 @@ const HomeScreen = () => {
         }
     }, [setDeadlineFromDate, setDeadlineToDate, setCompletedFromDate, setCompletedToDate, setFilterFromDate, setFilterToDate]);
 
+    const isDark = theme.colorScheme === 'dark';
+    const rgb = hexToRgb(theme.colors.primary);
+    const primaryColor = `rgba(${rgb.r}, ${rgb.g}, ${rgb.b}`;
+
+    const headerGradient = isDark
+        ? [`${primaryColor}, 0.55)`, 'rgba(30,30,35,0.95)']
+        : [`${primaryColor}, 0.25)`, 'rgba(255,255,255,0.95)'];
+
     return (
         <HomeBackground>
-            <HomeHeader
-                title={filters.taskType === 'shared' ? 'Wspólne Zadania' : 'Twoje Zadania'}
-                subtitle={undefined}
-                avatarUrl={userProfile?.photoURL || null}
-                onAvatarPress={() => navigation.navigate('Profile')}
-                isSearchActive={globalSearchVisible}
-                onToggleSearch={() => {
-                    const next = !globalSearchVisible;
-                    setGlobalSearchVisible(next);
-                    if (next) {
-                        try { Haptics.selectionAsync() } catch { }
-                    } else {
-                        setGlobalSearchQuery('');
-                        setSearchQuery('');
-                    }
+            <LinearGradient
+                colors={headerGradient}
+                style={{
+                    borderBottomLeftRadius: 32,
+                    borderBottomRightRadius: 32,
+                    paddingBottom: 12,
+                    overflow: 'hidden',
+                    marginBottom: 16,
+                    shadowColor: "#000",
+                    shadowOffset: { width: 0, height: 4 },
+                    shadowOpacity: 0.1,
+                    shadowRadius: 10,
+                    elevation: 5,
+                    zIndex: 20
                 }}
-                searchQuery={globalSearchQuery || filters.searchQuery}
-                onSearchChange={(t) => {
-                    setGlobalSearchQuery(t);
-                    setSearchQuery(t);
-                }}
-                onArchivePress={() => navigation.navigate('Archive')}
-            />
+            >
+                <HomeHeader
+                    title={filters.taskType === 'shared' ? 'Wspólne Zadania' : 'Twoje Zadania'}
+                    subtitle={undefined}
+                    avatarUrl={userProfile?.photoURL || null}
+                    onAvatarPress={() => navigation.navigate('Profile')}
+                    isSearchActive={globalSearchVisible}
+                    onToggleSearch={() => {
+                        const next = !globalSearchVisible;
+                        setGlobalSearchVisible(next);
+                        if (next) {
+                            try { Haptics.selectionAsync() } catch { }
+                        } else {
+                            setGlobalSearchQuery('');
+                            setSearchQuery('');
+                        }
+                    }}
+                    searchQuery={globalSearchQuery || filters.searchQuery}
+                    onSearchChange={(t) => {
+                        setGlobalSearchQuery(t);
+                        setSearchQuery(t);
+                    }}
+                    onArchivePress={() => navigation.navigate('Archive')}
+                />
+
+                <TaskTypeTabs
+                    taskType={filters.taskType}
+                    onTaskTypeChange={setTaskType}
+                />
+            </LinearGradient>
 
             <FilterBar
-                taskType={filters.taskType}
-                onTaskTypeChange={setTaskType}
                 activeCategoryIds={filters.activeCategories}
                 categories={categories}
                 onToggleCategory={(id: string) => setActiveCategories(prev => prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id])}

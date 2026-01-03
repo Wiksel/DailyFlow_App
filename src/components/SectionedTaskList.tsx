@@ -117,15 +117,15 @@ const SectionedTaskList = forwardRef<TaskSectionListHandle, Props>(({
         if (item.type === 'header') {
             return (
                 <View style={styles.sectionHeader}>
-                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, flex: 1 }}>
-                        {item.icon && <Feather name={item.icon as any} size={16} color={item.color || theme.colors.textSecondary} />}
-                        <Text style={{ ...Typography.h3, fontSize: 13, color: item.color || theme.colors.textSecondary, fontWeight: '700', textTransform: 'uppercase', letterSpacing: 0.5 }}>
+                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, flex: 1, minHeight: 28 }}>
+                        {item.icon && <Feather name={item.icon as any} size={18} color={item.color || theme.colors.textSecondary} />}
+                        <Text style={{ ...Typography.h3, fontSize: 15, color: item.color || theme.colors.textSecondary, fontWeight: '700', textTransform: 'uppercase', letterSpacing: 0.5 }}>
                             {item.title} ({item.data.length})
                         </Text>
                     </View>
                     {onQuickAdd && (item.key === 'today' || item.key === 'tomorrow' || item.key === 'nodate') && (
-                        <TouchableOpacity onPress={() => onQuickAdd(item.key)} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
-                            <Feather name="plus" size={18} color={theme.colors.primary} />
+                        <TouchableOpacity onPress={() => onQuickAdd(item.key)} hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}>
+                            <Feather name="plus" size={24} color={theme.colors.primary} />
                         </TouchableOpacity>
                     )}
                 </View>
@@ -161,7 +161,7 @@ const SectionedTaskList = forwardRef<TaskSectionListHandle, Props>(({
             data={flattenedData}
             keyExtractor={(item) => item.type === 'header' ? `header-${item.key}` : item.id}
             renderItem={renderItem}
-            contentContainerStyle={{ paddingBottom: 100, paddingTop: 10 }}
+            contentContainerStyle={{ paddingBottom: 100, paddingTop: 0 }}
             showsVerticalScrollIndicator={false}
             keyboardShouldPersistTaps="handled"
         />
@@ -174,8 +174,8 @@ const styles = StyleSheet.create({
         alignItems: 'center',
         justifyContent: 'space-between',
         paddingHorizontal: Spacing.medium,
-        paddingTop: Spacing.large,
-        paddingBottom: Spacing.small,
+        paddingTop: 6,
+        paddingBottom: 2,
         backgroundColor: 'transparent',
     },
 });

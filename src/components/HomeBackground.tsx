@@ -6,6 +6,8 @@ import Animated, {
     useAnimatedStyle,
     withRepeat,
     withTiming,
+    withDelay,
+    withSequence,
     Easing,
     interpolateColor,
     useDerivedValue,
@@ -16,29 +18,52 @@ import { getAccentColors, getSpherePalette } from '../utils/themeUtils';
 
 const { width, height } = Dimensions.get('window');
 
-// Optimized for background - fewer spheres, slower movement
-const SPHERES_COUNT = 6;
+// Optimized for background - scattered wandering motion
+const SPHERES_COUNT = 8;
 
 const Sphere = React.memo(({ config, themeAnim, lightPalette, darkPalette }: any) => {
-    const sv = useSharedValue(0);
+    const svX = useSharedValue(0);
+    const svY = useSharedValue(0);
 
     React.useEffect(() => {
-        sv.value = withRepeat(
-            withTiming(1, { duration: config.duration, easing: Easing.inOut(Easing.sin) }),
-            -1,
-            true
+        // Random wandering motion X
+        svX.value = withDelay(
+            config.delayX,
+            withRepeat(
+                withSequence(
+                    withTiming(1, { duration: config.durX / 4, easing: Easing.inOut(Easing.sin) }),
+                    withTiming(-1, { duration: config.durX / 2, easing: Easing.inOut(Easing.sin) }),
+                    withTiming(0, { duration: config.durX / 4, easing: Easing.inOut(Easing.sin) })
+                ),
+                -1,
+                false
+            )
+        );
+
+        // Random wandering motion Y (with different timing/delay)
+        svY.value = withDelay(
+            config.delayY,
+            withRepeat(
+                withSequence(
+                    withTiming(1, { duration: config.durY / 4, easing: Easing.inOut(Easing.sin) }),
+                    withTiming(-1, { duration: config.durY / 2, easing: Easing.inOut(Easing.sin) }),
+                    withTiming(0, { duration: config.durY / 4, easing: Easing.inOut(Easing.sin) })
+                ),
+                -1,
+                false
+            )
         );
     }, []);
 
     const style = useAnimatedStyle(() => {
-        const transX = sv.value * config.moveX;
-        const transY = sv.value * config.moveY;
+        const transX = svX.value * config.ampX;
+        const transY = svY.value * config.ampY;
 
         return {
             transform: [
                 { translateX: transX },
                 { translateY: transY },
-                { scale: 1 + sv.value * 0.1 }
+                { scale: 1 + (svX.value + svY.value) * 0.05 } // Subtle pulsing based on movement
             ]
         };
     });
@@ -55,7 +80,7 @@ const Sphere = React.memo(({ config, themeAnim, lightPalette, darkPalette }: any
         const opacity = interpolate(
             themeAnim.value,
             [0, 1],
-            [0.25, 0.6] // Less distinct in light mode, moderate in dark
+            [0.35, 0.45] // More distinct in light mode (was 0.25)
         );
         return { backgroundColor, opacity };
     });
@@ -99,16 +124,43 @@ export const HomeBackground = ({ children }: { children: React.ReactNode }) => {
     const darkPalette = useMemo(() => getSpherePalette(theme.accent, 'dark'), [theme.accent]);
 
     const spheres = useMemo(() => {
-        return Array.from({ length: SPHERES_COUNT }).map((_, i) => ({
-            id: i,
-            x: Math.random() * width, // Full width spread
-            y: Math.random() * height * 0.9, // Spread across 90% of height
-            size: 100 + Math.random() * 150,
-            colorIndex: i,
-            duration: 4000 + Math.random() * 4000, // Faster
-            moveX: -50 + Math.random() * 100,
-            moveY: -30 + Math.random() * 60,
-        }));
+        return Array.from({ length: SPHERES_COUNT }).map((_, i) => {
+            const size = 80 + Math.random() * 140; // Varying sizes
+
+            // Constrain amplitude to ensure we can find a valid valid position
+            const maxAmpX = width / 2.5;
+            const maxAmpY = height / 2.5;
+            const ampX = 40 + Math.random() * (maxAmpX - 40);
+            const ampY = 40 + Math.random() * (maxAmpY - 40);
+
+            // Calculate safe bounds so sphere only goes offscreen by max size/2
+            // min_left = x - amp. we want min_left >= -size/2  => x >= amp - size/2
+            // max_right = x + size + amp. we want max_right <= width + size/2 => x <= width + size/2 - size - amp => x <= width - size/2 - amp
+
+            const minX = Math.max(0, ampX - size / 2);
+            const maxX = Math.min(width, width - size / 2 - ampX);
+            const minY = Math.max(0, ampY - size / 2);
+            const maxY = Math.min(height, height - size / 2 - ampY);
+
+            // Fallback if range is inverted (too big amplitude/size) - center it
+            const x = minX < maxX ? minX + Math.random() * (maxX - minX) : (width - size) / 2;
+            const y = minY < maxY ? minY + Math.random() * (maxY - minY) : (height - size) / 2;
+
+            return {
+                id: i,
+                x,
+                y,
+                size,
+                colorIndex: i,
+                // Ultra slow duration (60s - 120s)
+                durX: 60000 + Math.random() * 60000,
+                durY: 60000 + Math.random() * 60000,
+                ampX,
+                ampY,
+                delayX: Math.random() * 20000,
+                delayY: Math.random() * 20000,
+            };
+        });
     }, []);
 
     return (
