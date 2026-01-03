@@ -1,6 +1,7 @@
 import React, { useMemo } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { Feather } from '@expo/vector-icons';
+import Animated, { useAnimatedStyle, withTiming, useSharedValue, Layout } from 'react-native-reanimated';
 import { Task, Category } from '../types';
 import { Spacing, Typography, Colors, Glass, Effects } from '../styles/AppStyles';
 import { useTheme } from '../contexts/ThemeContext';
@@ -35,11 +36,22 @@ const ModernTaskItem = React.memo(({
     onToggleSelect,
     onOpenMenu,
     pinned,
-}: Props) => {
+    onExpandedChange,
+    noContainer = false,
+}: Props & { onExpandedChange?: (expanded: boolean) => void, noContainer?: boolean }) => {
     const theme = useTheme();
     const isDark = theme.colorScheme === 'dark';
     const glassStyle = isDark ? Glass.dark : Glass.light;
     const [isExpanded, setIsExpanded] = React.useState(false);
+    const rotate = useSharedValue(0);
+
+    React.useEffect(() => {
+        rotate.value = withTiming(isExpanded ? 180 : 0, { duration: 300 });
+    }, [isExpanded]);
+
+    const animatedChevron = useAnimatedStyle(() => ({
+        transform: [{ rotate: `${rotate.value}deg` }]
+    }));
 
     const deadlineText = useMemo(() => {
         if (!task.deadline) return null;
@@ -55,10 +67,19 @@ const ModernTaskItem = React.memo(({
     }, [task.deadline, task.completed]);
 
     const containerStyle = useMemo(() => {
-        // Different style for completed tasks?
-        if (task.completed) return { opacity: 0.6 };
-        return {};
-    }, [task.completed]);
+        const style: any = {};
+
+        if (task.completed && !noContainer) {
+            style.opacity = 0.6;
+        }
+
+        if (task.description) {
+            // Zmniejszamy padding dla zadań z opisem, zeby były bardziej kompaktowe
+            style.paddingVertical = 10;
+        }
+
+        return style;
+    }, [task.completed, task.description]);
 
     return (
         <TouchableOpacity
@@ -68,9 +89,12 @@ const ModernTaskItem = React.memo(({
             style={[
                 styles.container,
                 {
-                    backgroundColor: selected ? `${Colors.primary}30` : glassStyle.background,
-                    borderColor: selected ? Colors.primary : glassStyle.border,
-                    borderWidth: 1,
+                    backgroundColor: noContainer ? 'transparent' : (selected ? `${Colors.primary}30` : glassStyle.background),
+                    borderColor: noContainer ? 'transparent' : (selected ? Colors.primary : glassStyle.border),
+                    borderWidth: noContainer ? 0 : 1,
+                    marginHorizontal: noContainer ? 0 : Spacing.medium,
+                    marginBottom: noContainer ? 0 : 2,
+                    borderRadius: noContainer ? 0 : 16,
                 },
                 containerStyle
             ]}
@@ -96,7 +120,8 @@ const ModernTaskItem = React.memo(({
                                 styles.title,
                                 {
                                     color: task.completed ? glassStyle.textSecondary : glassStyle.textPrimary,
-                                    textDecorationLine: task.completed ? 'line-through' : 'none'
+                                    textDecorationLine: task.completed ? 'line-through' : 'none',
+                                    flex: 1
                                 }
                             ]}
                         >
@@ -119,47 +144,66 @@ const ModernTaskItem = React.memo(({
                             </View>
                         )}
 
-                        {/* Priority Dots? Or just Difficulty */}
                         {task.difficulty && (
                             <View style={[styles.pill, { backgroundColor: glassStyle.inputBackground }]}>
                                 <Text style={[styles.pillText, { color: glassStyle.textSecondary }]}>Lvl {task.difficulty}</Text>
                             </View>
                         )}
+
+                        {/* Priority Indicator in the same row, pushed to right */}
+                        <View style={{ marginLeft: 'auto', paddingLeft: 8, justifyContent: 'center' }}>
+                            <PriorityIndicator priority={task.basePriority || 3} />
+                        </View>
                     </View>
 
-                    {/* Description Preview (Ghost when expanded) */}
-                    {task.description ? (
-                        <View style={{ marginTop: 6, opacity: isExpanded ? 0 : 1 }}>
-                            <Text
-                                numberOfLines={1}
-                                style={{ fontSize: 13, color: glassStyle.textSecondary, opacity: 0.8 }}
-                            >
-                                {task.description}
-                            </Text>
-                        </View>
-                    ) : null}
-                </View>
-
-                <View style={styles.actions}>
-                    <PriorityIndicator priority={task.basePriority || 3} />
+                    {/* Description Section with Inline Chevron */}
                     {task.description && (
-                        <TouchableOpacity onPress={() => setIsExpanded(!isExpanded)} style={{ marginTop: 8, padding: 4 }} hitSlop={{ top: 5, bottom: 5, left: 5, right: 5 }}>
-                            <Feather name={isExpanded ? "chevron-up" : "chevron-down"} size={16} color={glassStyle.textSecondary} style={{ opacity: 0.7 }} />
-                        </TouchableOpacity>
+                        <Animated.View
+                            layout={Layout.springify().damping(15).mass(0.6)}
+                            style={{ overflow: 'hidden' }}
+                        >
+                            <TouchableOpacity
+                                onPress={() => {
+                                    const newState = !isExpanded;
+                                    setIsExpanded(newState);
+                                    onExpandedChange?.(newState);
+                                }}
+                                activeOpacity={1}
+                                style={{
+                                    marginTop: 6,
+                                    flexDirection: 'row',
+                                    alignItems: 'flex-start',
+                                    justifyContent: 'space-between'
+                                }}
+                            >
+                                <Text
+                                    numberOfLines={isExpanded ? undefined : 1}
+                                    style={{
+                                        fontSize: 13,
+                                        color: glassStyle.textSecondary,
+                                        opacity: 0.8,
+                                        lineHeight: 20,
+                                        flex: 1,
+                                        paddingRight: 8
+                                    }}
+                                >
+                                    {task.description}
+                                </Text>
+
+                                {/* Chevron aligned with first line */}
+                                <Animated.View style={[{ marginTop: 2, opacity: 0.7 }, animatedChevron]}>
+                                    <Feather
+                                        name="chevron-down"
+                                        size={16}
+                                        color={glassStyle.textSecondary}
+                                    />
+                                </Animated.View>
+                            </TouchableOpacity>
+                        </Animated.View>
                     )}
                 </View>
             </View>
-
-            {task.description && isExpanded && (
-                <TouchableOpacity onPress={() => setIsExpanded(!isExpanded)} activeOpacity={0.8} style={{ marginTop: -21.99, marginLeft: 39, paddingRight: 50, zIndex: 10 }}>
-                    <Text
-                        style={[styles.description, { color: glassStyle.textSecondary, marginTop: 0, marginLeft: 0 }]}
-                    >
-                        {task.description}
-                    </Text>
-                </TouchableOpacity>
-            )}
-        </TouchableOpacity>
+        </TouchableOpacity >
     );
 });
 

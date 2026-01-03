@@ -132,32 +132,30 @@ const SectionedTaskList = forwardRef<TaskSectionListHandle, Props>(({
             );
         } else {
             return (
-                <View style={{ marginBottom: 0 }}>
-                    <SwipeableTaskItem
-                        task={item.data}
-                        category={categories.find(c => c.id === item.data.category)}
-                        index={index}
-                        isCompact={false}
-                        selectionMode={selectionMode}
-                        selected={selectedIds.has(item.data.id)}
-                        isPinned={pinnedIds.has(item.data.id)}
-                        onPress={onPressTask}
-                        onToggleComplete={onToggleComplete}
-                        onConfirmAction={onConfirmAction}
-                        onToggleSelect={onToggleSelect}
-                        // Menu Logic could be passed here if needed
-                        onOpenMenu={onOpenTaskMenu}
-                        onTogglePinned={onTogglePinned}
-                        highlightQuery={highlightQuery}
-                    />
-                </View>
+                <SwipeableTaskItem
+                    task={item.data}
+                    category={categories.find(c => c.id === item.data.category)}
+                    index={index}
+                    isCompact={false}
+                    selectionMode={selectionMode}
+                    selected={selectedIds.has(item.data.id)}
+                    isPinned={pinnedIds.has(item.data.id)}
+                    onPress={onPressTask}
+                    onToggleComplete={onToggleComplete}
+                    onConfirmAction={onConfirmAction}
+                    onToggleSelect={onToggleSelect}
+                    // Menu Logic could be passed here if needed
+                    onOpenMenu={onOpenTaskMenu}
+                    onTogglePinned={onTogglePinned}
+                    highlightQuery={highlightQuery}
+                />
             );
         }
     };
 
     return (
         <Animated.FlatList
-            itemLayoutAnimation={Layout.springify().damping(20).mass(0.8)}
+            itemLayoutAnimation={Layout.springify().damping(22).mass(1.0)}
             data={flattenedData}
             keyExtractor={(item) => item.type === 'header' ? `header-${item.key}` : item.id}
             renderItem={renderItem}
