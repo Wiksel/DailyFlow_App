@@ -26,7 +26,8 @@ module.exports = {
   moduleNameMapper: {
     '^@/(.*)$': '<rootDir>/src/$1',
   },
-  testEnvironment: 'node',
+  // testEnvironment: 'node', // Changed from node to default (jsdom-like provided by jest-expo?) or just comment it out as jest-expo handles it?
+  // jest-expo preset usually sets up the environment correctly.
   clearMocks: true,
   restoreMocks: true,
 };

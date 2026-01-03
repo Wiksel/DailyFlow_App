@@ -1,6 +1,7 @@
 import React from 'react';
 import { render, fireEvent } from '@testing-library/react-native';
 import LoginScreen from '../LoginScreen';
+import { ThemeProvider } from '../../contexts/ThemeContext';
 
 // Mock navigation
 const mockNavigate = jest.fn();
@@ -23,7 +24,11 @@ jest.mock('@react-native-firebase/auth', () => ({
 }));
 
 const renderLoginScreen = () => {
-  return render(<LoginScreen />);
+  return render(
+    <ThemeProvider>
+      <LoginScreen />
+    </ThemeProvider>
+  );
 };
 
 describe('LoginScreen', () => {

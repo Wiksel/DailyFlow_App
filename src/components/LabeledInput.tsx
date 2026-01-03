@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, forwardRef } from 'react';
 import { View, Text, TextInput, StyleSheet, TextInputProps, ViewStyle, TextStyle } from 'react-native';
 import Animated, { useAnimatedProps, useAnimatedStyle, useDerivedValue, withTiming, interpolateColor, useSharedValue } from 'react-native-reanimated';
 import { GlobalStyles, Spacing, Typography } from '../styles/AppStyles';
@@ -18,7 +18,7 @@ interface LabeledInputProps extends Omit<TextInputProps, 'style' | 'value' | 'on
 const AnimatedTextInput = Animated.createAnimatedComponent(TextInput);
 const AnimatedText = Animated.createAnimatedComponent(Text);
 
-const LabeledInput = ({
+const LabeledInput = forwardRef<TextInput, LabeledInputProps>(({
   label,
   value,
   onChangeText,
@@ -30,7 +30,7 @@ const LabeledInput = ({
   testID,
   themeAnim,
   ...props
-}: LabeledInputProps) => {
+}, ref) => {
   const theme = useTheme();
   // We use a shared value to track theme changes for smooth interpolation
   // 0 = light, 1 = dark
@@ -97,6 +97,7 @@ const LabeledInput = ({
         <AnimatedText style={[styles.label, animatedLabelStyle, labelStyle]}>{label}</AnimatedText>
       ) : null}
       <AnimatedTextInput
+        ref={ref}
         testID={testID}
         accessibilityLabel={label || placeholder}
         style={[
@@ -113,7 +114,7 @@ const LabeledInput = ({
       />
     </View>
   );
-};
+});
 
 const styles = StyleSheet.create({
   container: {
@@ -127,5 +128,3 @@ const styles = StyleSheet.create({
 });
 
 export default LabeledInput;
-
-
