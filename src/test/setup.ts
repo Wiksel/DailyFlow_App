@@ -2,16 +2,44 @@ import '@testing-library/jest-native/extend-expect';
 import './test-utils';
 
 // Mock context hooks to return mock values
-jest.mock('../contexts/ThemeContext', () => {
-  const { mockTheme } = require('./test-utils');
-  return {
-    useTheme: () => mockTheme,
-    ThemeProvider: ({ children }: any) => children,
-    // Export mock lightColors and darkColors to satisfy imports in components
-    lightColors: mockTheme.colors,
-    darkColors: mockTheme.colors,
-  };
-});
+jest.mock('../contexts/ThemeContext', () => ({
+  useTheme: () => require('./test-utils').mockTheme,
+  ThemeProvider: ({ children }: any) => children,
+  lightColors: {
+    primary: '#007AFF',
+    purple: '#7e57c2',
+    secondary: '#5bc0de',
+    success: '#28a745',
+    danger: '#e74c3c',
+    warning: '#f1c40f',
+    info: '#17a2b8',
+    textPrimary: '#1a1a1a',
+    textSecondary: '#5a5a5a',
+    background: '#F5F1E6',
+    card: '#ffffff',
+    border: '#e0e0e0',
+    inputBackground: '#F0F2F5',
+    shadow: '#000000',
+    placeholder: '#6c757d',
+  },
+  darkColors: {
+    primary: '#4DA3FF',
+    purple: '#B39DDB',
+    secondary: '#4DD0E1',
+    success: '#00E676',
+    danger: '#FF5252',
+    warning: '#FFD740',
+    info: '#40C4FF',
+    textPrimary: '#F5F5F5',
+    textSecondary: '#B0BEC5',
+    background: '#121212',
+    card: '#1E1E1E',
+    border: '#333333',
+    inputBackground: '#2C2C2C',
+    shadow: '#000000',
+    placeholder: '#78909C',
+  },
+}));
 
 jest.mock('../contexts/UIContext', () => ({
   useUI: () => require('./test-utils').mockUI,

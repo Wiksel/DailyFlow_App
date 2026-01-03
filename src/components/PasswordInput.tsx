@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, forwardRef } from 'react';
 import { View, TextInput, TouchableOpacity, StyleSheet, TextInputProps, ViewStyle, TextStyle } from 'react-native';
 import { Feather } from '@expo/vector-icons';
 import Animated, { useAnimatedProps, useAnimatedStyle, useDerivedValue, withTiming, interpolateColor } from 'react-native-reanimated';
@@ -19,7 +19,7 @@ const AnimatedView = Animated.createAnimatedComponent(View);
 // Animated Feather Icon
 const AnimatedFeather = Animated.createAnimatedComponent(Feather);
 
-const PasswordInput = ({ value, onChangeText, containerStyle, inputStyle, placeholder = "Hasło", testID, themeAnim, ...props }: PasswordInputProps) => {
+const PasswordInput = forwardRef<TextInput, PasswordInputProps>(({ value, onChangeText, containerStyle, inputStyle, placeholder = "Hasło", testID, themeAnim, ...props }, ref) => {
   const [isPasswordVisible, setIsPasswordVisible] = useState(false);
   const theme = useTheme();
 
@@ -85,6 +85,7 @@ const PasswordInput = ({ value, onChangeText, containerStyle, inputStyle, placeh
       containerStyle
     ]}>
       <AnimatedTextInput
+        ref={ref}
         testID={testID}
         style={[styles.input, animatedInputStyle, inputStyle]}
         value={value}
@@ -109,7 +110,7 @@ const PasswordInput = ({ value, onChangeText, containerStyle, inputStyle, placeh
       </TouchableOpacity>
     </AnimatedView>
   );
-};
+});
 
 const styles = StyleSheet.create({
   container: {

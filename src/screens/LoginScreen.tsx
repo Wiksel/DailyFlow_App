@@ -109,6 +109,8 @@ const Sphere = React.memo(({ config, themeAnim, globalClock, index, lightPalette
 
 // Komponenty formularzy (zaktualizowane o animacje)
 const LoginForm = React.memo(({ identifier, setIdentifier, loginPassword, setLoginPassword, isLoading, handleLogin, setForgotPasswordModalVisible, onGoogleButtonPress, theme, focusedOffset, themeAnim, accentColors }: any) => {
+    const passwordInputRef = React.useRef<TextInput>(null);
+
     // Derived styles for form elements
     const forgotPassStyle = useAnimatedStyle(() => ({
         color: interpolateColor(themeAnim.value, [0, 1], [accentColors.light, accentColors.dark])
@@ -147,10 +149,14 @@ const LoginForm = React.memo(({ identifier, setIdentifier, loginPassword, setLog
                     editable={!isLoading}
                     onFocus={() => { focusedOffset.value = -165; }}
                     themeAnim={themeAnim}
+                    returnKeyType="next"
+                    onSubmitEditing={() => passwordInputRef.current?.focus()}
+                    blurOnSubmit={false}
                 />
             </View>
             <View style={styles.inputWrapper}>
                 <PasswordInput
+                    ref={passwordInputRef}
                     testID="login-password-input"
                     placeholder="Hasło"
                     value={loginPassword}
@@ -158,6 +164,8 @@ const LoginForm = React.memo(({ identifier, setIdentifier, loginPassword, setLog
                     editable={!isLoading}
                     onFocus={() => { focusedOffset.value = -165; }}
                     themeAnim={themeAnim}
+                    returnKeyType="go"
+                    onSubmitEditing={() => handleLogin()}
                 />
             </View>
             <TouchableOpacity
@@ -197,6 +205,8 @@ const LoginForm = React.memo(({ identifier, setIdentifier, loginPassword, setLog
 
 
 const RegisterForm = React.memo(({ registerData, handleRegisterDataChange, emailError, passwordError, validateEmail, validatePassword, isLoading, isRegisterFormValid, handleRegister, onGoogleButtonPress, theme, focusedOffset, themeAnim, registerButtonAnimatedStyle, registerButtonTextStyle, accentColors }: any) => {
+    const emailInputRef = React.useRef<TextInput>(null);
+    const passwordInputRef = React.useRef<TextInput>(null);
 
     const googleBtnStyle = useAnimatedStyle(() => ({
         borderColor: interpolateColor(themeAnim.value, [0, 1], [lightColors.border, darkColors.border]),
@@ -226,10 +236,14 @@ const RegisterForm = React.memo(({ registerData, handleRegisterDataChange, email
                     editable={!isLoading}
                     onFocus={() => { focusedOffset.value = -165; }}
                     themeAnim={themeAnim}
+                    returnKeyType="next"
+                    onSubmitEditing={() => emailInputRef.current?.focus()}
+                    blurOnSubmit={false}
                 />
             </View>
             <View style={styles.inputWrapper}>
                 <LabeledInput
+                    ref={emailInputRef}
                     testID="register-email-input"
                     value={registerData.email}
                     onChangeText={(val: string) => handleRegisterDataChange('email', val)}
@@ -241,11 +255,15 @@ const RegisterForm = React.memo(({ registerData, handleRegisterDataChange, email
                     placeholder="Adres e-mail"
                     onFocus={() => { focusedOffset.value = -165; }}
                     themeAnim={themeAnim}
+                    returnKeyType="next"
+                    onSubmitEditing={() => passwordInputRef.current?.focus()}
+                    blurOnSubmit={false}
                 />
                 {!!emailError && <Text style={styles.errorText}>{emailError}</Text>}
             </View>
             <View style={styles.inputWrapper}>
                 <PasswordInput
+                    ref={passwordInputRef}
                     testID="register-password-input"
                     value={registerData.password}
                     onChangeText={(val: string) => handleRegisterDataChange('password', val)}
@@ -255,6 +273,8 @@ const RegisterForm = React.memo(({ registerData, handleRegisterDataChange, email
                     containerStyle={passwordError ? (styles.inputError as any) : undefined}
                     onFocus={() => { focusedOffset.value = -165; }}
                     themeAnim={themeAnim}
+                    returnKeyType="go"
+                    onSubmitEditing={() => { if (!isLoading && isRegisterFormValid) handleRegister(); }}
                 />
                 {!!passwordError && <Text style={styles.errorText}>{passwordError}</Text>}
             </View>
