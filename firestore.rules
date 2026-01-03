@@ -15,8 +15,15 @@ service cloud.firestore {
 
     // PUBLIC USERS (public lookup profile)
     match /publicUsers/{userId} {
-      // Allow signed-in clients to read public profiles
-      allow read: if isSignedIn();
+      // Allow signed-in clients to get individual profiles
+      allow get: if isSignedIn();
+      // Allow searching only by exact email match (prevents enumeration)
+      allow list: if isSignedIn()
+                  && request.query.limit <= 1
+                  && request.query.filters.size() == 1
+                  && request.query.filters[0].op == '=='
+                  && request.query.filters[0].field == 'emailLower';
+
       // Only the owner can create/update their public profile
       allow create, update: if isSignedIn() && request.auth.uid == userId;
       allow delete: if false;
