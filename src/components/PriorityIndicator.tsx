@@ -9,20 +9,37 @@ interface PriorityIndicatorProps {
 
 const PriorityIndicator = ({ priority }: PriorityIndicatorProps) => {
     const theme = useTheme();
-    const bars = [1, 2, 3, 4, 5];
-    // Możesz użyć tej samej palety kolorów co w PrioritySelector lub dostosować
-    const colors = [theme.colors.success, theme.colors.success, theme.colors.warning, theme.colors.danger, theme.colors.danger];
+    const bars = [1, 2, 3]; // Zmieniamy na 3 poziomy wizualne dla uproszczenia? Nie, trzymajmy 5 ale z lepszym stylem.
+    // Wróć, zostańmy przy 5, ale jeśli user chce zmiany stylu, zróbmy to bardziej elegancko.
 
-    const activeCount = Math.max(1, Math.min(5, Math.round(priority)));
+    // Nowa paleta kolorów - jeden kolor per poziom
+    const getPriorityColor = (level: number) => {
+        switch (level) {
+            case 1: return Colors.secondary; // Info/Blue
+            case 2: return Colors.success;   // Green
+            case 3: return Colors.warning;   // Yellow
+            case 4: return '#fb8c00';        // Orange (Warm) - Wysoki
+            case 5: return Colors.danger;    // Red - Krytyczny
+            default: return Colors.textSecondary;
+        }
+    };
+
+    const activeColor = getPriorityColor(priority);
+    const fullBars = [1, 2, 3, 4, 5];
+
+    // Zmniejszmy nieco ten wskaźnik, żeby był subtelniejszy
     return (
         <View style={styles.priorityIndicatorContainer}>
-            {bars.map(bar => (
+            {fullBars.map(bar => (
                 <View key={bar} style={[
                     styles.priorityBar,
                     {
-                        height: 6 + bar * 2.5,
-                        backgroundColor: bar <= activeCount ? colors[bar - 1] : theme.colors.border,
-                        opacity: bar <= activeCount ? 1 : 0.75,
+                        height: 5 + bar * 2, // 7, 9, 11, 13, 15
+                        backgroundColor: bar <= priority ? activeColor : (theme.colorScheme === 'dark' ? '#333333' : '#e0e0e0'),
+                        shadowColor: bar <= priority ? activeColor : undefined,
+                        shadowOpacity: bar <= priority ? 0.3 : 0,
+                        shadowRadius: 2,
+                        elevation: bar <= priority ? 2 : 0,
                     }
                 ]} />
             ))}
@@ -34,12 +51,13 @@ const styles = StyleSheet.create({
     priorityIndicatorContainer: {
         flexDirection: 'row',
         alignItems: 'flex-end',
-        marginBottom: Spacing.xSmall, // 5px
+        gap: 2,
+        height: 18,
+        paddingBottom: 4, // Lift it up more
     },
     priorityBar: {
-        width: 4,
-        borderRadius: 2,
-        marginLeft: 2,
+        width: 3,
+        borderRadius: 4,
     },
 });
 

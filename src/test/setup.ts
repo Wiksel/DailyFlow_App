@@ -116,6 +116,7 @@ jest.mock('expo-updates', () => ({
 jest.mock('react-native-reanimated', () => {
   const Reanimated = require('react-native-reanimated/mock');
   Reanimated.default.call = () => {};
+  Reanimated.useFrameCallback = jest.fn(() => ({ setActive: jest.fn(), isActive: false, callbackId: 0 }));
   return Reanimated;
 });
 
@@ -157,8 +158,8 @@ jest.mock('@react-native-firebase/auth', () => ({
   signInWithCredential: jest.fn(),
 }));
 
-jest.mock('@react-native-firebase/firestore', () => ({
-  firestore: jest.fn(() => ({
+jest.mock('@react-native-firebase/firestore', () => {
+  const firestoreMock = {
     collection: jest.fn(),
     doc: jest.fn(),
     addDoc: jest.fn(),
@@ -171,8 +172,30 @@ jest.mock('@react-native-firebase/firestore', () => ({
     orderBy: jest.fn(),
     limit: jest.fn(),
     onSnapshot: jest.fn(),
-  })),
-}));
+    batch: jest.fn(() => ({
+      commit: jest.fn(),
+      set: jest.fn(),
+      update: jest.fn(),
+      delete: jest.fn(),
+    })),
+  };
+
+  const firestoreFn = jest.fn(() => firestoreMock);
+  // Mock static properties on the default export
+  Object.assign(firestoreFn, {
+    Timestamp: {
+      now: jest.fn(() => ({ toMillis: () => Date.now() })),
+      fromDate: jest.fn((date) => ({ toMillis: () => date.getTime() })),
+    },
+    FieldValue: {
+      increment: jest.fn(),
+      delete: jest.fn(),
+      serverTimestamp: jest.fn(),
+    },
+  });
+  return firestoreFn;
+});
+
 
 jest.mock('@react-native-google-signin/google-signin', () => ({
   GoogleSignin: {

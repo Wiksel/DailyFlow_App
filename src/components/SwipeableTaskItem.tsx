@@ -5,7 +5,7 @@ import { Feather } from '@expo/vector-icons';
 import Animated, { Layout, FadeInUp } from 'react-native-reanimated';
 import * as Haptics from 'expo-haptics';
 import { useTheme } from '../contexts/ThemeContext';
-import { Colors, Spacing } from '../styles/AppStyles';
+import { Colors, Spacing, Glass } from '../styles/AppStyles';
 import ModernTaskItem from './ModernTaskItem';
 import { Task, Category } from '../types';
 
@@ -43,7 +43,10 @@ const SwipeableTaskItem = React.memo(({
   onTogglePinned,
 }: Props) => {
   const theme = useTheme();
+  const isDark = theme.colorScheme === 'dark';
+  const glassStyle = isDark ? Glass.dark : Glass.light;
   const swipeableRef = React.useRef<Swipeable>(null);
+  const [isExpanded, setIsExpanded] = React.useState(false);
 
   const renderRight = useCallback(() => (
     <View style={styles.swipeRight}>
@@ -90,9 +93,21 @@ const SwipeableTaskItem = React.memo(({
       containerStyle={{ overflow: 'visible' }}
     >
       <Animated.View
-        layout={Layout.springify()}
+        layout={Layout.springify().damping(22).mass(1.0)}
         entering={FadeInUp.delay(Math.min(300, index * 20))}
-        style={styles.itemContainer}
+        style={[
+          styles.itemContainer,
+          {
+            backgroundColor: selected ? `${Colors.primary}30` : glassStyle.background,
+            borderColor: selected ? Colors.primary : glassStyle.border,
+            borderWidth: 1,
+            borderRadius: 16,
+            marginHorizontal: Spacing.medium,
+            marginBottom: 2,
+            opacity: task.completed ? 0.6 : 1,
+            overflow: 'hidden'
+          }
+        ]}
       >
         <ModernTaskItem
           task={task}
@@ -106,6 +121,8 @@ const SwipeableTaskItem = React.memo(({
           onToggleSelect={onToggleSelect}
           pinned={isPinned}
           highlightQuery={highlightQuery}
+          onExpandedChange={setIsExpanded}
+          noContainer={true}
         />
       </Animated.View>
     </Swipeable>
@@ -113,7 +130,9 @@ const SwipeableTaskItem = React.memo(({
 });
 
 const styles = StyleSheet.create({
-  itemContainer: {},
+  itemContainer: {
+    // overflow: 'hidden', // Styles moved inline for dynamic handling
+  },
   swipeLeft: {
     width: '100%',
     height: '100%',
