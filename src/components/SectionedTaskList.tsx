@@ -1,4 +1,4 @@
-import React, { useMemo, forwardRef, useImperativeHandle } from 'react';
+import React, { useMemo, forwardRef, useImperativeHandle, useCallback } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, useWindowDimensions } from 'react-native';
 import { Task, Category } from '../types';
 import SwipeableTaskItem from './SwipeableTaskItem';
@@ -113,7 +113,7 @@ const SectionedTaskList = forwardRef<TaskSectionListHandle, Props>(({
     }, [sections]);
 
     // 3. Render Item
-    const renderItem = ({ item, index }: { item: ListItem, index: number }) => {
+    const renderItem = useCallback(({ item, index }: { item: ListItem, index: number }) => {
         if (item.type === 'header') {
             return (
                 <View style={styles.sectionHeader}>
@@ -151,7 +151,7 @@ const SectionedTaskList = forwardRef<TaskSectionListHandle, Props>(({
                 />
             );
         }
-    };
+    }, [categories, selectionMode, selectedIds, pinnedIds, highlightQuery, onPressTask, onToggleComplete, onConfirmAction, onToggleSelect, onOpenTaskMenu, onTogglePinned, onQuickAdd, theme]);
 
     return (
         <Animated.FlatList
