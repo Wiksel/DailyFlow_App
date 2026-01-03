@@ -5,6 +5,8 @@ import './test-utils';
 jest.mock('../contexts/ThemeContext', () => ({
   useTheme: () => require('./test-utils').mockTheme,
   ThemeProvider: ({ children }: any) => children,
+  lightColors: require('./test-utils').mockTheme.colors,
+  darkColors: require('./test-utils').mockTheme.colors,
 }));
 
 jest.mock('../contexts/UIContext', () => ({
@@ -15,6 +17,8 @@ jest.mock('../contexts/UIContext', () => ({
 jest.mock('../contexts/ToastContext', () => ({
   useToast: () => require('./test-utils').mockToast,
   ToastProvider: ({ children }: any) => children,
+  ToastOverlay: () => null,
+  ToastOverlaySuppressor: () => null,
 }));
 
 jest.mock('../contexts/CategoryContext', () => ({
@@ -82,6 +86,7 @@ jest.mock('expo-updates', () => ({
 jest.mock('react-native-reanimated', () => {
   const Reanimated = require('react-native-reanimated/mock');
   Reanimated.default.call = () => {};
+  Reanimated.useFrameCallback = jest.fn(() => ({ setActive: jest.fn(), isActive: false, callbackId: 0 }));
   return Reanimated;
 });
 
@@ -123,8 +128,8 @@ jest.mock('@react-native-firebase/auth', () => ({
   signInWithCredential: jest.fn(),
 }));
 
-jest.mock('@react-native-firebase/firestore', () => ({
-  firestore: jest.fn(() => ({
+jest.mock('@react-native-firebase/firestore', () => {
+  const firestoreFn = jest.fn(() => ({
     collection: jest.fn(),
     doc: jest.fn(),
     addDoc: jest.fn(),
@@ -137,8 +142,24 @@ jest.mock('@react-native-firebase/firestore', () => ({
     orderBy: jest.fn(),
     limit: jest.fn(),
     onSnapshot: jest.fn(),
-  })),
-}));
+  }));
+  (firestoreFn as any).Timestamp = {
+    now: jest.fn(() => 1234567890),
+    fromDate: jest.fn(),
+  };
+  (firestoreFn as any).FieldValue = {
+    increment: jest.fn(),
+    delete: jest.fn(),
+    serverTimestamp: jest.fn(),
+    arrayUnion: jest.fn(),
+    arrayRemove: jest.fn(),
+  };
+  return {
+    __esModule: true,
+    default: firestoreFn,
+    firestore: firestoreFn,
+  };
+});
 
 jest.mock('@react-native-google-signin/google-signin', () => ({
   GoogleSignin: {

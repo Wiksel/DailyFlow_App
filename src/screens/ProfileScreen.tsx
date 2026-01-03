@@ -3,7 +3,7 @@ import { View, Text, StyleSheet, TouchableOpacity, TextInput, Alert, ActivityInd
 import { useNavigation } from '@react-navigation/native';
 import { getAuth } from '../utils/authCompat';
 import { db } from '../utils/firestoreCompat';
-import { doc, getDoc, onSnapshot, collection, query, where, getDocs, writeBatch, updateDoc, deleteDoc, addDoc, QuerySnapshotCompat } from '../utils/firestoreCompat';
+import { doc, getDoc, onSnapshot, collection, query, where, getDocs, writeBatch, updateDoc, deleteDoc, addDoc, limit, QuerySnapshotCompat } from '../utils/firestoreCompat';
 import { TaskStackNavigationProp } from '../types/navigation';
 import { UserProfile, Pair } from '../types';
 import { useToast } from '../contexts/ToastContext';
@@ -107,7 +107,7 @@ const ProfileScreen = () => {
         try {
             // Prefer publicUsers for lookup by lower-cased email
             const pubRef = collection(db, 'publicUsers');
-            const q = query(pubRef, where("emailLower", "==", inviteEmail.trim().toLowerCase()));
+            const q = query(pubRef, where("emailLower", "==", inviteEmail.trim().toLowerCase()), limit(1));
             const querySnapshot = await getDocs(q);
             if (querySnapshot.empty) {
                 showToast("Nie znaleziono użytkownika \no podanym adresie e-mail.", 'error');
