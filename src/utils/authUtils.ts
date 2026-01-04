@@ -128,13 +128,15 @@ export const findUserEmailByIdentifier = async (identifier: string): Promise<str
     if (/\S+@\S+\.\S+/.test(cleanIdentifier)) {
         try {
             const q = query(
-                collection(db, 'users'),
+                collection(db, 'publicUsers'),
                 where('emailLower', '==', cleanIdentifier.toLowerCase()),
                 limit(1)
             );
             const snapshot = await getDocs(q);
             if (!snapshot.empty) {
-                return snapshot.docs[0].data().email || cleanIdentifier;
+                // Return cleaned identifier since publicUsers only stores lowercased email
+                // or null if we want to confirm existence but rely on user input for display
+                return cleanIdentifier.toLowerCase();
             }
             return null;
         } catch (error) {
