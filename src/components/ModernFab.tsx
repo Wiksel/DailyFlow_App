@@ -97,6 +97,9 @@ const ModernFab: React.FC<Props> = ({ onAddPress, onTemplatePress }) => {
             <TouchableOpacity
                 style={[styles.secondaryFab, { backgroundColor: theme.colors.card }]}
                 onPress={onTemplatePress}
+                accessibilityRole="button"
+                accessibilityLabel="Szablony"
+                accessibilityHint="Otwiera listę szablonów"
             >
                 <Feather name="layers" size={22} color={theme.colors.primary} />
             </TouchableOpacity>
@@ -104,6 +107,9 @@ const ModernFab: React.FC<Props> = ({ onAddPress, onTemplatePress }) => {
             <TouchableOpacity
                 style={[styles.primaryFab, { backgroundColor: theme.colors.primary }]}
                 onPress={onAddPress}
+                accessibilityRole="button"
+                accessibilityLabel="Dodaj nowe zadanie"
+                accessibilityHint="Tworzy nowe zadanie"
             >
                 <Feather name="plus" size={32} color="white" />
             </TouchableOpacity>
