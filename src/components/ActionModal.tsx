@@ -80,6 +80,10 @@ const styles = StyleSheet.create({
     bottom: 0,
     borderBottomLeftRadius: 0,
     borderBottomRightRadius: 0,
+    marginHorizontal: 0, // Force full width override if margin was inherited
+    borderRadius: 0, // Ensure corners are square at bottom
+    borderTopLeftRadius: 16,
+    borderTopRightRadius: 16
   },
   title: {
     ...Typography.h2,

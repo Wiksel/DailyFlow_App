@@ -30,6 +30,7 @@ import TaskTypeTabs from '../components/TaskTypeTabs';
 import { HomeBackground } from '../components/HomeBackground';
 import HomeHeader from '../components/HomeHeader';
 import FilterBar from '../components/FilterBar';
+import AdvancedFilterModal from '../components/AdvancedFilterModal';
 import ModernFab from '../components/ModernFab';
 
 // Hooks
@@ -59,10 +60,11 @@ const HomeScreen = () => {
     const [templates, setTemplates] = useState<ChoreTemplate[]>([]);
     const [pendingDeadline, setPendingDeadline] = useState<any>(null);
 
-    const [activeQuickFilter, setActiveQuickFilter] = useState<'all' | 'today' | 'upcoming' | 'overdue'>('all');
+
     const [globalSearchVisible, setGlobalSearchVisible] = useState(false);
     const [globalSearchQuery, setGlobalSearchQuery] = useState('');
     const [calendarModal, setCalendarModal] = useState<{ visible: boolean; type: 'created' | 'deadline' | 'completed' | null }>({ visible: false, type: null });
+    const [advancedFilterVisible, setAdvancedFilterVisible] = useState(false);
 
     const [selectionMode, setSelectionMode] = useState(false);
     const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
@@ -144,7 +146,7 @@ const HomeScreen = () => {
     const { tasks, loading: tasksLoading } = useTasks(effectiveTaskType, userProfile);
 
     const {
-        filters, setFilters, processedAndSortedTasks,
+        filters, setFilters, processedAndSortedTasks, toggleTimeFilter,
         setTaskType, setActiveCategories, setDifficultyFilter, setCreatorFilter, setSearchQuery,
         setFilterFromDate, setFilterToDate, setDeadlineFromDate, setDeadlineToDate, setCompletedFromDate, setCompletedToDate
     } = useTaskFilters(tasks, userProfile, focusModeEnabled);
@@ -262,34 +264,7 @@ const HomeScreen = () => {
         if (difficultyPickerTask || difficultyPickerBulk) { loadRecentDifficulties(); }
     }, [difficultyPickerTask, difficultyPickerBulk, loadRecentDifficulties]);
 
-    const applyQuickFilter = useCallback((type: 'all' | 'today' | 'upcoming' | 'overdue') => {
-        setActiveQuickFilter(type);
-        const now = new Date();
-        now.setHours(0, 0, 0, 0);
 
-        setFilterFromDate(null); setFilterToDate(null);
-        setDeadlineFromDate(null); setDeadlineToDate(null);
-        setCompletedFromDate(null); setCompletedToDate(null);
-
-        switch (type) {
-            case 'today':
-                setDeadlineFromDate(new Date(now));
-                setDeadlineToDate(new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59));
-                break;
-            case 'upcoming':
-                const nextWeek = new Date(now); nextWeek.setDate(now.getDate() + 7);
-                setDeadlineFromDate(now);
-                setDeadlineToDate(nextWeek);
-                break;
-            case 'overdue':
-                const yesterday = new Date(now); yesterday.setDate(now.getDate() - 1); yesterday.setHours(23, 59, 59);
-                setDeadlineToDate(yesterday);
-                break;
-            case 'all':
-            default:
-                break;
-        }
-    }, [setDeadlineFromDate, setDeadlineToDate, setCompletedFromDate, setCompletedToDate, setFilterFromDate, setFilterToDate]);
 
     const isDark = theme.colorScheme === 'dark';
     const rgb = hexToRgb(theme.colors.primary);
@@ -308,7 +283,7 @@ const HomeScreen = () => {
                     borderBottomRightRadius: 32,
                     paddingBottom: 12,
                     overflow: 'hidden',
-                    marginBottom: 16,
+                    marginBottom: 4,
                     shadowColor: "#000",
                     shadowOffset: { width: 0, height: 4 },
                     shadowOpacity: 0.1,
@@ -351,58 +326,73 @@ const HomeScreen = () => {
                 activeCategoryIds={filters.activeCategories}
                 categories={categories}
                 onToggleCategory={(id: string) => setActiveCategories(prev => prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id])}
-                activeTimeFilter={activeQuickFilter}
-                onTimeFilterChange={applyQuickFilter}
+                activeTimeFilters={filters.activeTimeFilters || ['all']}
+                onTimeFilterChange={toggleTimeFilter}
                 onClearAll={() => {
                     setActiveCategories([]);
-                    setActiveQuickFilter('all');
+                    toggleTimeFilter('all');
                     setGlobalSearchQuery('');
                     setSearchQuery('');
                     setFilterFromDate(null); setFilterToDate(null);
                     setDeadlineFromDate(null); setDeadlineToDate(null);
                     setCompletedFromDate(null); setCompletedToDate(null);
+                    setFilters({ priorityFilter: [], difficultyFilter: [] });
                 }}
+                onOpenAdvancedFilters={() => setAdvancedFilterVisible(true)}
+                activePriorityFilters={filters.priorityFilter || []}
+                onTogglePriority={(p) => setFilters({ priorityFilter: (filters.priorityFilter || []).filter(x => x !== p) })}
+                activeDifficultyFilters={filters.difficultyFilter || []}
+                onToggleDifficulty={(d) => setFilters({ difficultyFilter: (filters.difficultyFilter || []).filter(x => x !== d) })}
+            />
+
+            <AdvancedFilterModal
+                visible={advancedFilterVisible}
+                onClose={() => setAdvancedFilterVisible(false)}
+                activePriorityFilters={filters.priorityFilter || []}
+                onPriorityFilterChange={(val) => setFilters({ priorityFilter: val })}
+                activeDifficultyFilters={filters.difficultyFilter || []}
+                onDifficultyFilterChange={(val) => setFilters({ difficultyFilter: val })}
             />
 
             {tasksLoading ? <TaskListSkeleton rows={8} /> : (
-                processedAndSortedTasks.length === 0 ? (
-                    <View style={GlobalStyles.centered}>
-                        <HomeEmptyState onAddTask={() => setAddTaskModalVisible(true)} onOpenTemplates={() => navigation.navigate('ChoreTemplates' as any)} />
-                    </View>
-                ) : (
-                    <SectionedTaskList
-                        tasks={processedAndSortedTasks}
-                        categories={categories}
-                        onPressTask={(t: Task) => navigation.navigate('TaskDetail', { taskId: t.id })}
-                        onToggleComplete={(t: Task) => toggleComplete(t)}
-                        onConfirmAction={(t: Task) => handleTaskAction(t)}
-                        selectionMode={selectionMode}
-                        selectedIds={selectedIds}
-                        onToggleSelect={toggleSelect}
-                        onOpenTaskMenu={(t: Task) => setMenuTask(t)}
-                        onSelectAllSection={(key: string, items: Task[]) => {
-                            const ids = new Set(selectedIds);
-                            const list = items as Task[];
-                            const allSelected = list.every(it => ids.has(it.id));
-                            if (allSelected) { list.forEach(it => ids.delete(it.id)); } else { list.forEach(it => ids.add(it.id)); }
-                            setSelectedIds(ids);
-                            setSelectionMode(true);
-                        }}
-                        onQuickAdd={(key: string) => {
-                            let initial: Date | null = null;
-                            const now = new Date();
-                            if (key === 'today') { initial = new Date(now); initial.setHours(23, 59, 0, 0); }
-                            else if (key === 'tomorrow') { initial = new Date(now); initial.setDate(now.getDate() + 1); initial.setHours(12, 0, 0, 0); }
-                            else if (key === 'week') { initial = new Date(now); initial.setDate(now.getDate() + 7); initial.setHours(12, 0, 0, 0); }
-                            setAddTaskModalVisible(true);
-                            setPendingDeadline(initial ? Timestamp.fromDate(initial) : null);
-                        }}
-                        pinnedIds={pinnedIds}
-                        onTogglePinned={togglePinned}
-                        ref={taskListRef}
-                        highlightQuery={globalSearchQuery}
-                    />
-                )
+                <SectionedTaskList
+                    tasks={processedAndSortedTasks}
+                    categories={categories}
+                    onPressTask={(t: Task) => navigation.navigate('TaskDetail', { taskId: t.id })}
+                    onToggleComplete={(t: Task) => toggleComplete(t)}
+                    onConfirmAction={(t: Task) => handleTaskAction(t)}
+                    selectionMode={selectionMode}
+                    selectedIds={selectedIds}
+                    onToggleSelect={toggleSelect}
+                    onOpenTaskMenu={(t: Task) => setMenuTask(t)}
+                    onSelectAllSection={(key: string, items: Task[]) => {
+                        const ids = new Set(selectedIds);
+                        const list = items as Task[];
+                        const allSelected = list.every(it => ids.has(it.id));
+                        if (allSelected) { list.forEach(it => ids.delete(it.id)); } else { list.forEach(it => ids.add(it.id)); }
+                        setSelectedIds(ids);
+                        setSelectionMode(true);
+                    }}
+                    onQuickAdd={(key: string) => {
+                        let initial: Date | null = null;
+                        const now = new Date();
+                        if (key === 'today') { initial = new Date(now); initial.setHours(23, 59, 0, 0); }
+                        else if (key === 'tomorrow') { initial = new Date(now); initial.setDate(now.getDate() + 1); initial.setHours(12, 0, 0, 0); }
+                        else if (key === 'week') { initial = new Date(now); initial.setDate(now.getDate() + 7); initial.setHours(12, 0, 0, 0); }
+                        setAddTaskModalVisible(true);
+                        setPendingDeadline(initial ? Timestamp.fromDate(initial) : null);
+                    }}
+                    pinnedIds={pinnedIds}
+                    onTogglePinned={togglePinned}
+                    ref={taskListRef}
+                    highlightQuery={globalSearchQuery}
+                    ListEmptyComponent={
+                        <View style={GlobalStyles.centered}>
+                            <HomeEmptyState onAddTask={() => setAddTaskModalVisible(true)} onOpenTemplates={() => navigation.navigate('ChoreTemplates' as any)} />
+                        </View>
+                    }
+                    contentContainerStyle={{ marginTop: 0, paddingBottom: 100 }}
+                />
             )}
 
             <View style={styles.fabContainer}>
@@ -764,10 +754,8 @@ const createStyles = (theme: Theme) => StyleSheet.create({
     container: { flex: 1, backgroundColor: theme.colors.background },
     fabContainer: {
         position: 'absolute',
-        right: 16,
-        bottom: 16,
-        width: 110,
-        height: 110,
+        right: 0,
+        bottom: 0,
         justifyContent: 'flex-end',
         alignItems: 'flex-end',
         pointerEvents: 'box-none',

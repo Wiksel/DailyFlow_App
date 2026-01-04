@@ -1,7 +1,7 @@
 import React, { useMemo } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { Feather } from '@expo/vector-icons';
-import Animated, { useAnimatedStyle, withTiming, useSharedValue, Layout } from 'react-native-reanimated';
+import Animated, { useAnimatedStyle, withTiming, withSpring, useSharedValue, Layout } from 'react-native-reanimated';
 import { Task, Category } from '../types';
 import { Spacing, Typography, Colors, Glass, Effects } from '../styles/AppStyles';
 import { useTheme } from '../contexts/ThemeContext';
@@ -46,7 +46,7 @@ const ModernTaskItem = React.memo(({
     const rotate = useSharedValue(0);
 
     React.useEffect(() => {
-        rotate.value = withTiming(isExpanded ? 180 : 0, { duration: 300 });
+        rotate.value = withSpring(isExpanded ? 180 : 0, { damping: 20, mass: 1 });
     }, [isExpanded]);
 
     const animatedChevron = useAnimatedStyle(() => ({
@@ -159,7 +159,7 @@ const ModernTaskItem = React.memo(({
                     {/* Description Section with Inline Chevron */}
                     {task.description && (
                         <Animated.View
-                            layout={Layout.springify().damping(15).mass(0.6)}
+                            layout={Layout.springify().damping(20).mass(1)}
                             style={{ overflow: 'hidden' }}
                         >
                             <TouchableOpacity
@@ -169,8 +169,11 @@ const ModernTaskItem = React.memo(({
                                     onExpandedChange?.(newState);
                                 }}
                                 activeOpacity={1}
+                                hitSlop={{ top: 20, bottom: 20, left: 20, right: 20 }}
                                 style={{
-                                    marginTop: 6,
+                                    marginTop: 0,
+                                    paddingTop: 8,
+                                    paddingBottom: 0,
                                     flexDirection: 'row',
                                     alignItems: 'flex-start',
                                     justifyContent: 'space-between'
@@ -187,11 +190,11 @@ const ModernTaskItem = React.memo(({
                                         paddingRight: 8
                                     }}
                                 >
-                                    {task.description}
+                                    {task.description.trim()}
                                 </Text>
 
                                 {/* Chevron aligned with first line */}
-                                <Animated.View style={[{ marginTop: 2, opacity: 0.7 }, animatedChevron]}>
+                                <Animated.View style={[{ marginTop: 2, opacity: 0.7, marginRight: 4 }, animatedChevron]}>
                                     <Feather
                                         name="chevron-down"
                                         size={16}

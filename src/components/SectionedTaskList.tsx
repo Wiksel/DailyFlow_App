@@ -5,7 +5,7 @@ import SwipeableTaskItem from './SwipeableTaskItem';
 import { useTheme } from '../contexts/ThemeContext';
 import { Typography, Spacing } from '../styles/AppStyles';
 import { Feather } from '@expo/vector-icons';
-import Animated, { FadeInUp, Layout, FadeOut } from 'react-native-reanimated';
+import Animated, { FadeIn, FadeInUp, Layout, FadeOut } from 'react-native-reanimated';
 
 export interface TaskSectionListHandle {
     scrollToTaskId: (taskId: string) => void; // Placeholder
@@ -26,6 +26,8 @@ interface Props {
     pinnedIds: Set<string>;
     onTogglePinned: (task: Task) => void;
     highlightQuery?: string;
+    ListEmptyComponent?: React.ReactElement | null;
+    contentContainerStyle?: any; // Using any for simplicity or import StyleProp<ViewStyle>
 }
 
 type ListItem =
@@ -46,7 +48,9 @@ const SectionedTaskList = forwardRef<TaskSectionListHandle, Props>(({
     onQuickAdd,
     pinnedIds,
     onTogglePinned,
-    highlightQuery
+    highlightQuery,
+    ListEmptyComponent,
+    contentContainerStyle
 }, ref) => {
     const theme = useTheme();
 
@@ -72,13 +76,20 @@ const SectionedTaskList = forwardRef<TaskSectionListHandle, Props>(({
         const nextWeekDate = new Date(now);
         nextWeekDate.setDate(now.getDate() + 7);
 
+        const safeDate = (d: any) => {
+            if (!d) return null;
+            if (d.toDate) return d.toDate();
+            const date = new Date(d);
+            return isNaN(date.getTime()) ? null : date;
+        };
+
         tasks.forEach(t => {
             if (t.completed) { completed.push(t); return; }
             if (pinnedIds.has(t.id)) { pinned.push(t); return; }
 
-            if (!t.deadline) { noDate.push(t); return; }
+            const d = safeDate(t.deadline);
+            if (!d) { noDate.push(t); return; }
 
-            const d = (t.deadline as any)?.toDate ? (t.deadline as any).toDate() : new Date(t.deadline as any);
             d.setHours(0, 0, 0, 0);
 
             if (d.getTime() < now.getTime()) overdue.push(t);
@@ -116,7 +127,11 @@ const SectionedTaskList = forwardRef<TaskSectionListHandle, Props>(({
     const renderItem = useCallback(({ item, index }: { item: ListItem, index: number }) => {
         if (item.type === 'header') {
             return (
-                <View style={styles.sectionHeader}>
+                <Animated.View
+                    style={styles.sectionHeader}
+                    entering={FadeIn}
+                    layout={Layout.springify().damping(16)}
+                >
                     <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, flex: 1, minHeight: 28 }}>
                         {item.icon && <Feather name={item.icon as any} size={18} color={item.color || theme.colors.textSecondary} />}
                         <Text style={{ ...Typography.h3, fontSize: 15, color: item.color || theme.colors.textSecondary, fontWeight: '700', textTransform: 'uppercase', letterSpacing: 0.5 }}>
@@ -128,40 +143,47 @@ const SectionedTaskList = forwardRef<TaskSectionListHandle, Props>(({
                             <Feather name="plus" size={24} color={theme.colors.primary} />
                         </TouchableOpacity>
                     )}
-                </View>
+                </Animated.View>
             );
         } else {
             return (
-                <SwipeableTaskItem
-                    task={item.data}
-                    category={categories.find(c => c.id === item.data.category)}
-                    index={index}
-                    isCompact={false}
-                    selectionMode={selectionMode}
-                    selected={selectedIds.has(item.data.id)}
-                    isPinned={pinnedIds.has(item.data.id)}
-                    onPress={onPressTask}
-                    onToggleComplete={onToggleComplete}
-                    onConfirmAction={onConfirmAction}
-                    onToggleSelect={onToggleSelect}
-                    // Menu Logic could be passed here if needed
-                    onOpenMenu={onOpenTaskMenu}
-                    onTogglePinned={onTogglePinned}
-                    highlightQuery={highlightQuery}
-                />
+                <Animated.View
+                    entering={FadeIn}
+                    layout={Layout.springify().damping(16)}
+                >
+                    <SwipeableTaskItem
+                        task={item.data}
+                        category={categories.find(c => c.id === item.data.category)}
+                        index={index}
+                        isCompact={false}
+                        selectionMode={selectionMode}
+                        selected={selectedIds.has(item.data.id)}
+                        isPinned={pinnedIds.has(item.data.id)}
+                        onPress={onPressTask}
+                        onToggleComplete={onToggleComplete}
+                        onConfirmAction={onConfirmAction}
+                        onToggleSelect={onToggleSelect}
+                        // Menu Logic could be passed here if needed
+                        onOpenMenu={onOpenTaskMenu}
+                        onTogglePinned={onTogglePinned}
+                        highlightQuery={highlightQuery}
+                    />
+                </Animated.View>
             );
         }
     }, [categories, selectionMode, selectedIds, pinnedIds, highlightQuery, onPressTask, onToggleComplete, onConfirmAction, onToggleSelect, onOpenTaskMenu, onTogglePinned, onQuickAdd, theme]);
 
     return (
         <Animated.FlatList
-            itemLayoutAnimation={Layout.springify().damping(22).mass(1.0)}
             data={flattenedData}
             keyExtractor={(item) => item.type === 'header' ? `header-${item.key}` : item.id}
             renderItem={renderItem}
-            contentContainerStyle={{ paddingBottom: 100, paddingTop: 0 }}
+            contentContainerStyle={contentContainerStyle || { paddingBottom: 100, paddingTop: 0 }}
             showsVerticalScrollIndicator={false}
             keyboardShouldPersistTaps="handled"
+            style={{ flex: 1 }}
+            itemLayoutAnimation={undefined}
+            ListEmptyComponent={ListEmptyComponent}
         />
     );
 });

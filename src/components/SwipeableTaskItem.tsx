@@ -2,7 +2,7 @@ import React, { useCallback } from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 import { Swipeable } from 'react-native-gesture-handler';
 import { Feather } from '@expo/vector-icons';
-import Animated, { Layout, FadeInUp } from 'react-native-reanimated';
+import Animated, { Layout, FadeIn, FadeInUp, FadeOutUp } from 'react-native-reanimated';
 import * as Haptics from 'expo-haptics';
 import { useTheme } from '../contexts/ThemeContext';
 import { Colors, Spacing, Glass } from '../styles/AppStyles';
@@ -81,51 +81,59 @@ const SwipeableTaskItem = React.memo(({
   }, [task, onToggleComplete, onConfirmAction]);
 
   return (
-    <Swipeable
-      ref={swipeableRef}
-      renderLeftActions={renderLeft}
-      renderRightActions={renderRight}
-      onSwipeableOpen={handleSwipeableOpen}
-      leftThreshold={60}
-      rightThreshold={60}
-      overshootLeft={false}
-      overshootRight={false}
-      containerStyle={{ overflow: 'visible' }}
+    <Animated.View
+      entering={FadeIn.delay(Math.min(300, index * 20))}
+      exiting={FadeOutUp}
+      style={{ marginBottom: 2 }}
     >
-      <Animated.View
-        layout={Layout.springify().damping(22).mass(1.0)}
-        entering={FadeInUp.delay(Math.min(300, index * 20))}
-        style={[
-          styles.itemContainer,
-          {
-            backgroundColor: selected ? `${Colors.primary}30` : glassStyle.background,
-            borderColor: selected ? Colors.primary : glassStyle.border,
-            borderWidth: 1,
-            borderRadius: 16,
-            marginHorizontal: Spacing.medium,
-            marginBottom: 2,
-            opacity: task.completed ? 0.6 : 1,
-            overflow: 'hidden'
-          }
-        ]}
+      <Swipeable
+        ref={swipeableRef}
+        renderLeftActions={renderLeft}
+        renderRightActions={renderRight}
+        onSwipeableOpen={handleSwipeableOpen}
+        leftThreshold={60}
+        rightThreshold={60}
+        overshootLeft={false}
+        overshootRight={false}
+        containerStyle={{ overflow: 'visible' }}
       >
-        <ModernTaskItem
-          task={task}
-          category={category}
-          onPress={onPress}
-          onLongPress={onToggleSelect}
-          onToggleComplete={onToggleComplete}
-          isCompact={isCompact}
-          selectionMode={selectionMode}
-          selected={selected}
-          onToggleSelect={onToggleSelect}
-          pinned={isPinned}
-          highlightQuery={highlightQuery}
-          onExpandedChange={setIsExpanded}
-          noContainer={true}
-        />
-      </Animated.View>
-    </Swipeable>
+        <View
+          style={[
+            styles.itemContainer,
+            {
+              marginHorizontal: Spacing.medium,
+            }
+          ]}
+        >
+          <Animated.View
+            style={{
+              backgroundColor: selected ? `${Colors.primary}30` : glassStyle.background,
+              borderColor: selected ? Colors.primary : glassStyle.border,
+              borderWidth: 1,
+              borderRadius: 16,
+              opacity: task.completed ? 0.6 : 1,
+              overflow: 'hidden'
+            }}
+          >
+            <ModernTaskItem
+              task={task}
+              category={category}
+              onPress={onPress}
+              onLongPress={onToggleSelect}
+              onToggleComplete={onToggleComplete}
+              isCompact={isCompact}
+              selectionMode={selectionMode}
+              selected={selected}
+              onToggleSelect={onToggleSelect}
+              pinned={isPinned}
+              highlightQuery={highlightQuery}
+              onExpandedChange={setIsExpanded}
+              noContainer={true}
+            />
+          </Animated.View>
+        </View>
+      </Swipeable>
+    </Animated.View>
   );
 });
 

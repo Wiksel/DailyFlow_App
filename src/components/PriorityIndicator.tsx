@@ -52,8 +52,7 @@ const styles = StyleSheet.create({
         flexDirection: 'row',
         alignItems: 'flex-end',
         gap: 2,
-        height: 18,
-        paddingBottom: 4, // Lift it up more
+        height: 16, // Wysokość dopasowana do najwyższego paska (15)
     },
     priorityBar: {
         width: 3,
