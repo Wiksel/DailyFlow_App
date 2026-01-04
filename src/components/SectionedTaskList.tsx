@@ -127,11 +127,7 @@ const SectionedTaskList = forwardRef<TaskSectionListHandle, Props>(({
     const renderItem = useCallback(({ item, index }: { item: ListItem, index: number }) => {
         if (item.type === 'header') {
             return (
-                <Animated.View
-                    style={styles.sectionHeader}
-                    entering={FadeIn}
-                    layout={Layout.springify().damping(16)}
-                >
+                <View style={styles.sectionHeader}>
                     <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, flex: 1, minHeight: 28 }}>
                         {item.icon && <Feather name={item.icon as any} size={18} color={item.color || theme.colors.textSecondary} />}
                         <Text style={{ ...Typography.h3, fontSize: 15, color: item.color || theme.colors.textSecondary, fontWeight: '700', textTransform: 'uppercase', letterSpacing: 0.5 }}>
@@ -143,32 +139,27 @@ const SectionedTaskList = forwardRef<TaskSectionListHandle, Props>(({
                             <Feather name="plus" size={24} color={theme.colors.primary} />
                         </TouchableOpacity>
                     )}
-                </Animated.View>
+                </View>
             );
         } else {
             return (
-                <Animated.View
-                    entering={FadeIn}
-                    layout={Layout.springify().damping(16)}
-                >
-                    <SwipeableTaskItem
-                        task={item.data}
-                        category={categories.find(c => c.id === item.data.category)}
-                        index={index}
-                        isCompact={false}
-                        selectionMode={selectionMode}
-                        selected={selectedIds.has(item.data.id)}
-                        isPinned={pinnedIds.has(item.data.id)}
-                        onPress={onPressTask}
-                        onToggleComplete={onToggleComplete}
-                        onConfirmAction={onConfirmAction}
-                        onToggleSelect={onToggleSelect}
-                        // Menu Logic could be passed here if needed
-                        onOpenMenu={onOpenTaskMenu}
-                        onTogglePinned={onTogglePinned}
-                        highlightQuery={highlightQuery}
-                    />
-                </Animated.View>
+                <SwipeableTaskItem
+                    task={item.data}
+                    category={categories.find(c => c.id === item.data.category)}
+                    index={index}
+                    isCompact={false}
+                    selectionMode={selectionMode}
+                    selected={selectedIds.has(item.data.id)}
+                    isPinned={pinnedIds.has(item.data.id)}
+                    onPress={onPressTask}
+                    onToggleComplete={onToggleComplete}
+                    onConfirmAction={onConfirmAction}
+                    onToggleSelect={onToggleSelect}
+                    // Menu Logic could be passed here if needed
+                    onOpenMenu={onOpenTaskMenu}
+                    onTogglePinned={onTogglePinned}
+                    highlightQuery={highlightQuery}
+                />
             );
         }
     }, [categories, selectionMode, selectedIds, pinnedIds, highlightQuery, onPressTask, onToggleComplete, onConfirmAction, onToggleSelect, onOpenTaskMenu, onTogglePinned, onQuickAdd, theme]);
@@ -182,7 +173,7 @@ const SectionedTaskList = forwardRef<TaskSectionListHandle, Props>(({
             showsVerticalScrollIndicator={false}
             keyboardShouldPersistTaps="handled"
             style={{ flex: 1 }}
-            itemLayoutAnimation={undefined}
+            itemLayoutAnimation={Layout.springify().damping(15).mass(0.6)}
             ListEmptyComponent={ListEmptyComponent}
         />
     );

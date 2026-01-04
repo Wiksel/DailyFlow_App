@@ -43,10 +43,11 @@ const ModernTaskItem = React.memo(({
     const isDark = theme.colorScheme === 'dark';
     const glassStyle = isDark ? Glass.dark : Glass.light;
     const [isExpanded, setIsExpanded] = React.useState(false);
+    const [isCollapsing, setIsCollapsing] = React.useState(false);
     const rotate = useSharedValue(0);
 
     React.useEffect(() => {
-        rotate.value = withSpring(isExpanded ? 180 : 0, { damping: 20, mass: 1 });
+        rotate.value = withSpring(isExpanded ? 180 : 0, { damping: 15, mass: 0.6 });
     }, [isExpanded]);
 
     const animatedChevron = useAnimatedStyle(() => ({
@@ -96,7 +97,8 @@ const ModernTaskItem = React.memo(({
                     marginBottom: noContainer ? 0 : 2,
                     borderRadius: noContainer ? 0 : 16,
                 },
-                containerStyle
+                containerStyle,
+                { overflow: noContainer ? 'visible' : 'hidden' }
             ]}
         >
             <View style={styles.mainRow}>
@@ -159,14 +161,27 @@ const ModernTaskItem = React.memo(({
                     {/* Description Section with Inline Chevron */}
                     {task.description && (
                         <Animated.View
-                            layout={Layout.springify().damping(20).mass(1)}
-                            style={{ overflow: 'hidden' }}
+                            style={{
+                                height: isCollapsing ? 28 : undefined
+                            }}
                         >
                             <TouchableOpacity
                                 onPress={() => {
-                                    const newState = !isExpanded;
-                                    setIsExpanded(newState);
-                                    onExpandedChange?.(newState);
+                                    if (isExpanded) {
+                                        // Start collapsing
+                                        setIsCollapsing(true);
+                                        setIsExpanded(false);
+
+                                        // Wait for animation to finish before snapping to 1 line and hiding zIndex
+                                        setTimeout(() => {
+                                            setIsCollapsing(false);
+                                            onExpandedChange?.(false);
+                                        }, 400); // Slightly longer than 300ms to be safe
+                                    } else {
+                                        // Expand immediately
+                                        setIsExpanded(true);
+                                        onExpandedChange?.(true);
+                                    }
                                 }}
                                 activeOpacity={1}
                                 hitSlop={{ top: 20, bottom: 20, left: 20, right: 20 }}
@@ -180,7 +195,7 @@ const ModernTaskItem = React.memo(({
                                 }}
                             >
                                 <Text
-                                    numberOfLines={isExpanded ? undefined : 1}
+                                    numberOfLines={(isExpanded || isCollapsing) ? undefined : 1}
                                     style={{
                                         fontSize: 13,
                                         color: glassStyle.textSecondary,

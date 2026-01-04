@@ -106,6 +106,7 @@ const SwipeableTaskItem = React.memo(({
           ]}
         >
           <Animated.View
+            layout={Layout.springify().damping(15).mass(0.6)}
             style={{
               backgroundColor: selected ? `${Colors.primary}30` : glassStyle.background,
               borderColor: selected ? Colors.primary : glassStyle.border,
@@ -139,7 +140,7 @@ const SwipeableTaskItem = React.memo(({
 
 const styles = StyleSheet.create({
   itemContainer: {
-    // overflow: 'hidden', // Styles moved inline for dynamic handling
+    overflow: 'hidden',
   },
   swipeLeft: {
     width: '100%',
