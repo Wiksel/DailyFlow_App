@@ -193,8 +193,34 @@ const HomeScreen = () => {
         }
     };
 
-    const toggleComplete = (task: Task) => actions.toggleCompleteTask(task, userProfile);
-    const handleTaskAction = (task: Task) => setConfirmModalTask(task);
+    const handlePressTask = useCallback((t: Task) => {
+        navigation.navigate('TaskDetail', { taskId: t.id });
+    }, [navigation]);
+
+    const handleToggleComplete = useCallback((task: Task) => actions.toggleCompleteTask(task, userProfile), [actions, userProfile]);
+    const handleConfirmAction = useCallback((task: Task) => setConfirmModalTask(task), []);
+    const handleOpenTaskMenu = useCallback((t: Task) => setMenuTask(t), []);
+
+    const handleQuickAdd = useCallback((key: string) => {
+        let initial: Date | null = null;
+        const now = new Date();
+        if (key === 'today') { initial = new Date(now); initial.setHours(23, 59, 0, 0); }
+        else if (key === 'tomorrow') { initial = new Date(now); initial.setDate(now.getDate() + 1); initial.setHours(12, 0, 0, 0); }
+        else if (key === 'week') { initial = new Date(now); initial.setDate(now.getDate() + 7); initial.setHours(12, 0, 0, 0); }
+        setAddTaskModalVisible(true);
+        setPendingDeadline(initial ? Timestamp.fromDate(initial) : null);
+    }, []);
+
+    const handleSelectAllSection = useCallback((key: string, items: Task[]) => {
+        setSelectedIds(prev => {
+            const ids = new Set(prev);
+            const list = items as Task[];
+            const allSelected = list.every(it => ids.has(it.id));
+            if (allSelected) { list.forEach(it => ids.delete(it.id)); } else { list.forEach(it => ids.add(it.id)); }
+            return ids;
+        });
+        setSelectionMode(true);
+    }, []);
 
     const toggleSelect = useCallback((task: Task) => {
         setSelectedIds(prev => {
@@ -358,30 +384,15 @@ const HomeScreen = () => {
                 <SectionedTaskList
                     tasks={processedAndSortedTasks}
                     categories={categories}
-                    onPressTask={(t: Task) => navigation.navigate('TaskDetail', { taskId: t.id })}
-                    onToggleComplete={(t: Task) => toggleComplete(t)}
-                    onConfirmAction={(t: Task) => handleTaskAction(t)}
+                    onPressTask={handlePressTask}
+                    onToggleComplete={handleToggleComplete}
+                    onConfirmAction={handleConfirmAction}
                     selectionMode={selectionMode}
                     selectedIds={selectedIds}
                     onToggleSelect={toggleSelect}
-                    onOpenTaskMenu={(t: Task) => setMenuTask(t)}
-                    onSelectAllSection={(key: string, items: Task[]) => {
-                        const ids = new Set(selectedIds);
-                        const list = items as Task[];
-                        const allSelected = list.every(it => ids.has(it.id));
-                        if (allSelected) { list.forEach(it => ids.delete(it.id)); } else { list.forEach(it => ids.add(it.id)); }
-                        setSelectedIds(ids);
-                        setSelectionMode(true);
-                    }}
-                    onQuickAdd={(key: string) => {
-                        let initial: Date | null = null;
-                        const now = new Date();
-                        if (key === 'today') { initial = new Date(now); initial.setHours(23, 59, 0, 0); }
-                        else if (key === 'tomorrow') { initial = new Date(now); initial.setDate(now.getDate() + 1); initial.setHours(12, 0, 0, 0); }
-                        else if (key === 'week') { initial = new Date(now); initial.setDate(now.getDate() + 7); initial.setHours(12, 0, 0, 0); }
-                        setAddTaskModalVisible(true);
-                        setPendingDeadline(initial ? Timestamp.fromDate(initial) : null);
-                    }}
+                    onOpenTaskMenu={handleOpenTaskMenu}
+                    onSelectAllSection={handleSelectAllSection}
+                    onQuickAdd={handleQuickAdd}
                     pinnedIds={pinnedIds}
                     onTogglePinned={togglePinned}
                     ref={taskListRef}
