@@ -32,8 +32,15 @@ service cloud.firestore {
     // USERS (private profile)
     match /users/{userId} {
       allow create: if isSignedIn() && request.auth.uid == userId;
-      // Allow reading specific documents, but prevent listing all users
-      allow get: if isSignedIn();
+      // Allow reading only if owner OR if valid partner
+      allow get: if isSignedIn() && (
+        request.auth.uid == userId
+        || (
+          resource.data.pairId != null
+          && exists(/databases/$(database)/documents/pairs/$(resource.data.pairId))
+          && get(/databases/$(database)/documents/pairs/$(resource.data.pairId)).data.members.hasAll([request.auth.uid, userId])
+        )
+      );
       allow list: if false;
 
       // Owner updates + limited pairId transitions
